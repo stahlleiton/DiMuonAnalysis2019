@@ -1,0 +1,24 @@
+# Data Input Files
+
+DATA_MUON_DIMUON_PbPb5Y18       , /store/user/anstahll/RiceHIN/PbPb2018/Tree/VertexCompositeTree_HISingleMuon_HIRun2018_DiMuMassMin7.root 
+DATA_DIMUON_DIMUON_PbPb5Y18     , /store/user/anstahll/RiceHIN/PbPb2018/Tree/VertexCompositeTree_HIDoubleMuon_HIRun2018_DiMuMassMin7.root
+DATA_DIMUONPERI_DIMUON_PbPb5Y18 , /store/user/anstahll/RiceHIN/PbPb2018/Tree/VertexCompositeTree_HIDoubleMuonPsiPeri_HIRun2018_DiMuMassMin7.root
+DATA_UPC_DIMUON_PbPb5Y18        , /store/user/anstahll/RiceHIN/PbPb2018/Tree/VertexCompositeTree_HIForward_HIRun2018_DiMuMassMin7.root
+
+DATA_MUON_DIMUON_PP5Y17         , /store/user/anstahll/RiceHIN/ppRef2017/Tree/VertexCompositeTree_SingleMuon_Run2017G_DiMuMassMin7.root 
+DATA_DIMUON_DIMUON_PP5Y17       , /store/user/anstahll/RiceHIN/ppRef2017/Tree/VertexCompositeTree_DoubleMuon_Run2017G_DiMuMassMin7.root
+
+DATA_MUON_DIMUON_PA8Y16         , /store/user/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_PASingleMuon_PARun2016C_DiMuMassMin2.root
+DATA_DIMUON_DIMUON_PA8Y16       , /store/user/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_PADoubleMuon_PARun2016C_DiMuMassMin2.root
+DATA_HIGHMULT185_DIMUON_PA8Y16  , /store/user/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_PAHighMultiplicity_PARun2016C_DiMuMassMin2.root
+DATA_HIGHMULT250_DIMUON_PA8Y16  , /store/user/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_PAHighMultiplicity7_PARun2016C_DiMuMassMin2.root
+DATA_MINBIAS_DIMUON_PA8Y16      , /store/user/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_PAMinimumBias_PARun2016C_DiMuMassMin2.root
+
+DATA_MUON_DIMUON_PbPb5Y15       , /store/user/anstahll/RiceHIN/PbPb2015/Tree/VertexCompositeTree_HISingleMuon_HIRun2015_DiMuMassMin7.root
+DATA_DIMUON_DIMUON_PbPb5Y15     , /store/user/anstahll/RiceHIN/PbPb2015/Tree/VertexCompositeTree_HIDoubleMuon_HIRun2015_DiMuMassMin7.root
+DATA_DIMUON_DIMUON_PbPb5Y15     , /store/user/anstahll/RiceHIN/PbPb2015/Tree/VertexCompositeTree_HIDoubleMuonBCD_HIRun2015_DiMuMassMin7.root
+DATA_DIMUONPERI_DIMUON_PbPb5Y15 , /store/user/anstahll/RiceHIN/PbPb2015/Tree/VertexCompositeTree_HIDoubleMuonPeri_HIRun2015_DiMuMassMin7.root
+DATA_UPC_DIMUON_PbPb5Y15        , /store/user/anstahll/RiceHIN/PbPb2015/Tree/VertexCompositeTree_HIForward_HIRun2015_DiMuMassMin7.root
+
+
+# Monte Carlo Input Files
