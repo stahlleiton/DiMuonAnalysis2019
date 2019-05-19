@@ -151,7 +151,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
               RooArgList pdfConstrains;
               StringVector_t varNames = {"m", "Sigma1"};
               for (const auto& v : varNames) {
-                ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
                 // create the Gaussian PDFs for Constrain fits
                 if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
                   ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -160,7 +160,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
               }
               if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
 	      //
-	      // create the PDF                       
+	      // create the PDF
               ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdfName.c_str(), varName.c_str(),
                               Form("m_%s", label.c_str()),
                               Form("Sigma1_%s", label.c_str())
@@ -239,7 +239,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
               RooArgList pdfConstrains;
               StringVector_t varNames = {"m", "Sigma1", "Alpha", "n"};
               for (const auto& v : varNames) {
-                ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
                 // create the Gaussian PDFs for Constrain fits
                 if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
                   ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -248,7 +248,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
               }
               if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
               //
-              // create the PDF              
+              // create the PDF
               ws.factory(Form("CBShape::%s(%s, %s, %s, %s, %s)", pdfName.c_str(), varName.c_str(), 
                               Form("m_%s", label.c_str()),
                               Form("Sigma1_%s", label.c_str()),
@@ -354,11 +354,11 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
                               Form("Sigma1_%s", label.c_str()),
                               Form("Alpha_%s", label.c_str()),
                               Form("n_%s", label.c_str())
-                              ));        
+                              ));
               ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
                               Form("m_%s", label.c_str()), 
                               Form("Sigma2_%s", label.c_str())
-                              )); 
+                              ));
               // Sum the PDFs to get the signal PDF 
               ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
                               Form("f_%s", label.c_str()),
@@ -372,6 +372,96 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
 	      pdfList.add( *ws.pdf(pdfTotName.c_str()) );
               std::cout << "[INFO] " << tag << " Gaussian and Crystal Ball " << varName << " PDF in " << col << " added!" << std::endl; break;
+            }
+	    case (int(Model::Voigtian)):
+            {
+              // check that all input parameters are defined
+              if (!(
+		    info.Par.count("N_"+label) &&
+                    info.Par.count("m_"+label) &&
+                    info.Par.count("Sigma1_"+label) &&
+                    info.Par.count("Sigma2_"+label)
+                    )) {
+                std::cout << "[ERROR] Initial parameters where not found for " << tag << " Voigtian Model in " << col << std::endl; return false;
+              }
+              // create the variables for this model
+              ws.factory( info.Par.at("N_"+label).c_str() );
+              RooArgList pdfConstrains;
+              StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2"};
+              for (const auto& v : varNames) {
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+                // create the Gaussian PDFs for Constrain fits
+                if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
+                  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
+                }
+              }
+              if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
+              //
+              // create the PDF
+              ws.factory(Form("Voigtian::%s(%s, %s, %s, %s)", pdfName.c_str(), varName.c_str(),
+                              Form("m_%s", label.c_str()),
+                              Form("Sigma1_%s", label.c_str()),
+                              Form("Sigma2_%s", label.c_str())
+                              ));
+              ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
+                              pdfName.c_str(),
+                              Form("N_%s", label.c_str())
+                              ));
+	      ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+	      pdfList.add( *ws.pdf(pdfTotName.c_str()) );
+              std::cout << "[INFO] " << tag << " Voigtian " << varName << " PDF in " << col << " added!" << std::endl; break;
+            }
+          case (int(Model::BWCrystalBall)):
+            {
+              // check that all input parameters are defined
+              if (!(
+		    info.Par.count("N_"+label) &&
+                    info.Par.count("m_"+label) &&
+                    info.Par.count("Sigma1_"+label) &&
+                    info.Par.count("Sigma2_"+label) &&
+                    info.Par.count("Alpha_"+label) &&
+                    info.Par.count("n_"+label)
+                    )) {
+                std::cout << "[ERROR] Initial parameters where not found for " << tag << " Breit-Wigner-CrystalBall Model in " << col << std::endl; return false;
+              }
+              // create the variables for this model
+              ws.factory( info.Par.at("N_"+label).c_str() );
+              RooArgList pdfConstrains;
+              StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n"};
+              for (const auto& v : varNames) {
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+                // create the Gaussian PDFs for Constrain fits
+                if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
+                  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
+                }
+              }
+              if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
+              //
+              // create the two PDFs
+	       ws.factory(Form("BreitWigner::%s(%s, %s, %s)", pdf1Name.c_str(), varName.c_str(),
+                              Form("m_%s", label.c_str()), 
+                              Form("Sigma1_%s", label.c_str())
+                              ));
+              ws.factory(Form("CBShape::%s(%s, %s, %s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
+			      Form("Peak_%s[0]", label.c_str()),
+                              Form("Sigma2_%s", label.c_str()),
+                              Form("Alpha_%s", label.c_str()),
+                              Form("n_%s", label.c_str())
+                              ));
+              // covolve the PDFs to get the signal PDF 
+              ws.factory(Form("FCONV::%s(%s, %s, %s)", pdfName.c_str(), varName.c_str(),
+                              pdf1Name.c_str(),
+                              pdf2Name.c_str()
+                              ));
+              ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
+                              pdfName.c_str(),
+                              Form("N_%s", label.c_str())
+                              ));
+	      ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+	      pdfList.add( *ws.pdf(pdfTotName.c_str()) );
+              std::cout << "[INFO] " << tag << " Breit-Wigner-CrystallBall " << varName << " PDF in " << col << " added!" << std::endl; break;
             }
             //-------------------------------------------
             //
@@ -387,7 +477,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      // create the variables for this model
 	      ws.factory( info.Par.at("N_"+label).c_str() );
 	      //
-              // create the PDF           
+              // create the PDF
               ws.factory(Form("Uniform::%s(%s)", pdfName.c_str(), varName.c_str()));
               //
               ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
@@ -412,7 +502,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
               RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -421,7 +511,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      }
 	      if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
 	      //
-              // create the PDF           
+              // create the PDF
               ws.factory(Form("Chebychev::%s(%s, {%s})", pdfName.c_str(), varName.c_str(), 
                               Form("Lambda1_%s", label.c_str())
                               ));
@@ -448,7 +538,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -457,7 +547,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      }
 	      if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
 	      //
-              // create the PDF           
+              // create the PDF
               ws.factory(Form("Chebychev::%s(%s, {%s, %s})", pdfName.c_str(), varName.c_str(), 
                               Form("Lambda1_%s", label.c_str()),
                               Form("Lambda2_%s", label.c_str())
@@ -486,7 +576,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -495,7 +585,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      }
 	      if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
 	      //
-              // create the PDF                 
+              // create the PDF
               ws.factory(Form("Chebychev::%s(%s, {%s, %s, %s})", pdfName.c_str(), varName.c_str(), 
                               Form("Lambda1_%s", label.c_str()),
                               Form("Lambda2_%s", label.c_str()),
@@ -526,7 +616,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -535,7 +625,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      }
 	      if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
 	      //
-              // create the PDF                 
+              // create the PDF
               ws.factory(Form("Chebychev::%s(%s, {%s, %s, %s, %s})", pdfName.c_str(), varName.c_str(), 
                               Form("Lambda1_%s", label.c_str()),
                               Form("Lambda2_%s", label.c_str()),
@@ -568,7 +658,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4", "Lambda5"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -577,7 +667,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      }
 	      if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
 	      //
-              // create the PDF                 
+              // create the PDF
               ws.factory(Form("Chebychev::%s(%s, {%s, %s, %s, %s, %s})", pdfName.c_str(), varName.c_str(), 
                               Form("Lambda1_%s", label.c_str()),
                               Form("Lambda2_%s", label.c_str()),
@@ -612,7 +702,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4", "Lambda5", "Lambda6"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -621,7 +711,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      }
 	      if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
 	      //
-              // create the PDF                 
+              // create the PDF
               ws.factory(Form("Chebychev::%s(%s, {%s, %s, %s, %s, %s, %s})", pdfName.c_str(), varName.c_str(), 
                               Form("Lambda1_%s", label.c_str()),
                               Form("Lambda2_%s", label.c_str()),
@@ -652,7 +742,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -697,7 +787,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -744,7 +834,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -793,7 +883,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -844,7 +934,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4", "Lambda5"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -897,7 +987,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4", "Lambda5", "Lambda6"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -946,7 +1036,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1"};
 	      for (const auto& v : varNames) {
-		ws.factory( info.Par.at(v+"_"+label).c_str() );
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
 		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
@@ -954,7 +1044,7 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 		}
 	      }
 	      if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
-              // create the PDF                 
+              // create the PDF
               ws.factory(Form("Exponential::%s(%s, %s)", pdfName.c_str(), varName.c_str(), 
                               Form("Lambda1_%s", label.c_str())
                               ));
@@ -965,6 +1055,44 @@ bool addCandidateModel(RooWorkspace& ws, const StringDiMap_t& models, const Glob
 	      ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
 	      pdfList.add( *ws.pdf(pdfTotName.c_str()) );
               std::cout << "[INFO] " << tag << " Exponential " << varName << " PDF in " << col << " added!" << std::endl; break;
+            }
+          case (int(Model::ExpError)):
+            {
+              // check that all input parameters are defined 
+              if (!(
+		    info.Par.count("N_"+label) &&
+                    info.Par.count("Sigma_"+label) &&
+                    info.Par.count("xb_"+label) &&
+                    info.Par.count("Lambda_"+label)
+                    )) { 
+                std::cout << "[ERROR] Initial parameters where not found for " << tag << " ExpError in " << col << std::endl; return false;
+              }
+	      // create the variables for this model
+	      ws.factory( info.Par.at("N_"+label).c_str() );
+	      RooArgList pdfConstrains;
+	      StringVector_t varNames = {"Sigma", "xb", "Lambda"};
+	      for (const auto v : varNames) {
+		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		// create the Gaussian PDFs for Constrain fits
+		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
+		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
+		}
+	      }
+	      if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
+              // create the PDF                 
+              ws.factory(Form("RooGenericPdf::%s('TMath::Exp(-@0*@1)*(1.0+TMath::Erf((@0-@2)/@3))', {%s, %s, %s, %s})", pdfName.c_str(), varName.c_str(),
+                              Form("Lambda_%s", label.c_str()),
+                              Form("xb_%s", label.c_str()),
+                              Form("Sigma_%s", label.c_str())
+                              ));
+              ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
+                              pdfName.c_str(),
+                              Form("N_%s", label.c_str())
+                              ));
+	      ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+	      pdfList.add( *ws.pdf(pdfTotName.c_str()) );
+              std::cout << "[INFO] " << tag << " ExpError " << varName << " PDF in " << col << " added!" << std::endl; break;
             }
           default :
             {
@@ -1001,6 +1129,7 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg)
 	std::string foundCha = cha , foundChg = chg , foundCol = col;
 	const StringVector_t tryChannel = { cha , "" };
 	StringVector_t trySystem  = { col , "" };
+	if (info.Flag.at("doPA")) { trySystem.push_back("PA"); }
 	const StringVector_t tryCharge  = { chg , "" };
 	for (const auto& tryCha : tryChannel) {
 	  bool trySuccess = false;
@@ -1048,7 +1177,7 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg)
           if (obj!="Bkg" && v.rfind("Lambda",0)==0) continue;
           if (info.Par.count(v+"_"+objLabel)==0 || info.Par.at(v+"_"+objLabel)=="") {
             if (info.Par.count(v+"_"+objFoundLabel)==0 || info.Par.at(v+"_"+objFoundLabel)=="") {
-              if (v=="Sigma1"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 0.120, 0.005,  0.240); }
+              if (v=="Sigma1"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), MASS.at(obj).at("Width"), 0.05*MASS.at(obj).at("Width"), 3.0*MASS.at(obj).at("Width")); }
               if (v=="rSigma21") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 1.000,  4.000); }
               if (v=="Alpha"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500, 30.000); }
               if (v=="n"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 1.800, 0.500, 10.000); }
@@ -1056,8 +1185,8 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg)
               if (v=="m") {
                 if (MASS.count(obj)>0) { info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(),
                                                                          MASS.at(obj).at("Val"),
-                                                                         (MASS.at(obj).at("Val") - 2.0*MASS.at(obj).at("Width")),
-                                                                         (MASS.at(obj).at("Val") + 2.0*MASS.at(obj).at("Width"))
+                                                                         (MASS.at(obj).at("Val") - 3.0*MASS.at(obj).at("Width")),
+                                                                         (MASS.at(obj).at("Val") + 3.0*MASS.at(obj).at("Width"))
                                                                          ); }
                 else if (obj!="Bkg" || obj.find("Swap")!=std::string::npos) {
                   info.Par[v+"_"+objLabel] = (v+"_"+objLabel+"[10.0,0.0,1000.0]"); std::cout << "[WARNING] Initial value for " << (v+"_"+objLabel) << " was not found!" << std::endl;
@@ -1074,6 +1203,9 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg)
                 if (v=="n2"    ) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("n_"+objLabel).c_str());     }
               }
               if (v.rfind("Lambda",0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 0.0, -100.0, 100.0); }
+              if (v=="Lambda") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(),  0.2, -2.00,  2.00); }
+              if (v=="Sigma" ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(),  0.4,  0.01, 40.00); }
+              if (v=="xb"    ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 10.0,  0.00, 40.00); }
             }
             else {
               std::string content = info.Par.at(v+"_"+objFoundLabel); content = content.substr( content.find("[") );
