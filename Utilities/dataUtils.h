@@ -20,10 +20,20 @@
 #include <vector>
 #include <chrono>
 #include <memory>
+#include <utility>
 #include <algorithm>
 
 
 // Utiliy Functions
+
+
+template<class T, class U = T>
+T exchange(T& obj, U&& new_value)
+{
+    T old_value = std::move(obj);
+    obj = std::forward<U>(new_value);
+    return old_value;
+};
 
 
 bool existDir(const std::string& dir)
@@ -58,7 +68,7 @@ void findSubDir(std::vector<std::string>& dirList, const std::string& dirName)
   if (subdirs) {
     TSystemFile *subdir;
     TIter next(subdirs.get());
-    while ((subdir=(TSystemFile*)next())) {
+    while ( (subdir=dynamic_cast<TSystemFile*>(next())) ) {
       if (subdir->IsDirectory() && std::string(subdir->GetName())!="." && std::string(subdir->GetName())!="..") {
         dirList.push_back(dirName + subdir->GetName() + "/");
         std::cout << "[INFO] Input subdirectory: " << dirName + subdir->GetName() + "/" << " found!" << std::endl;
@@ -75,25 +85,25 @@ void findDirInFile(std::string& dirName, const std::string& fileName)
   if (fName.rfind("/store/", 0)==0) { fName = "root://cms-xrd-global.cern.ch/" + fName; }
   auto file = std::unique_ptr<TFile>(TFile::Open(fName.c_str()));
   if (file && file->IsOpen() && !file->IsZombie()) {
-    const auto& dir = (TDirectory*)file->GetListOfKeys()->First();
+    const auto& dir = dynamic_cast<TDirectory*>(file->GetListOfKeys()->First());
     if (dir) { dirName = dir->GetName(); }
   }
   if (file) file->Close();
 };
 
 
-bool splitString(std::vector< std::string >& output, std::string input, const std::string& delimiter)
+void splitString(std::vector< std::string >& output, const std::string& instr, const std::string& delimiter)
 {
+  auto input = instr;
   // remove spaces from input string
   input.erase(std::remove(input.begin(), input.end(), ' '), input.end());
   // proceed to parse input string
   while(input!="") {
     std::string d = input.substr(0, input.find(delimiter));
     output.push_back(d);
-    if(input.find(delimiter.c_str())!= std::string::npos){ input.erase(0, input.find(delimiter) + delimiter.length()); }
+    if(input.find(delimiter)!=std::string::npos){ input.erase(0, input.find(delimiter) + delimiter.length()); }
     else { input = ""; }
   }
-  return true;
 };
 
 
@@ -193,6 +203,31 @@ static inline void loadBar(const int& iEvent, const int& nEvents, const int& r =
   // ANSI Control codes to go back to the
   // previous line and clear it.
   std::cout << "]\r" << std::flush;
+};
+
+
+void printCPUInfo()
+{
+  CpuInfo_t cpuInfo;
+  gSystem->GetCpuInfo(&cpuInfo, 100);
+  MemInfo_t memInfo;
+  gSystem->GetMemInfo(&memInfo);
+  ProcInfo_t sysInfo;
+  gSystem->GetProcInfo(&sysInfo);
+  std::cout << "[INFO] CPU memory usage: " << std::endl;
+  std::cout << "Total RAM: " << memInfo.fMemTotal << std::endl;
+  std::cout << "Free RAM: " << (memInfo.fMemFree*100./memInfo.fMemTotal) << "%" << std::endl;
+  std::cout << "Used RAM: " << (memInfo.fMemUsed*100./memInfo.fMemTotal) << "%" << std::endl;
+  std::cout << "Total SWAP: " << memInfo.fSwapTotal << std::endl;
+  std::cout << "Free SWAP: " << (memInfo.fSwapFree*100./memInfo.fSwapTotal) << "%" << std::endl;
+  std::cout << "Used SWAP: " << (memInfo.fSwapUsed*100./memInfo.fSwapTotal) << "%" << std::endl;
+  std::cout << "Total CPU: " << cpuInfo.fTotal << std::endl;
+  std::cout << "System CPU: " << (cpuInfo.fSys*100./cpuInfo.fTotal) << "%" << std::endl;
+  std::cout << "User CPU: " << (cpuInfo.fUser*100./cpuInfo.fTotal) << "%" << std::endl;
+  std::cout << "Process System CPU: " << sysInfo.fCpuSys << std::endl;
+  std::cout << "Process User CPU: " << sysInfo.fCpuUser << std::endl;
+  std::cout << "Process Resident Memory: " << sysInfo.fMemResident << std::endl;
+  std::cout << "Process Resident Virtual: " << sysInfo.fMemVirtual << std::endl;
 };
 
 

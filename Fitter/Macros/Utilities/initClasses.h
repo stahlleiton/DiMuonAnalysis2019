@@ -5,41 +5,44 @@
 
 #include <iostream>
 #include <string>
-#include <map>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 
-typedef std::map< std::string , RooWorkspace        > RooWorkspaceMap_t;
-typedef std::vector<            std::string         > StringVector_t;
-typedef std::vector<            StringVector_t      > StringDiVector_t;
-typedef std::map< std::string , StringDiVector_t    > StringDiVectorMap_t;
-typedef std::map< std::string , StringVector_t      > StringVectorMap_t;
-typedef std::map< std::string , StringVectorMap_t   > StringVectorDiMap_t;
-typedef std::map< std::string , StringVectorDiMap_t > StringVectorTriMap_t;
-typedef std::map< std::string , double              > DoubleMap_t;
-typedef std::map< std::string , DoubleMap_t         > DoubleDiMap_t;
-typedef std::map< std::string , std::string         > StringMap_t;
-typedef std::vector<            StringMap_t         > StringMapVector_t;
-typedef std::map< std::string , StringMap_t         > StringDiMap_t;
-typedef std::vector<            StringDiMap_t       > StringDiMapVector_t;
-typedef std::map< std::string , int                 > IntMap_t;
-typedef std::map< std::string , IntMap_t            > IntDiMap_t;
-typedef std::map< std::string , bool                > BoolMap_t;
-typedef std::map< std::string , BoolMap_t           > BoolDiMap_t;
-typedef std::map< std::string , std::vector< int >  > IntVecMap_t;
-typedef std::map< std::string , IntVecMap_t         > IntVecDiMap_t;
-typedef std::map< std::string , IntDiMap_t          > ModelMap;
+typedef std::unordered_map< std::string , RooWorkspace        > RooWorkspaceMap_t;
+typedef std::unordered_set< std::string                       > StringSet_t;
+typedef std::unordered_map< std::string , StringSet_t         > StringSetMap_t;
+typedef std::vector<        std::string                       > StringVector_t;
+typedef std::vector<        StringVector_t                    > StringDiVector_t;
+typedef std::unordered_map< std::string , StringDiVector_t    > StringDiVectorMap_t;
+typedef std::unordered_map< std::string , StringVector_t      > StringVectorMap_t;
+typedef std::unordered_map< std::string , StringVectorMap_t   > StringVectorDiMap_t;
+typedef std::unordered_map< std::string , StringVectorDiMap_t > StringVectorTriMap_t;
+typedef std::unordered_map< std::string , double              > DoubleMap_t;
+typedef std::unordered_map< std::string , DoubleMap_t         > DoubleDiMap_t;
+typedef std::unordered_map< std::string , std::string         > StringMap_t;
+typedef std::vector<        StringMap_t                       > StringMapVector_t;
+typedef std::unordered_map< std::string , StringMap_t         > StringDiMap_t;
+typedef std::vector<        StringDiMap_t                     > StringDiMapVector_t;
+typedef std::unordered_map< std::string , int                 > IntMap_t;
+typedef std::unordered_map< std::string , IntMap_t            > IntDiMap_t;
+typedef std::unordered_map< std::string , bool                > BoolMap_t;
+typedef std::unordered_map< std::string , BoolMap_t           > BoolDiMap_t;
+typedef std::unordered_map< std::string , std::vector< int >  > IntVecMap_t;
+typedef std::unordered_map< std::string , IntVecMap_t         > IntVecDiMap_t;
+typedef std::unordered_map< std::string , IntDiMap_t          > ModelMap;
 
 
 const DoubleDiMap_t MASS = {
-  { "D0",    {{"Val",  1.865}, {"Width", 0.1}, {"PID",    421.0}} },
-  { "LambC", {{"Val",  2.286}, {"Width", 0.1}, {"PID",   4122.0}} },
-  { "JPsi",  {{"Val",  3.096}, {"Width", 0.1}, {"PID",    443.0}} },
-  { "Psi2S", {{"Val",  3.686}, {"Width", 0.1}, {"PID", 100443.0}} },
-  { "Ups1S", {{"Val",  9.460}, {"Width", 0.2}, {"PID",    553.0}} },
-  { "Ups2S", {{"Val", 10.023}, {"Width", 0.2}, {"PID", 100553.0}} },
-  { "Ups3S", {{"Val", 10.355}, {"Width", 0.2}, {"PID", 200553.0}} },
-  { "Z",     {{"Val", 91.188}, {"Width", 3.0}, {"PID",     23.0}} },
+  { "D0",    {{"Val",  1.865}, {"Width", 0.1}, {"PID",    421.0},  {"Min", 1.7},   {"Max", 2.1}} },
+  { "LambC", {{"Val",  2.286}, {"Width", 0.1}, {"PID",   4122.0},  {"Min", 2.0},   {"Max", 2.5}} },
+  { "JPsi",  {{"Val",  3.096}, {"Width", 0.1}, {"PID",    443.0},  {"Min", 2.5},   {"Max", 3.5}} },
+  { "Psi2S", {{"Val",  3.686}, {"Width", 0.1}, {"PID", 100443.0},  {"Min", 3.3},   {"Max", 4.1}} },
+  { "Ups1S", {{"Val",  9.460}, {"Width", 0.2}, {"PID",    553.0},  {"Min", 8.4},  {"Max", 10.6}} },
+  { "Ups2S", {{"Val", 10.023}, {"Width", 0.2}, {"PID", 100553.0},  {"Min", 8.9},  {"Max", 11.1}} },
+  { "Ups3S", {{"Val", 10.355}, {"Width", 0.2}, {"PID", 200553.0},  {"Min", 9.4},  {"Max", 12.6}} },
+  { "Z",     {{"Val", 91.188}, {"Width", 3.0}, {"PID",     23.0}, {"Min", 60.0}, {"Max", 120.0}} },
 };
 
 
@@ -146,8 +149,9 @@ typedef struct GlobalInfo {
   StringMap_t       Par;
   IntMap_t          Int;
   StringVectorMap_t StrV;
+  StringSetMap_t    StrS;
   BoolMap_t         Flag;
-  void              Clear() { this->Var.clear(); this->Par.clear(); this->Int.clear(); this->StrV.clear(); this->Flag.clear(); }
+  void              Clear() { this->Var.clear(); this->Par.clear(); this->Int.clear(); this->StrV.clear(); this->StrS.clear(); this->Flag.clear(); }
   GlobalInfo() {}
   GlobalInfo(const GlobalInfo &ref, bool keep = false) {
     this->Copy(ref, keep);
@@ -181,6 +185,12 @@ typedef struct GlobalInfo {
       this->StrV[i.first] = i.second;
     }
   }
+  void Copy(const StringSetMap_t &ref, bool keep = true) {
+    if (!keep) this->StrS.clear();
+    for (const auto& i : ref) {
+      this->StrS[i.first] = i.second;
+    }
+  }
   void Copy(const BoolMap_t &ref, bool keep = true) {
     if (!keep) this->Flag.clear();
     for (const auto& flag : ref) {
@@ -192,6 +202,7 @@ typedef struct GlobalInfo {
     this->Copy(ref.Par, keep);
     this->Copy(ref.Int, keep);
     this->Copy(ref.StrV, keep);
+    this->Copy(ref.StrS, keep);
     this->Copy(ref.Flag, keep);
   }
   void Print(void) const 
@@ -202,6 +213,10 @@ typedef struct GlobalInfo {
     for (const auto& stV : this->StrV) {
       std::string n = "{ "; for (const auto& ele : stV.second) { n += ele+", "; } n += "}";
       std::cout << "STR: " << stV.first << " >> " << n << std::endl;
+    }
+    for (const auto& stS : this->StrS) {
+      std::string n = "{ "; for (const auto& ele : stS.second) { n += ele+", "; } n += "}";
+      std::cout << "STR: " << stS.first << " >> " << n << std::endl;
     }
     for (const auto& par : this->Par ) { std::cout << "PAR: "  << par.first << " >> " << par.second << std::endl; }
     for (const auto& inT : this->Int ) { std::cout << "INT: "  << inT.first << " >> " << inT.second << std::endl; }
@@ -244,6 +259,15 @@ typedef struct GlobalInfo {
     }
     return true;
   }
+  bool operator == (const StringSetMap_t &ref) const
+  {
+    if (ref.size() != this->StrS.size()) return false;
+    for (const auto& i : this->StrS) {
+      if (ref.count(i.first)==0) return false;
+      if (i.second != ref.at(i.first)) return false;
+    }
+    return true;
+  }
   bool operator == (const BoolMap_t &ref) const
   {
     if (ref.size() != this->Flag.size()) return false;
@@ -257,6 +281,7 @@ typedef struct GlobalInfo {
   bool operator != ( const StringMap_t        &ref ) const { if (*this == ref) { return false; } return true; }
   bool operator != ( const IntMap_t           &ref ) const { if (*this == ref) { return false; } return true; }
   bool operator != ( const StringVectorMap_t  &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const StringSetMap_t     &ref ) const { if (*this == ref) { return false; } return true; }
   bool operator != ( const BoolMap_t          &ref ) const { if (*this == ref) { return false; } return true; }
   bool operator == ( const GlobalInfo         &ref) const
   {
@@ -264,14 +289,15 @@ typedef struct GlobalInfo {
     if ( *this != ref.Par  ) return false;
     if ( *this != ref.Int  ) return false;
     if ( *this != ref.StrV ) return false;
+    if ( *this != ref.StrS ) return false;
     if ( *this != ref.Flag ) return false;
     return true;
   }
 } GlobalInfo;
 
 
-typedef std::vector<            GlobalInfo          > GlobalInfoVector_t;
-typedef std::map< std::string , GlobalInfoVector_t  > GlobalInfoVectorMap_t;
+typedef std::vector< GlobalInfo > GlobalInfoVector_t;
+typedef std::unordered_map< std::string , GlobalInfoVector_t  > GlobalInfoVectorMap_t;
 
 
 #endif // #ifndef initClasses_h

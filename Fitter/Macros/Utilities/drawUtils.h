@@ -36,12 +36,14 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <map>
+#include <unordered_map>
 #include <vector>
 
 
-typedef std::map< std::string , std::string > StringMap_t;
-typedef std::map< std::string , StringMap_t > StringDiMap_t;
+typedef std::unordered_map< std::string , std::string > StringMap_d;
+typedef std::unordered_map< std::string , StringMap_d > StringDiMap_d;
+typedef std::unordered_map< std::string , std::unique_ptr<RooPlot> > RooPlotPtrMap_d;
+typedef std::unordered_map< std::string , TPad*       > PadPtrMap_d; // Unique Pointer does produce Segmentation Fault, so don't use it
 
 
 void formatLegendEntry(TLegendEntry& e, const double& size=0.060)
@@ -70,10 +72,10 @@ void getPoint(const RooHist& rH, const uint& i, double& x, double& y, double& ex
 bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool& useAverage = true)
 {
   // Find curve object
-  auto rFit = (RooCurve*) frame.findObject(0, RooCurve::Class());
+  const auto& rFit = dynamic_cast<RooCurve*>(frame.findObject(0, RooCurve::Class()));
   if (!rFit) { std::cout << "[ERROR] The latest RooCurve was not found" << std::endl; return false; }
   // Find histogram object
-  auto rData = (RooHist*) frame.findObject(0, RooHist::Class());
+  const auto& rData = dynamic_cast<RooHist*>(frame.findObject(0, RooHist::Class()));
   if (!rData) { std::cout << "[ERROR] The latest RooHist was not found" << std::endl; return false; }
   // Determine range of curve
   double xstart, xstop, yDummy;
@@ -117,7 +119,8 @@ void setPlotRange(RooPlot& frame, const RooWorkspace& ws, const std::string& var
   TH1D hData, hFit;
   if (ws.data(dsName.c_str())!=NULL) {
     auto h = std::unique_ptr<TH1>(ws.data(dsName.c_str())->createHistogram("hist", *ws.var(varName.c_str()), RooFit::Binning(nBins, frame.GetXaxis()->GetXmin(), frame.GetXaxis()->GetXmax())));
-    hData = *((TH1D*)h.get());
+    const auto& h1D = dynamic_cast<TH1D*>(h.get());
+    if (h1D) { hData = *h1D; }
   }
   else {
     if (!rooPlotToTH1(hData, hFit, frame)) { std::cout << "[ERROR] Could not find the RooHist from the frame!" << std::endl; return; }
@@ -176,9 +179,9 @@ bool printGoF(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& v
   //
   if (ws.data(dataLabel.c_str())==NULL) { std::cout << "[ERROR] Dataset " << dataLabel << " was not found!" << std::endl; return false; }
   if (ws.pdf (pdfLabel.c_str() )==NULL) { std::cout << "[ERROR] PDF "     << pdfLabel  << " was not found!" << std::endl; return false; }
-  auto dataP = (RooDataSet*)ws.data(dataLabel.c_str());
-  auto pdfP  = (RooAbsPdf* )ws.pdf (pdfLabel.c_str() );
-  auto varP  = (RooRealVar*)ws.var (varLabel.c_str() );
+  const auto& dataP = dynamic_cast<RooDataSet*>(ws.data(dataLabel.c_str()));
+  const auto& pdfP  = dynamic_cast<RooAbsPdf* >(ws.pdf (pdfLabel.c_str() ));
+  const auto& varP  = dynamic_cast<RooRealVar*>(ws.var (varLabel.c_str() ));
   //
   // Find curve object
   RooCurve* rFit = frame.getCurve(Form("plot_%s", pdfLabel.c_str()));
@@ -277,26 +280,27 @@ void divideBand(RooCurve& band, const RooCurve& cDen)
 };
 
 
-bool addRatioBand(RooPlot& outFrame, RooPlot& frame, const RooWorkspace& ws, const std::string& pdfName, const std::string& dsName, const std::string& curvename = "", const double& Z = 1.0)
+bool addRatioBand(RooPlot& outFrame, RooPlot& frame, const RooWorkspace& ws, const std::string& pdfName, const std::string& dsName,
+		  const std::string& varRange, const std::string& cName = "cenCurve", const double& Z = 1.0)
 {
   // Get normalization
   const double& norm = ws.data(dsName.c_str())->sumEntries();
   // Find central curve
-  ws.pdf(pdfName.c_str())->plotOn(&frame, RooFit::Name("cenCurve"), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+  ws.pdf(pdfName.c_str())->plotOn(&frame, RooFit::Name(cName.c_str()), RooFit::Range(varRange.c_str()), RooFit::NormRange(varRange.c_str()),
                                   RooFit::Normalization(norm, RooAbsReal::NumEvent)
                                   );
-  auto rFit = (RooCurve*) frame.findObject("cenCurve");
-  if (!rFit) { std::cout << "[ERROR] addRatioBand(cenCurve) cannot find curve" << std::endl; return false; }
+  const auto& rFit = dynamic_cast<RooCurve*>(frame.findObject(cName.c_str()));
+  if (!rFit) { std::cout << "[ERROR] addRatioBand("<<cName<<") cannot find curve" << std::endl; return false; }
   RooCurve cenCurve = *rFit;
   frame.remove(0, kFALSE);
   // Get the fit results
-  RooFitResult* fitResult = (RooFitResult*) ws.obj(Form("fitResult_%s", pdfName.c_str()));
+  const auto& fitResult = dynamic_cast<RooFitResult*>(ws.obj(Form("fitResult_%s", pdfName.c_str())));
   // Create the Error Band
-  ws.pdf(pdfName.c_str())->plotOn(&frame, RooFit::Name("band"), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
-                                  RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::VisualizeError(*fitResult, 1, true)
+  ws.pdf(pdfName.c_str())->plotOn(&frame, RooFit::Name("band"), RooFit::Range(varRange.c_str()), RooFit::NormRange(varRange.c_str()),
+                                  RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::VisualizeError(*fitResult, Z, true)
                                   );
   // Find band
-  auto band = (RooCurve*) frame.getCurve("band");
+  const auto& band = dynamic_cast<RooCurve*>(frame.getCurve("band"));
   if (!band) { std::cout << "[ERROR] addRatioBand(band) cannot find curve" << std::endl; return false; }
   frame.remove(0, kFALSE);
   // Normalize the cenCurve
@@ -312,10 +316,10 @@ bool addRatioBand(RooPlot& outFrame, RooPlot& frame, const RooWorkspace& ws, con
 bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string& histname, const std::string& curvename, const bool& useAverage)
 {
   // Find curve object
-  auto rFit = (RooCurve*) frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class());
+  const auto& rFit = dynamic_cast<RooCurve*>(frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class()));
   if (!rFit) { std::cout << "[ERROR] makePullHist(" << curvename << ") cannot find curve" << std::endl; return false; }
   // Find histogram object
-  auto rData = (RooHist*) frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class());
+  const auto& rData = dynamic_cast<RooHist*>(frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class()));
   if (!rData) { std::cout << "[ERROR] makePullHist(" << histname  << ") cannot find histogram" << std::endl; return false; }
   // Determine range of curve
   double xstart, xstop, yDummy;
@@ -354,10 +358,10 @@ bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string& histn
 bool makeRatioHist(RooHist& rHist, const RooPlot& frame, const std::string& histname, const std::string& curvename, const bool& useAverage)
 {
   // Find curve object
-  auto rFit = (RooCurve*) frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class());
+  const auto& rFit = dynamic_cast<RooCurve*>(frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class()));
   if (!rFit) { std::cout << "[ERROR] makeRatioHist(" << curvename << ") cannot find curve" << std::endl; return false; }
   // Find histogram object
-  auto rData = (RooHist*) frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class());
+  const auto& rData = dynamic_cast<RooHist*>(frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class()));
   if (!rData) { std::cout << "[ERROR] makeRatioHist(" << histname  << ") cannot find histogram" << std::endl; return false; }
   // Determine range of curve
   double xstart, xstop, yDummy;
@@ -417,16 +421,18 @@ bool isParAtLimit(const RooRealVar& var)
 bool getVar(std::vector<RooRealVar>& varVec, const RooWorkspace& ws, const std::string& name, const std::string& pdfName)
 {
   varVec.clear();
-  std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(ws.allVars().selectByAttrib("Constant", kFALSE)->createIterator());
-  for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
+  auto parIt = std::unique_ptr<TIterator>(ws.allVars().selectByAttrib("Constant", kFALSE)->createIterator());
+  for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next() ) {
+    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
     std::string s(it->GetName());
     if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
     if((s.find("OS")!=std::string::npos)!=(pdfName.find("OS")!=std::string::npos)){ continue; }
     if (s.find(name)!=std::string::npos) { varVec.push_back(*it);}
   }
   if (varVec.size()>0) return true;
-  std::unique_ptr<TIterator> fncIt = std::unique_ptr<TIterator>(ws.allFunctions().selectByAttrib("Constant", kFALSE)->createIterator());
-  for (RooRealVar* it = (RooRealVar*)fncIt->Next(); it!=NULL; it = (RooRealVar*)fncIt->Next() ) {
+  auto fncIt = std::unique_ptr<TIterator>(ws.allFunctions().selectByAttrib("Constant", kFALSE)->createIterator());
+  for (auto itp = fncIt->Next(); itp!=NULL; itp = fncIt->Next() ) {
+    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
     std::string s(it->GetName());
     if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
     if((s.find("OS")!=std::string::npos)!=(pdfName.find("OS")!=std::string::npos)){ continue; }

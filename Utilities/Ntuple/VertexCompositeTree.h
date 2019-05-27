@@ -1,5 +1,5 @@
-#ifndef VertexCompositeNtuple_h
-#define VertexCompositeNtuple_h
+#ifndef VertexCompositeTree_h
+#define VertexCompositeTree_h
 
 // Header file for ROOT classes
 #include <TROOT.h>
@@ -24,12 +24,12 @@ const UInt_t NCAND = 500;
 const UInt_t NGEN  = 10;
 
 
-class VertexCompositeNtuple {
+class VertexCompositeTree {
 
 public :
 
-  VertexCompositeNtuple();
-  virtual ~VertexCompositeNtuple();
+  VertexCompositeTree();
+  virtual ~VertexCompositeTree();
   virtual Bool_t       GetTree         (const std::vector< std::string >&, const std::string& treeName="dimucontana");
   virtual Bool_t       GetTree         (const std::string&, const std::string& treeName="dimucontana");
   virtual Int_t        GetEntry        (Long64_t);
@@ -526,23 +526,23 @@ public :
   TBranch          *b_PhiD2_gen;   //!
 };
 
-VertexCompositeNtuple::VertexCompositeNtuple() : fChain_(0)
+VertexCompositeTree::VertexCompositeTree() : fChain_(0)
 {
 };
 
-VertexCompositeNtuple::~VertexCompositeNtuple()
+VertexCompositeTree::~VertexCompositeTree()
 {
   if (fChain_) { const auto& f = fChain_->GetCurrentFile(); if (f) { f->Close(); delete f; }; fChain_->Reset(); }
   for (auto& c : fChainM_) { if (c.second) { c.second->Reset(); } }
 };
 
-Bool_t VertexCompositeNtuple::GetTree(const std::string& fileName, const std::string& treeName)
+Bool_t VertexCompositeTree::GetTree(const std::string& fileName, const std::string& treeName)
 {
   const auto& fileNames = std::vector<std::string>({fileName});
   return GetTree(fileNames, treeName);
 };
 
-Bool_t VertexCompositeNtuple::GetTree(const std::vector< std::string >& inFileName, const std::string& treeName)
+Bool_t VertexCompositeTree::GetTree(const std::vector< std::string >& inFileName, const std::string& treeName)
 {
   // Check the File Names
   auto fileName = inFileName;
@@ -554,21 +554,21 @@ Bool_t VertexCompositeNtuple::GetTree(const std::vector< std::string >& inFileNa
   std::cout << "[INFO] Extracting tree: " << treeName.c_str() << std::endl;
   fChainM_.clear();
   TDirectory * dir;
-  if (fileName[0].rfind("root://", 0)==0) { dir = (TDirectory*)f->Get(treeName.c_str()); }
-  else { dir = (TDirectory*)f->Get((fileName[0]+":/"+treeName).c_str()); }
+  if (fileName[0].rfind("root://", 0)==0) { dir = dynamic_cast<TDirectory*>(f->Get(treeName.c_str())); }
+  else { dir = dynamic_cast<TDirectory*>(f->Get((fileName[0]+":/"+treeName).c_str())); }
   if (!dir) { std::cout << "[ERROR] Failed to open directory: " << treeName << std::endl; return false; }
-  if (dir->GetListOfKeys()->Contains("VertexCompositeNtuple")) { fChainM_["VertexCompositeNtuple"] = new TChain((treeName+"/VertexCompositeNtuple").c_str() , "VertexCompositeNtuple"); }
-  if (fChainM_.size()==0) { std::cout << "[ERROR] fChain VertexCompositeNtuple was not created, some input files are   missing" << std::endl; return false; }
+  if (dir->GetListOfKeys()->Contains("VertexCompositeTree")) { fChainM_["VertexCompositeTree"] = new TChain((treeName+"/VertexCompositeTree").c_str() , "VertexCompositeTree"); }
+  if (fChainM_.size()==0) { std::cout << "[ERROR] fChain VertexCompositeTree was not created, some input files are   missing" << std::endl; return false; }
   // Add the files in the TChain
   for (auto& c : fChainM_) {
     for (auto& f : fileName) { c.second->Add(Form("%s/%s/%s", f.c_str(), treeName.c_str(), c.first.c_str())); }; c.second->GetEntries();
   }
-  for (auto& c : fChainM_) { if (!c.second) { std::cout << "[ERROR] fChain " << c.first << " was not created, some input files are missing" << std::endl; return false; } }
+  for (const auto& c : fChainM_) { if (!c.second) { std::cout << "[ERROR] fChain " << c.first << " was not created, some input files are missing" << std::endl; return false; } }
   // Initialize the input TChains (set their branches)
   InitTree();
   // Add Friend TChains
   if (fChain_) { delete fChain_; }
-  fChain_ = (TChain*)fChainM_.begin()->second->Clone(treeName.c_str());
+  fChain_ = dynamic_cast<TChain*>(fChainM_.begin()->second->Clone(treeName.c_str()));
   for (auto& c : fChainM_) {
     if (c.second != fChain_) {
       c.second->SetMakeClass(1); // For the proper setup.
@@ -582,7 +582,7 @@ Bool_t VertexCompositeNtuple::GetTree(const std::vector< std::string >& inFileNa
   return true;
 };
 
-Int_t VertexCompositeNtuple::GetEntry(Long64_t entry)
+Int_t VertexCompositeTree::GetEntry(Long64_t entry)
 {
   // Read contents of entry.
   entry_ = entry;
@@ -595,7 +595,7 @@ Int_t VertexCompositeNtuple::GetEntry(Long64_t entry)
   return status;
 };
 
-Long64_t VertexCompositeNtuple::LoadTree(Long64_t entry)
+Long64_t VertexCompositeTree::LoadTree(Long64_t entry)
 {
   // Set the environment to read one entry
   if (!fChain_) return -5;
@@ -604,13 +604,13 @@ Long64_t VertexCompositeNtuple::LoadTree(Long64_t entry)
   return centry;
 };
 
-char VertexCompositeNtuple::GetBranchStatus(const std::string& n)
+char VertexCompositeTree::GetBranchStatus(const std::string& n)
 { 
   if (!fChain_ || !(fChain_->GetBranch(n.c_str()))) return -1;
   return fChain_->GetBranchStatus(n.c_str());
 };
 
-void VertexCompositeNtuple::SetBranch(const std::string& n)
+void VertexCompositeTree::SetBranch(const std::string& n)
 {
   if (GetBranchStatus(n) == 0) {
     fChain_->SetBranchStatus(Form("*%s*", n.c_str()), 1);
@@ -618,7 +618,7 @@ void VertexCompositeNtuple::SetBranch(const std::string& n)
   }
 };
 
-void VertexCompositeNtuple::InitTree(void)
+void VertexCompositeTree::InitTree(void)
 {
   // Generate the dictionary's needed
   GenerateDictionaries();
@@ -627,8 +627,8 @@ void VertexCompositeNtuple::InitTree(void)
   trigMuon1_ = 0;
   trigMuon2_ = 0;
   
-  if (fChainM_.count("VertexCompositeNtuple")>0) {
-    auto& fChain = fChainM_.at("VertexCompositeNtuple");
+  if (fChainM_.count("VertexCompositeTree")>0) {
+    auto& fChain = fChainM_.at("VertexCompositeTree");
 
     // SET EVENT INFO BRANCHES
     if (fChain->GetBranch("RunNb"))                       fChain->SetBranchAddress("RunNb",                     &RunNb_,                      &b_RunNb                     );
@@ -763,7 +763,7 @@ void VertexCompositeNtuple::InitTree(void)
   }
 };
 
-void VertexCompositeNtuple::Clear(void)
+void VertexCompositeTree::Clear(void)
 {
   if (fChainM_.size()==0) return;
 
@@ -919,7 +919,7 @@ void VertexCompositeNtuple::Clear(void)
   if (GetBranchStatus("PhiD2_gen")==1)    std::fill(PhiD2_gen_, PhiD2_gen_+nGen, -9.);
 };
 
-void VertexCompositeNtuple::GenerateDictionaries(void)
+void VertexCompositeTree::GenerateDictionaries(void)
 {
   std::vector< std::string > inList = {
     "vector<vector<UChar_t>>",
@@ -932,7 +932,7 @@ void VertexCompositeNtuple::GenerateDictionaries(void)
   gSystem->ChangeDirectory(CWD.c_str());
 };
 
-Bool_t VertexCompositeNtuple::tightMuon1(const UInt_t& iC, const std::string& type)
+Bool_t VertexCompositeTree::tightMuon1(const UInt_t& iC, const std::string& type)
 {
   if      (type==""   ) { return tightMuon1()[iC]; } 
   else if (type=="Y15") {
@@ -951,7 +951,7 @@ Bool_t VertexCompositeNtuple::tightMuon1(const UInt_t& iC, const std::string& ty
   return false;
 };
 
-Bool_t VertexCompositeNtuple::tightMuon2(const UInt_t& iC, const std::string& type)
+Bool_t VertexCompositeTree::tightMuon2(const UInt_t& iC, const std::string& type)
 {
   if      (type==""   ) { return tightMuon2()[iC]; }
   else if (type=="Y15") {
@@ -970,7 +970,7 @@ Bool_t VertexCompositeNtuple::tightMuon2(const UInt_t& iC, const std::string& ty
   return false;
 };
 
-Bool_t VertexCompositeNtuple::hybridMuon1(const UInt_t& iC, const std::string& type)
+Bool_t VertexCompositeTree::hybridMuon1(const UInt_t& iC, const std::string& type)
 {
   if      (type==""   ) { return (hybridMuon1()[iC] && trkMuon1()[iC]); }
   else if (type=="Y15") {
@@ -987,7 +987,7 @@ Bool_t VertexCompositeNtuple::hybridMuon1(const UInt_t& iC, const std::string& t
   return false;
 };
 
-Bool_t VertexCompositeNtuple::hybridMuon2(const UInt_t& iC, const std::string& type)
+Bool_t VertexCompositeTree::hybridMuon2(const UInt_t& iC, const std::string& type)
 {
   if      (type==""   ) { return (hybridMuon2()[iC] && trkMuon2()[iC]); }
   else if (type=="Y15") {
@@ -1004,7 +1004,7 @@ Bool_t VertexCompositeNtuple::hybridMuon2(const UInt_t& iC, const std::string& t
   return false;
 };
 
-Bool_t VertexCompositeNtuple::softMuon1(const UInt_t& iC, const std::string& type)
+Bool_t VertexCompositeTree::softMuon1(const UInt_t& iC, const std::string& type)
 {
   if      (type==""   ) { return softMuon1()[iC]; }
   else if (type=="POG") {
@@ -1016,7 +1016,7 @@ Bool_t VertexCompositeNtuple::softMuon1(const UInt_t& iC, const std::string& typ
   return false;
 };
 
-Bool_t VertexCompositeNtuple::softMuon2(const UInt_t& iC, const std::string& type)
+Bool_t VertexCompositeTree::softMuon2(const UInt_t& iC, const std::string& type)
 {
   if      (type==""   ) { return softMuon2()[iC]; }
   else if (type=="POG") {
@@ -1028,7 +1028,7 @@ Bool_t VertexCompositeNtuple::softMuon2(const UInt_t& iC, const std::string& typ
   return false;
 };
 
-Double_t VertexCompositeNtuple::phiAsym(const UInt_t& iC)
+Double_t VertexCompositeTree::phiAsym(const UInt_t& iC)
 {
   const auto& pT1 = pTD1()[iC];
   const auto& phi1 = PhiD1()[iC];

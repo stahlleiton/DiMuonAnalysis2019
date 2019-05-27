@@ -1,2 +1,2 @@
 Cand_AbsRap,Cand_Pt,Centrality,Model_Ups1SToMuMu_PA8Y16
-0.0-2.4,0.0-0.3,0.0-200.0,DoubleCrystalBall[Ups1S]+DoubleCrystalBall[Ups2S]+DoubleCrystalBall[Ups3S]+ExpError[Bkg]
+0.0-2.4,0.0-100.0,0.0-200.0,DoubleCrystalBall[Ups1S]+DoubleCrystalBall[Ups2S]+DoubleCrystalBall[Ups3S]+ExpError[Bkg]

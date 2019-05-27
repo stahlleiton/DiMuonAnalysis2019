@@ -19,13 +19,13 @@
 
 TH1* rebinhist(const TH1& hist, const double& xmin, const double& xmax, const std::string& type="Old")
 {
-  std::unique_ptr<TH1> hcopy = std::unique_ptr<TH1>((TH1*) hist.Clone("hcopy"));
+  auto hcopy = std::unique_ptr<TH1>(dynamic_cast<TH1*>(hist.Clone("hcopy")));
   // range of the new hist
   int imin = hcopy->FindBin(xmin);
   if (imin>=hcopy->GetNbinsX()) imin=1;
   int imax = hcopy->FindBin(0.999999*xmax);
   if (imax<=1) imax=hcopy->GetNbinsX();
-  vector<double> newbins;
+  std::vector<double> newbins;
   newbins.push_back(hcopy->GetBinLowEdge(imin));
   for (int i=imin; i<=imax; i++) {
     if (hcopy->GetBinContent(i)>0.0) {
@@ -50,7 +50,7 @@ TH1* rebinhist(const TH1& hist, const double& xmin, const double& xmax, const st
     return hcopy->Rebin(newbins.size()-1, "hnew", newbins.data());
   }
   if (type=="New") {
-    return (TH1*)hcopy->Clone("hnew");
+    return dynamic_cast<TH1*>(hcopy->Clone("hnew"));
   }
   return NULL;
 };
@@ -66,9 +66,9 @@ bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& 
   if (ws.data(dsName.c_str())->numEntries()<=2.0) { std::cout << "[WARNING] DataSet " << dsName << " has too few events!" << std::endl; return false; }
   if (ws.var(var.c_str())==NULL) { std::cout << "[WARNING] Variable " << var << " was not found!" << std::endl; return false; }
   // Create the histogram
-  std::string histName = pdfName;
+  auto histName = pdfName;
   histName.replace(histName.find("pdf"), std::string("pdf").length(), "h");
-  std::unique_ptr<TH1D> hist = std::unique_ptr<TH1D>((TH1D*)ws.data(dsName.c_str())->createHistogram(histName.c_str(), *ws.var(var.c_str()), RooFit::Binning(int(range[0]), range[1], range[2])));
+  std::unique_ptr<TH1D> hist = std::unique_ptr<TH1D>(dynamic_cast<TH1D*>(ws.data(dsName.c_str())->createHistogram(histName.c_str(), *ws.var(var.c_str()), RooFit::Binning(int(range[0]), range[1], range[2]))));
   if (hist==NULL) { std::cout << "[WARNING] Histogram " << histName << " is NULL!" << std::endl; return false; }
   // Cleaning the input histogram
   // 1) Remove the Under and Overflow bins
@@ -76,9 +76,9 @@ bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& 
   // 2) Set negative bin content to zero
   for (int i=0; i<=hist->GetNbinsX(); i++) { if (hist->GetBinContent(i)<0.0) { hist->SetBinContent(i, 0.0); } }
   // 2) Reduce the range of histogram and rebin it
-  hist.reset((TH1D*)rebinhist(*hist, range[1], range[2]));
+  hist.reset(dynamic_cast<TH1D*>(rebinhist(*hist, range[1], range[2])));
   if (hist==NULL) { std::cout << "[WARNING] Cleaned Histogram of " << histName << " is NULL!" << std::endl; return false; }
-  std::string dataName = pdfName;
+  auto dataName = pdfName;
   dataName.replace(dataName.find("pdf"), std::string("pdf").length(), "dh");
   std::unique_ptr<RooDataHist> dataHist = std::unique_ptr<RooDataHist>(new RooDataHist(dataName.c_str(), "", *ws.var(var.c_str()), hist.get()));
   if (dataHist==NULL) { std::cout << "[WARNING] DataHist used to create " << pdfName << " failed!" << std::endl; return false; } 
@@ -88,8 +88,8 @@ bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& 
   }
   ws.import(*dataHist);
   ws.var(var.c_str())->setBins(int(range[0])); // Bug Fix
-  std::unique_ptr<RooHistPdf> pdf = std::unique_ptr<RooHistPdf>(new RooHistPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(var.c_str()), *((RooDataHist*)ws.data(dataName.c_str()))));
-  //std::unique_ptr<RooKeysPdf> pdf = std::unique_ptr<RooKeysPdf>(new RooKeysPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(var.c_str()), *((RooDataSet*)ws.data(dsName.c_str())), RooKeysPdf::NoMirror, 0.4));
+  std::unique_ptr<RooHistPdf> pdf = std::unique_ptr<RooHistPdf>(new RooHistPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(var.c_str()), *dynamic_cast<RooDataHist*>(ws.data(dataName.c_str()))));
+  //std::unique_ptr<RooKeysPdf> pdf = std::unique_ptr<RooKeysPdf>(new RooKeysPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(var.c_str()), *dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())), RooKeysPdf::NoMirror, 0.4));
   if (pdf==NULL) { std::cout << "[WARNING] RooHistPDF " << pdfName << " is NULL!" << std::endl; return false; }
   ws.import(*pdf);
   return true;

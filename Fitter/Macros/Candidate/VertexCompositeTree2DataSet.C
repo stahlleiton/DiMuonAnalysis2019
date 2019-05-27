@@ -3,16 +3,16 @@
 // Package:    Fitter
 //
 /*
- Description: VertexCompositeNtuple to RooDataSet converter.
+ Description: VertexCompositeTree to RooDataSet converter.
  Implementation:
- This program create RooDataSets from VertexCompositeNtuples.
+ This program create RooDataSets from VertexCompositeTrees.
  */
 // Original Author:  Andre Stahl,
 //         Created:  Feb 17 19:08 CET 2019
 //
 //
-#ifndef VertexCompositeNtuple2DataSet_C
-#define VertexCompositeNtuple2DataSet_C
+#ifndef Candidate_VertexCompositeTree2DataSet_C
+#define Candidate_VertexCompositeTree2DataSet_C
 
 
 #include "TROOT.h"
@@ -30,16 +30,16 @@
 #include <memory>
 #include <vector>
 
-#include "../../../Utilities/Ntuple/VertexCompositeNtuple.h"
+#include "../../../Utilities/Ntuple/VertexCompositeTree.h"
 #include "../../../Utilities/RunInfo/eventUtils.h"
 #include "../../../Utilities/dataUtils.h"
 #include "../Utilities/initClasses.h"
 
 
-bool checkVertexCompositeDS ( const RooDataSet& ds , const std::string& dsName , const std::string& analysis );
+bool checkVertexCompositeDS ( const RooDataSet& ds , const std::string& analysis );
 
 
-bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVectorMap_t& fileInfo, const GlobalInfo& info, const bool& updateDS)
+bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVectorMap_t& fileInfo, const GlobalInfo& info, const bool& updateDS)
 {
   StringVector_t outputFileNames;
   const auto& chaDir = info.Par.at("channelDir");
@@ -67,10 +67,10 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
       std::cout << "[INFO] Loading RooDataSets from " << outputFileNames[i] << std::endl;
       auto dbFile = std::unique_ptr<TFile>(TFile::Open(outputFileNames[i].c_str(),"READ"));
       if (!dbFile || !dbFile->IsOpen() || dbFile->IsZombie()) { std::cout << "[ERROR] File: " << outputFileNames[i] << " is corrupted!" << std::endl; return false; }
-      dataOS.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)dbFile->Get(Form("dOS_RAW_%s", dsNames[i].c_str()))) );
-      dataSS.push_back( std::unique_ptr<RooDataSet>((RooDataSet*)dbFile->Get(Form("dSS_RAW_%s", dsNames[i].c_str()))) );
-      if (dataOS[i]==NULL || checkVertexCompositeDS(*dataOS[i], dsNames[i], type)==false) { createDS = true; }
-      if (dataSS[i]==NULL || checkVertexCompositeDS(*dataSS[i], dsNames[i], type)==false) { doSS = false; }
+      dataOS.push_back( std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(dbFile->Get(Form("dOS_RAW_%s", dsNames[i].c_str())))) );
+      dataSS.push_back( std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(dbFile->Get(Form("dSS_RAW_%s", dsNames[i].c_str())))) );
+      if (dataOS[i]==NULL || checkVertexCompositeDS(*dataOS[i], type)==false) { createDS = true; }
+      if (dataSS[i]==NULL || checkVertexCompositeDS(*dataSS[i], type)==false) { doSS = false; }
       dbFile->Close();
     }
     else { createDS = true; break; }
@@ -82,10 +82,10 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
     std::string dirName = "";
     findDirInFile(dirName, inputFileNames[0]);
     //
-    auto candOSTree = std::unique_ptr<VertexCompositeNtuple>(new VertexCompositeNtuple());
+    auto candOSTree = std::unique_ptr<VertexCompositeTree>(new VertexCompositeTree());
     if (!candOSTree->GetTree(inputFileNames, dirName)) return false;
     const auto& nentries = candOSTree->GetEntries();
-    auto candSSTree = std::unique_ptr<VertexCompositeNtuple>(new VertexCompositeNtuple());
+    auto candSSTree = std::unique_ptr<VertexCompositeTree>(new VertexCompositeTree());
     doSS = candSSTree->GetTree(inputFileNames, dirName+"_wrongsign");
     if (doSS==false) { std::cout << "[INFO] Tree: " << dirName+"_wrongsign not found, will be ignored!" << std::endl; }
     if (doSS && candSSTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries in candTreeSS!" << std::endl; return false; }
@@ -109,7 +109,8 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
     //
     auto cols = RooArgSet(candMass, candPt, candRap, candLen, cent, nTrk);
     cols.add(dau1Pt); cols.add(dau1Eta); cols.add(dau2Pt); cols.add(dau2Eta);
-    cols.add(candAPhi); cols.add(candQual); cols.add(isSwap);
+    cols.add(candAPhi); cols.add(candQual);
+    if (isMC) { cols.add(isSwap); }
     //
     ///// Initiliaze RooDataSets
     dataOS.clear(); dataSS.clear();
@@ -134,7 +135,7 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
     std::vector<uint> evtSelIdx;
     if      (PD=="UPC" && evtCol=="PbPb5Y18") { evtSelIdx.push_back(PbPb::R5TeV::Y2018::primaryVertexFilter); evtSelIdx.push_back(PbPb::R5TeV::Y2018::clusterCompatibilityFilter); }
     else if (PD=="UPC" && evtCol=="PbPb5Y15") { evtSelIdx.push_back(PbPb::R5TeV::Y2015::primaryVertexFilter); evtSelIdx.push_back(PbPb::R5TeV::Y2018::clusterCompatibilityFilter); }
-    else if (evtCol=="PP13Y17" ) { evtSelIdx.push_back(pp::R13TeV::Y2017::colEvtSel); }
+    else if (evtCol=="PP13Y18" ) { evtSelIdx.push_back(pp::R13TeV::Y2018::colEvtSel); }
     else if (evtCol=="PP5Y17"  ) { evtSelIdx.push_back(pp::R5TeV::Y2017::colEvtSel); }
     else if (evtCol=="PbPb5Y18") { evtSelIdx.push_back(PbPb::R5TeV::Y2018::colEvtSel); }
     else if (evtCol=="PbPb5Y15") { evtSelIdx.push_back(PbPb::R5TeV::Y2015::colEvtSel); }
@@ -143,7 +144,11 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
     //
     // Determine the trigger paths
     std::vector<uint> trigIdx;
-    if      (PD=="MUON"        && evtCol=="PP5Y17"  ) { trigIdx.push_back(pp::R5TeV::Y2017::HLT_HIL3Mu12); }
+    if      (PD=="DIMUON"      && evtCol=="PP13Y18" ) { trigIdx.push_back(pp::R13TeV::Y2018::HLT_L1DoubleMu0); }
+    else if (PD=="HIGHMULT"    && evtCol=="PP13Y18" ) { trigIdx.push_back(pp::R13TeV::Y2018::HLT_FullTrack_Multiplicity100); }
+    else if (PD=="HIGHMULT2"   && evtCol=="PP13Y18" ) { trigIdx.push_back(pp::R13TeV::Y2018::HLT_FullTrack_Multiplicity155); }
+    else if (PD=="MINBIAS"     && evtCol=="PP13Y18" ) { trigIdx.push_back(pp::R13TeV::Y2018::HLT_L1MinimumBiasHF_OR); }
+    else if (PD=="MUON"        && evtCol=="PP5Y17"  ) { trigIdx.push_back(pp::R5TeV::Y2017::HLT_HIL3Mu12); }
     else if (PD=="DIMUON"      && evtCol=="PP5Y17"  ) { trigIdx.push_back(pp::R5TeV::Y2017::HLT_HIL1DoubleMu0); }
     else if (PD=="MUON"        && evtCol=="PbPb5Y18") { trigIdx.push_back(PbPb::R5TeV::Y2018::HLT_HIL3Mu12); }
     else if (PD=="DIMUON"      && evtCol=="PbPb5Y18") { trigIdx.push_back(PbPb::R5TeV::Y2018::HLT_HIL3Mu2p5NHitQ10_L2Mu2_M7toinf); }
@@ -155,8 +160,8 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
     else if (PD=="UPC"         && evtCol=="PbPb5Y15") { trigIdx.push_back(PbPb::R5TeV::Y2015::HLT_HIUPCSingleMuNotHF2Pixel_SingleTrack); }
     else if (PD=="MUON"        && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAL3Mu12); }
     else if (PD=="DIMUON"      && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAL1DoubleMuOpen); }
-    else if (PD=="HIGHMULT185" && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAFullTracks_Multiplicity185); }
-    else if (PD=="HIGHMULT250" && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAFullTracks_Multiplicity250); }
+    else if (PD=="HIGHMULT"    && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAFullTracks_Multiplicity185); }
+    else if (PD=="HIGHMULT2"   && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAFullTracks_Multiplicity250); }
     else if (PD=="MINBIAS"     && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAL1MinimumBiasHF_OR_SinglePixelTrack); }
     if (trigIdx.size()==0) { std::cout << "[ERROR] Could not determine the trigger index for the sample" << std::endl; return false; }
     //
@@ -181,7 +186,7 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
       loadBar(jentry, nentries);
       //
       // For pPb, find out the run on data
-      if (isData) {
+      if (isData && evtCol=="PA8Y16") {
         if      (candOSTree->RunNb() >= 285410 && candOSTree->RunNb() <= 285951) evtCol = "Pbp8Y16"; // for Pbp8Y16
         else if (candOSTree->RunNb() >= 285952 && candOSTree->RunNb() <= 286504) evtCol = "pPb8Y16"; // for pPb8Y16
       }
@@ -216,8 +221,8 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
           //
           // Apply loose muon quality cuts
           const auto& centV = candOSTree->centrality();
-          const auto& isTightCand  = (evtCol=="PbPb5Y15" ? candOSTree->tightCand(iC, "Y15") : candOSTree->tightCand(iC));
-          const auto& isHybridCand = (evtCol=="PbPb5Y15" ? candOSTree->hybridCand(iC, "Y15") : candOSTree->hybridCand(iC));
+          const auto& isTightCand  = candOSTree->tightCand(iC);
+          const auto& isHybridCand = candOSTree->hybridCand(iC);
           const auto& isSoftCand   = candOSTree->softCand(iC);
           int candQ = 0; if (isSoftCand) { candQ += 1; }; if (isHybridCand) { candQ += 2; }; if (isTightCand) { candQ += 4; }
           if (candQ==0) continue;
@@ -229,8 +234,7 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
           if (useMuonTrig) {
             for (const auto& idx : trigIdx) {
               const bool& useOR = (PD=="MUON" || PD=="UPC");
-	      const auto& iTr = ((evtCol=="PbPb5Y15" && idx>6) ? idx-1 : idx); //BUG FIX FOR PbPb5Y15
-              candTrig = ( candTrig || candOSTree->trigCand(iTr, iC, useOR) );
+              candTrig = ( candTrig || candOSTree->trigCand(idx, iC, useOR) );
             }
           }
           else { candTrig = true; }
@@ -308,8 +312,8 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
           //
           // Apply loose muon quality cuts
           const auto& centV = candSSTree->centrality();
-          const auto& isTightCand  = (evtCol=="PbPb5Y15" ? candSSTree->tightCand(iC, "Y15") : candSSTree->tightCand(iC));
-          const auto& isHybridCand = (evtCol=="PbPb5Y15" ? candSSTree->hybridCand(iC, "Y15") : candSSTree->hybridCand(iC));
+          const auto& isTightCand  = candSSTree->tightCand(iC);
+          const auto& isHybridCand = candSSTree->hybridCand(iC);
           const auto& isSoftCand   = candSSTree->softCand(iC);
           int candQ = 0; if (isSoftCand) { candQ += 1; }; if (isHybridCand) { candQ += 2; }; if (isTightCand) { candQ += 4; }
           if (candQ==0) continue;
@@ -321,8 +325,7 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
           if (useMuonTrig) {
             for (const auto& idx : trigIdx) {
               const bool& useOR = (PD=="MUON" || PD=="UPC");
-	      const auto& iTr = ((evtCol=="PbPb5Y15" && idx>6) ? idx-1 : idx); //BUG FIX FOR PbPb5Y15
-              candTrig = ( candTrig || candSSTree->trigCand(iTr, iC, useOR) );
+              candTrig = ( candTrig || candSSTree->trigCand(idx, iC, useOR) );
             }
           }
           else { candTrig = true; }
@@ -400,7 +403,7 @@ bool VertexCompositeNtuple2DataSet(RooWorkspaceMap_t& workspaces, const StringVe
 };
 
 
-bool checkVertexCompositeDS(const RooDataSet& ds, const string& dsName, const std::string& analysis)
+bool checkVertexCompositeDS(const RooDataSet& ds, const std::string& analysis)
 {
   if (ds.numEntries()==0 || ds.sumEntries()==0) { std::cout << "[WARNING] Original dataset: " << ds.GetName() << " is empty, will remake it!" << std::endl; return false; }
   const auto& row = ds.get();

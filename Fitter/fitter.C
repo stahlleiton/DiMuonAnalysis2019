@@ -16,6 +16,7 @@
 #include "../Utilities/dataUtils.h"
 #include "Macros/Utilities/initClasses.h"
 #include "Macros/tree2DataSet.C"
+#include "Macros/Candidate/processDataSet.C"
 #include "Macros/Candidate/fitCandidateMassModel.C"
 
 
@@ -29,7 +30,7 @@ bool readFile          ( StringDiVector_t& content, const std::string& fileName 
 bool getInputFileNames ( StringDiVectorMap_t& inputFileCollection , const std::string& inputTrees );
 bool setParameters     ( GlobalInfo& info , GlobalInfo& userInfo , const StringMap_t& row );
 bool addParameters     ( GlobalInfoVector_t& infoVector , GlobalInfo& userInfo , const std::string& inputFile );
-bool createDataSets    ( RooWorkspaceMap_t& Workspace , StringVector_t& aDSTAG , GlobalInfo& userInput , const StringVectorMap_t& DIR );
+bool createDataSets    ( RooWorkspaceMap_t& Workspace , GlobalInfo& userInput , const StringVectorMap_t& DIR );
 
 
 void fitter(
@@ -37,14 +38,14 @@ void fitter(
             const std::bitset<1> useExt   = 0,            // Use external: (bit 0 (1)) Input DataSets
             // Select the type of datasets to fit
             const std::bitset<2> fitData  = 1,            // Fit Sample: (bit 0 (1)) Data , (bit 1 (2)) MC
-            const std::bitset<7> fitColl  = 91,           // Fit System: (bit 0  (1)) PbPb5Y18 ,
-                                                          //             (bit 1  (2)) PP5Y17   , (bit 2  (4)) PP13Y17 ,  
+            const std::bitset<7> fitColl  = 32,           // Fit System: (bit 0  (1)) PbPb5Y18 ,
+                                                          //             (bit 1  (2)) PP5Y17   , (bit 2  (4)) PP13Y18 ,  
                                                           //             (bit 3  (8)) pPb8Y16  , (bit 4 (16)) Pbp8Y16 , (bit 5 (32)) PA8Y16  ,
                                                           //             (bit 6 (64)) PbPb5Y15
             const std::bitset<3> fitChg   = 1,            // Fit Charge: (bit 0 (1)) OS , (bit 1 (2)) SS , (bit 2 (4)) Inclusive
-            const unsigned int   usePD    = 1,            // Use PD: (0) MUON , (1) DIMUON , (2) DIMUONPERI ,
-                                                          //         (3) HIGHMULT185 , (4) HIGHMULT250 ,
-                                                          //         (5) MINBIAS , (6) UPC 
+            const unsigned int   usePD    = 0,            // Use PD: (0) MUON , (1) DIMUON , (2) DIMUONPERI ,
+                                                          //         (3) HIGHMULT , (4) HIGHMULT2 (100/255) ,
+                                                          //         (5) MINBIAS , (6) UPC
             // Select the type of objects to fit
             const std::bitset<8> fitObj   = 8,            // Fit Objects: (bit 0  (1)) Bkg   ,
                                                           //              (bit 1  (2)) JPsi  , (bit 2   (4)) Psi2S ,
@@ -64,9 +65,9 @@ void fitter(
   // The work enviroment is divided as follows:
   /*
     main |-> Macros: Contain all the macros
-         |-> Input   |-> <WorkDir> : Contain Input File, Bin and Parameter List for a given work directory (e.g. 20160201)
-	 |-> Output  |-> <WorkDir> : Contain Output Plots and Results for a given work directory (e.g. 20160201)
-	 |-> DataSet : Contain all the datasets (MC and Data)
+    |-> Input   |-> <WorkDir> : Contain Input File, Bin and Parameter List for a given work directory (e.g. 20160201)
+    |-> Output  |-> <WorkDir> : Contain Output Plots and Results for a given work directory (e.g. 20160201)
+    |-> DataSet : Contain all the datasets (MC and Data)
   */
   // Suppress Messages for RooFit
   RooMsgService::instance().getStream(1).removeTopic(RooFit::Caching);
@@ -99,7 +100,7 @@ void fitter(
     else if (workDirName.find("Test")!=std::string::npos) { saveAll = true; } // For testing
     else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
     //
-    userInput.Par["treeType"] = "VertexCompositeNtuple";
+    userInput.Par["treeType"] = "VertexCompositeTree";
     //
     userInput.Var["Cand_Mass"]["binWidth"] = 0.06;
     userInput.Var["Cand_Pt"  ]["binWidth"] = 2.0;
@@ -108,19 +109,19 @@ void fitter(
   // Set all the Boolean Flags from the input settings
   //
   // Check if use external information
-  userInput.StrV["setExt"] = StringVector_t({"ExtDS"});
+  userInput.StrV["setExt"] = {"ExtDS"};
   for (uint i=0; i<userInput.StrV.at("setExt").size(); i++) { userInput.Flag["use"+userInput.StrV.at("setExt")[i]] = useExt[i]; }
   //
   // Type of data to fit
-  userInput.StrV["sample"] = StringVector_t({"Data", "MC"});
+  userInput.StrV["sample"] = {"Data", "MC"};
   for (uint i=0; i<userInput.StrV.at("sample").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("sample")[i]] = fitData[i]; }
   //
   // Dataset to use (ignored if fitting MC)
-  const StringVector_t PDvec = {"MUON", "DIMUON", "DIMUONPERI", "HIGHMULT185", "HIGHMULT250", "MINBIAS", "UPC"};
-  userInput.Par["PD"] = PDvec[usePD];
+  userInput.StrV["PD"] = {"MUON", "DIMUON", "DIMUONPERI", "HIGHMULT", "HIGHMULT2", "MINBIAS", "UPC"};
+  userInput.Par["PD"] = userInput.StrV.at("PD")[usePD];
   //
   // Collision system
-  userInput.StrV["system"] = StringVector_t({"PbPb5Y18", "PP5Y17", "PP13Y17", "pPb8Y16", "Pbp8Y16", "PA8Y16", "PbPb5Y15"});
+  userInput.StrV["system"] = {"PbPb5Y18", "PP5Y17", "PP13Y18", "pPb8Y16", "Pbp8Y16", "PA8Y16", "PbPb5Y15"};
   for (uint i=0; i<userInput.StrV.at("system").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("system")[i]] = fitColl[i]; }
   for (uint i=0; i<userInput.StrV.at("system").size(); i++) { userInput.Flag[ "do"+userInput.StrV.at("system")[i]] = fitColl[i]; }
   if (userInput.Flag.at("fitpPb8Y16") || userInput.Flag.at("fitPbp8Y16")) { userInput.Flag.at("doPA8Y16") = true; }
@@ -144,32 +145,26 @@ void fitter(
   //
   // Decay charge
   if (userInput.Par.at("analysis").rfind("CandTo",0)==0) {
-    userInput.StrV["charge"] = StringVector_t({"OS", "SS", "ChgInc"});
-    userInput.StrV["template"].clear();
+    userInput.StrV["charge"] = {"OS", "SS", "ChgInc"};
   }
   for (uint i=0; i<userInput.StrV.at("charge").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("charge")[i]] = fitChg[i]; }
   for (const auto& chg : userInput.StrV.at("charge") ) {
     std::string label = ""; if (chg=="ChgInc") { label = ""; } else { label = chg.substr(0,2); }
-    if (userInput.Flag.at("fit"+chg)) { userInput.StrV["fitCharge"].push_back(label); }
+    if (userInput.Flag.at("fit"+chg)) { userInput.StrS["fitCharge"].insert(label); }
   }
   //
   // Type of candidates
-  userInput.StrV["object"] = StringVector_t({"Bkg", "JPsi", "Psi2S", "Ups1S", "Ups2S", "Ups3S", "Z", "D0"});
+  userInput.StrV["object"] = {"Bkg", "JPsi", "Psi2S", "Ups1S", "Ups2S", "Ups3S", "Z", "D0"};
   for (uint i=0; i<userInput.StrV.at("object").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("object")[i]] = fitObj[i]; }
-  for (const auto& obj : userInput.StrV.at("object") ) { if (userInput.Flag.at("fit"+obj)) { userInput.StrV["fitObject"].push_back(obj); } }
-  //
-  if (userInput.Flag.at("fitD0")) {
-    userInput.StrV.at("template") = StringVector_t({"D0Swap"});
-  }
-  for (const auto& obj : userInput.StrV.at("object") ) {
-    userInput.Flag["incMCTemp_"+obj] = false;
-    for (const auto& tmp : userInput.StrV.at("template") ) { userInput.Flag["incMCTemp_"+obj+"_"+tmp] = false; }
-  }
+  for (uint i=0; i<userInput.StrV.at("object").size(); i++) { userInput.Flag["inc"+userInput.StrV.at("object")[i]] = fitObj[i]; }
+  for (const auto& obj : userInput.StrV.at("object") ) { if (userInput.Flag.at("fit"+obj)) { userInput.StrS["fitObject"].insert(obj); } }
+  userInput.StrS["incObject"] = userInput.StrS.at("fitObject");
+  userInput.StrS["template"].clear();
   //
   // Fit variable
-  userInput.StrV["variable"] = StringVector_t({"Cand_Mass", "Cand_Pt"});
+  userInput.StrV["variable"] = {"Cand_Mass", "Cand_Pt"};
   for (uint i=0; i<userInput.StrV.at("variable").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("variable")[i]] = fitVar[i]; }
-  for (const auto& var : userInput.StrV.at("variable") ) { if (userInput.Flag.at("fit"+var)) { userInput.StrV["fitVariable"].push_back(var); } }
+  for (const auto& var : userInput.StrV.at("variable") ) { if (userInput.Flag.at("fit"+var)) { userInput.StrS["fitVariable"].insert(var); } }
   //
   // Clear extra variables if missing
   if (userInput.Par.count("anaType")==0) { userInput.Par["anaType"]  = ""; }
@@ -177,7 +172,7 @@ void fitter(
   if (userInput.Par.count("treeType")==0) { userInput.Par["treeType"] = ""; }
   const bool& useExtDS = (userInput.Flag.at("useExtDS") && (workDirName.find("Test")==std::string::npos));
   for (const auto& var : userInput.StrV.at("variable")) { if (userInput.Flag.at("fit"+var) || !useExtDS) { userInput.Par["extFitDir_"+var] = ""; userInput.Par["extInitFileDir_"+var] = "";} }
-  for (const auto& var : userInput.StrV.at("variable")) { for (const auto& obj : userInput.StrV.at("object")) { if (userInput.Flag.at("fit"+var) || !useExtDS) { userInput.Par["extInitFileDir_"+var+"_"+obj] = "";} } }
+  for (const auto& var : userInput.StrV.at("variable")) { for (const auto& obj : userInput.StrV.at("object")) { if (userInput.Flag.at("fit"+var) || !useExtDS) { userInput.Par["extInitFileDir_"+var+"_"+obj] = ""; } } }
   //
   // Check the User Input Settings
   if (!checkSettings(userInput)){ return; }
@@ -240,13 +235,6 @@ void fitter(
                 if (trySuccess) break;
               }
               if (!addParameters(infoMapVector[COL.first], userInput, inputFile)) { return; }
-              if (!userInput.Flag.at("incMCTemp_"+PAR.first)) {
-                for (const auto& info : infoMapVector.at(COL.first)) {
-                  if(info.Flag.at("incMCTemp_"+PAR.first)) { userInput.Flag.at("incMCTemp_"+PAR.first) = true; }
-                  for (const auto& o : userInput.StrV.at("template")) { if(info.Flag.at("incMCTemp_"+PAR.first+"_"+o)) { userInput.Flag.at("incMCTemp_"+PAR.first+"_"+o) = true; } }
-                  break;
-                }
-              }
             }
           }
         }
@@ -261,11 +249,8 @@ void fitter(
     Input : List of TTrees with format:  TAG <tab> FILE_NAME
     Output: Collection of RooDataSets splitted by tag name
   */
-  RooWorkspaceMap_t iniWorkspace;
-  StringVector_t aDSTAG;
-  if (!createDataSets(iniWorkspace, aDSTAG, userInput, DIR)) { return; }
-  userInput.Print();
-  return;
+  RooWorkspaceMap_t iniWorkspaces;
+  if (!createDataSets(iniWorkspaces, userInput, DIR)) { return; }
 
   // -------------------------------------------------------------------------------
   // STEP 3: PROCESS THE ROODATASETS
@@ -274,23 +259,8 @@ void fitter(
     Output: Collection of RooWorkspaces containing the processed RooDatasets
   */
 
-  // If using pPb and Pbp, combine both RooWorkspaces (TODO)
-  if (userInput.Flag.at("fitPA8Y16")) {
-    // Determine the sample tags (sample name without the collision tag)
-    StringVector_t sampleTags;
-    for (const auto& w : iniWorkspace) {
-      std::string NAMETAG = w.first; NAMETAG.erase(NAMETAG.find_last_of("_"), 10);
-      if (std::find(sampleTags.begin(), sampleTags.end(), NAMETAG)==sampleTags.end()) { sampleTags.push_back(NAMETAG); }
-    }
-    // Loop over each sample tag
-    for (const auto& sample : sampleTags) {
-      //if (!createPADataset(iniWorkspace, sample)) { return; }
-      if ((std::find(aDSTAG.begin(), aDSTAG.end(), (sample+"_pPb8Y16"))!=aDSTAG.end()) &&
-          (std::find(aDSTAG.begin(), aDSTAG.end(), (sample+"_PA8Y16"))==aDSTAG.end())) {
-        aDSTAG.push_back(sample+"_PA8Y16");
-      }
-    }
-  }
+  // STEP 3.1: Skim the input RooDataSets
+  if (!processDataSet(iniWorkspaces, userInput)) { return; }
 
   // -------------------------------------------------------------------------------  
   // STEP 4: FIT THE DATASETS
@@ -304,21 +274,22 @@ void fitter(
   */
 
   for(uint j = 0; j < infoMapVectors.size(); j++) {
-    const int& index = ( DIR.at("output").size()>1 ? j+1 : j ); // First entry is always the main output directory
-    std::string outputDir = DIR.at("output")[index];
+    const int& index = (DIR.at("output").size()>1 ? j+1 : j); // First entry is always the main output directory
+    const auto& outputDir = DIR.at("output")[index];
     //
-    for (const auto& DSTAG : aDSTAG) {
+    for (const auto& DSTAG : userInput.StrS.at("DSTAG")) {
       //
-      if (iniWorkspace.count(DSTAG)>0) {
+      if (iniWorkspaces.count(DSTAG)>0) {
         //
         for (const auto& infoMapVector : infoMapVectors[j]) {
           const auto& col = infoMapVector.first;
-          if ( userInput.Flag.at(Form("fit%s", col.c_str())) && (DSTAG.rfind(col)!=std::string::npos) ) {
+          if (userInput.Flag.at(Form("fit%s", col.c_str())) && (DSTAG.rfind(col)!=std::string::npos)) {
             //
             for (const auto& infoVector : infoMapVector.second) {
               //
+	      std::cout << "[INFO] Proceed to fit the dataset " << DSTAG << std::endl;
               if (userInput.Par.at("analysis").rfind("CandTo", 0)==0) {
-                if (!fitCandidateMassModel( iniWorkspace, infoVector,
+                if (!fitCandidateMassModel( iniWorkspaces, infoVector,
                                             userInput,
                                             // Select the type of datasets to fit
                                             outputDir,
@@ -333,7 +304,8 @@ void fitter(
             }
           }
         }
-      } else {
+      }
+      else {
         std::cout << "[ERROR] The workspace for " << DSTAG << " was not found!" << std::endl; return;
       }
     }
@@ -341,7 +313,7 @@ void fitter(
 };
 
 
-bool createDataSets(RooWorkspaceMap_t& workspace, StringVector_t& aDSTAG, GlobalInfo& userInput, const StringVectorMap_t& DIR)
+bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const StringVectorMap_t& DIR)
 {
   //
   std::string inputTrees = DIR.at("input")[0] + "InputTrees.txt";
@@ -350,7 +322,7 @@ bool createDataSets(RooWorkspaceMap_t& workspace, StringVector_t& aDSTAG, Global
   if(!getInputFileNames(inputFileCollection, inputTrees)){ return false; }
   //
   gSystem->Exec(Form("rm -f %s/cpp/AutoDict*", getcwd(NULL,0)));
-  aDSTAG.clear(); // Array to store the different tags in the list of trees
+  userInput.StrS["DSTAG"].clear(); // Array to store the different tags in the list of trees
   for (const auto& fileCollection : inputFileCollection) {
     // Get the file tag which has the following format: DSTAG_CHAN_COLL , i.e. DATA_MUON_Pbp
     const auto& FILETAG = fileCollection.first;
@@ -380,11 +352,11 @@ bool createDataSets(RooWorkspaceMap_t& workspace, StringVector_t& aDSTAG, Global
     if (FILETAG.rfind("MC", 0)==0) {
       bool keep = false;
       if (userInput.Flag.at("fitMC")) {
-        for (const auto& obj : userInput.StrV.at("object")) { if (userInput.Flag.at("fit"+obj) && FILETAG.find(obj)!=std::string::npos) { keep = true; fitDS = true; break; } }
+        for (const auto& obj : userInput.StrS.at("fitObject")) { if (userInput.Flag.at("fit"+obj) && FILETAG.find(obj)!=std::string::npos) { keep = true; fitDS = true; break; } }
       }
-      for(const auto& s : userInput.StrV.at("object")) {
+      for(const auto& s : userInput.StrS.at("fitObject")) {
         if (userInput.Flag.at("incMCTemp_"+s)) {
-          for (const auto& tmp : userInput.StrV.at("template")) {
+          for (const auto& tmp : userInput.StrS.at("template")) {
             auto n = tmp; if (n.rfind("Swap")!=std::string::npos) { n.erase(n.rfind("Swap"), 4); }
             if (userInput.Flag.at("incMCTemp_"+s+"_"+tmp) && FILETAG.find(n)!=std::string::npos) { keep = true; fitDS = false; break; }
           }
@@ -412,7 +384,7 @@ bool createDataSets(RooWorkspaceMap_t& workspace, StringVector_t& aDSTAG, Global
       }
       // Produce the output datasets
       if(!tree2DataSet(workspace, fileInfo, userInput)){ return false; }
-      if (fitDS) { for (const auto& DSTAG : fileInfo.at("dsNames")) { if (std::find(aDSTAG.begin(), aDSTAG.end(), DSTAG)==aDSTAG.end()) { aDSTAG.push_back(DSTAG); } } }
+      if (fitDS) { for (const auto& DSTAG : fileInfo.at("dsNames")) { userInput.StrS.at("DSTAG").insert(DSTAG); } }
     }
   }
   if (workspace.size()==0) {
@@ -482,16 +454,16 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
     info.Par["Cand_isSwap"] = "";
     info.Par["Cand_Qual"] = "";
   }
+  for (auto& v : info.Var) {
+    v.second["Default_Min"] = v.second.at("Min");
+    v.second["Default_Max"] = v.second.at("Max");
+  }
   info.Par["Model"] = "";
   info.Par["Cut"]   = "";
-  for(const auto& s : userInfo.StrV.at("object")) {
-    info.Flag["incMCTemp_"+s] = false;
-    for(const auto& o : userInfo.StrV.at("template")) { info.Flag["incMCTemp_"+s+"_"+o]   = false; }
-  }
-  info.Flag["useRapCM"] = (row.count("Cand_RapCM") > 0);
+  info.Flag["useCand_RapCM"] = (row.count("Cand_RapCM") > 0);
   // set parameters from file
   for (const auto& col : row) {
-    if (info.Flag.at("useRapCM") && col.first=="Cand_Rap") continue;
+    if (info.Flag.at("useCand_RapCM") && col.first=="Cand_Rap") continue;
     std::string colName = col.first;
     if (col.first=="Cand_RapCM") { colName = "Cand_Rap"; }
     bool found = false;
@@ -519,13 +491,34 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
             std::cout << "[ERROR] Input column " << par.first << " has empty value" << std::endl; return false;
           }
           info.Par[colName] = col.second;
-          for(const auto& s : userInfo.StrV.at("object")) {
-            if ( (userInfo.Flag.at("fitMC")==false) && (par.first=="Model") && (colName.find(s)!=std::string::npos) && (col.second.find("TEMP")!=std::string::npos) ) {
-              info.Flag.at("incMCTemp_"+s) = true;
-              std::string tempModel = col.second;
-              if (tempModel.find("TEMP[")!=std::string::npos) { tempModel = tempModel.substr(tempModel.find("TEMP[")+5); } else { tempModel = ""; }
-              if (tempModel.rfind("]")!=std::string::npos   ) { tempModel = tempModel.substr(0, tempModel.rfind("]")); }
-              for(const auto& o : userInfo.StrV.at("template")) { if (tempModel.find(o)!=std::string::npos) { info.Flag.at("incMCTemp_"+s+"_"+o) = true; } }
+          for(const auto& s : userInfo.StrS.at("fitObject")) {
+            if (par.first=="Model" && colName.find(s)!=std::string::npos) {
+              const auto& mcTemp = "incMCTemp_"+s;
+              const bool& incTemp = (userInfo.Flag.at("fitMC")==false && col.second.find("TEMP")!=std::string::npos);
+              if (userInfo.Flag.count(mcTemp)==0) { userInfo.Flag[mcTemp] = incTemp; }
+              StringVector_t modV;
+              splitString(modV, col.second, "+");
+              for (const auto& mod : modV) {
+                if (mod.find("[")==std::string::npos) continue;
+                if (mod.rfind("]")==std::string::npos) { std::cout << "[ERROR] Missing ']' in " << colName << std::endl; return false; }
+                const auto& modT = mod.substr(0, mod.find("["));
+                auto modR = mod; modR.erase(0, modR.find("[")+1); modR.erase(modR.rfind("]"), modR.length());
+                StringVector_t modP;
+                if (modR.find(";")!=std::string::npos) { splitString(modP, modR, ";"); }
+                else { splitString(modP, modR, ","); }
+                for (const auto& o : modP) {
+                  bool incObj = (modT!="TEMP");
+                  if (modT=="TEMP" && userInfo.Flag.at(mcTemp)) {
+                    userInfo.StrS.at("template").insert(o);
+                    userInfo.Flag["incMCTemp_"+s+"_"+o] = true;
+                    incObj = true;
+                  }
+                  if (incObj) {
+                    userInfo.StrS.at("incObject").insert(o);
+                    userInfo.Flag["inc"+o] = true;
+                  } 
+                }
+              }
             }
           }
           found = true;
@@ -534,9 +527,9 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
     }
     if (found==false) {
       if (col.second != "") {
-	    std::vector<double> v;
+        std::vector<double> v;
         const auto& value = col.second;
-	    if (!parseString(v, value)) { return false; }
+        if (!parseString(v, value)) { return false; }
         if (v.size()!=1) { std::cout << "[ERROR] Initial parameter " << colName << " has incorrect number of values, it has: " << v.size() << std::endl; return false; }
         if ( (userInfo.Var.count(colName)==0) || (userInfo.Var.at(colName).count("Val")==0) ) { userInfo.Var[colName]["Val"] = v.at(0); }
         else if (std::abs(userInfo.Var.at(colName).at("Val")-v.at(0))>0.000001) {
@@ -548,24 +541,26 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
     if (found==false) {
       if (col.second != "") {
         std::string value = col.second;
-	    // check that initial parameters format is correct: [ num, num, num ]
-	    if ((value.find("[")==std::string::npos)||(value.rfind("]")==std::string::npos)) {
-	      // Special cases like parameter constrains could be set here but for now, let's keep it simple
+        // check that initial parameters format is correct: [ num, num, num ]
+        if ((value.find("[")==std::string::npos)||(value.rfind("]")==std::string::npos)) {
+          // Special cases like parameter constrains could be set here but for now, let's keep it simple
           std::cout << "[ERROR] Either ']' or '[' are missing in the initial parameter values!" << std::endl; return false;
-	    } else {
-	      value.erase(0, value.find("[")+std::string("[").length());
-	      value.erase(value.rfind("]"), value.length());
-	    }
-	    std::vector<double> v;
-	    if (!parseString(v, value)) { return false; }
-          if (v.size()>3 || v.size()<1) {
-            std::cout << "[ERROR] Initial parameter " << col.first << " has incorrect number of values, it has: " << v.size() << std::endl; return false;
-          }
-	    // everything seems alright, then proceed to save the values
-	    if (v.size()==1) {
-	      // if only one value is given i.e. [ num ], consider it a constant value
-	      info.Par[col.first] = Form("%s[%.10f]", col.first.c_str(), v.at(0));
-	    } else if (v.size()==2) {
+        }
+        else {
+          value.erase(0, value.find("[")+std::string("[").length());
+          value.erase(value.rfind("]"), value.length());
+        }
+        std::vector<double> v;
+        if (!parseString(v, value)) { return false; }
+        if (v.size()>3 || v.size()<1) {
+          std::cout << "[ERROR] Initial parameter " << col.first << " has incorrect number of values, it has: " << v.size() << std::endl; return false;
+        }
+        // everything seems alright, then proceed to save the values
+        if (v.size()==1) {
+          // if only one value is given i.e. [ num ], consider it a constant value
+          info.Par[col.first] = Form("%s[%.10f]", col.first.c_str(), v.at(0));
+        }
+        else if (v.size()==2) {
           if (col.second.find("RNG")!=std::string::npos) {
             info.Par[col.first] = Form("%s[%.10f, %.10f]", col.first.c_str(), v.at(0), v.at(1));
           } 
@@ -574,10 +569,12 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
             info.Par["val"+col.first] = Form("%s[%.10f]", ("val"+col.first).c_str(), v.at(0));
             info.Par["sig"+col.first] = Form("%s[%.10f]", ("sig"+col.first).c_str(), v.at(1));
           }
-	    } else if (v.size()==3) {
-	      info.Par[col.first] = Form("%s[%.10f, %.10f, %.10f]", col.first.c_str(), v.at(0), v.at(1), v.at(2));
-	    }
-      } else {
+        }
+        else if (v.size()==3) {
+          info.Par[col.first] = Form("%s[%.10f, %.10f, %.10f]", col.first.c_str(), v.at(0), v.at(1), v.at(2));
+        }
+      }
+      else {
         info.Par[col.first] = "";
       }
     }
@@ -596,7 +593,8 @@ bool parseString(std::vector<double>& output, std::string input)
     double d = strtod(input.c_str(), &end);
     if (end != input) {
       output.push_back(d);
-    } else {
+    }
+    else {
       std::cout << "[ERROR] The conversion from string to double failed!" << std::endl; return false;
     }
     input = end;
@@ -620,11 +618,8 @@ bool parseFile(StringMapVector_t& data, const std::string& fileName)
   for (const auto& row : content) {
     StringMap_t col;
     for (unsigned int i=0; i<header.size(); i++) {
-      if (i<row.size()) {
-	col[header.at(i)] = row.at(i);
-      } else {
-	col[header.at(i)] = "";
-      }
+      if (i<row.size()) { col[header.at(i)] = row.at(i); }
+      else { col[header.at(i)] = ""; }
     }
     data.push_back(col);
   }
@@ -666,23 +661,24 @@ bool readFile(StringDiVector_t& content, const std::string& fileName, const int&
   char delimiter = ' ';
   if (myfile.is_open()){ 
     std::string line, CHAR;
-    while ( getline(myfile, line) ){
+    while ( getline(myfile, line) ) {
       std::stringstream row(line), tmp(line); tmp >> CHAR;
       if ((!tmp) || (CHAR.find('#')!=std::string::npos) || (CHAR.find("//")!=std::string::npos)) continue;
       if (delimiter == ' ' && line.find(',')!=std::string::npos) { delimiter = ','; }
       if (delimiter == ' ' && line.find(';')!=std::string::npos) { delimiter = ';'; }
       if (delimiter == ' ') { std::cout << "[ERROR] File: " << fileName << " has unknown delimiter!" << std::endl; return false; }
-      if (nRow==0) break; else {nRow=nRow-1;}
+      if (nRow==0) break; else { nRow = nRow-1; }
       StringVector_t cols; int i=0;
       while (true){
         std::string col; getline(row, col, delimiter);
-	if ( (nCol>=0) ? (i>=nCol) : (col=="") ){ break; }
+	if ( (nCol>=0) ? (i>=nCol) : (col=="") ) { break; }
 	cols.push_back(col);
 	i++;
       }
       content.push_back(cols);
     }
-  } else {
+  }
+  else {
     std::cout << "[ERROR] File: " << fileName << " was not found!" << std::endl; return false;
   }
   return true;
@@ -702,7 +698,8 @@ bool iniWorkEnv(StringVectorMap_t& DIR, const std::string& workDirName)
   if (existDir(DIR.at("input")[0])==false){ 
     std::cout << "[ERROR] Input directory: " << DIR.at("input")[0] << " doesn't exist!" << std::endl;
     return false; 
-  } else {
+  }
+  else {
     findSubDir(DIR.at("input"), DIR.at("input")[0]);
   }
   DIR["output"].push_back(DIR.at("main")[0] + "/Output/" + workDirName + "/");

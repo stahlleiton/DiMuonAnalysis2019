@@ -1,14 +1,19 @@
-#ifndef drawCandidateMassPlot_C
-#define drawCandidateMassPlot_C
+#ifndef Candidate_drawCandidateMassPlot_C
+#define Candidate_drawCandidateMassPlot_C
 
+#include "RooWorkspace.h"
 
-#include "../Utilities/initClasses.h"
+#include <iostream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "../Utilities/drawUtils.h"
 
 
 void printCandidateMassParameters  ( TPad& pad , const RooWorkspace& ws , const std::string& pdfName, const std::string& varName , const uint& drawMode );
 void printCandidateMassBinning     ( TPad& pad , const RooWorkspace& ws , const std::string& dsName , const std::vector< std::string >& text , const uint& drawMode , const int& plotStyle );
-void printCandidateMassLegend      ( TPad& pad , TLegend& leg , const RooPlot& frame , const StringDiMap_t& legInfo , const double& size=0.05 );
+void printCandidateMassLegend      ( TPad& pad , TLegend& leg , const RooPlot& frame , const StringDiMap_d& legInfo , const double& size=0.05 );
 
 
 bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
@@ -19,8 +24,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
                             const double& maxRng = -1.0,
                             const bool& doGoF = true,
                             const int&  plotStyle = 0, // 3: Thesis , 2: Paper , 1: PAS , 0: AN
-                                  bool redoFrame = false,
-                            const bool& doQCDHist = false
+                                  bool redoFrame = false
                             )
 {
   //
@@ -31,11 +35,11 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   const std::string& varType = "Mass";
   const std::string& plotWindow = "Cand_MassWindowPlot";
   //
-  const std::string& DSTAG = (ws.obj("DSTAG")    ) ? ((RooStringVar*)ws.obj("DSTAG")    )->getVal() : "";
-  const std::string& cha   = (ws.obj("channel")  ) ? ((RooStringVar*)ws.obj("channel")  )->getVal() : "";
-  const std::string& col   = (ws.obj("fitSystem")) ? ((RooStringVar*)ws.obj("fitSystem"))->getVal() : "";
-  const std::string& chg   = (ws.obj("fitCharge")) ? ((RooStringVar*)ws.obj("fitCharge"))->getVal() : "";
-  const std::string& obj   = (ws.obj("fitObject")) ? ((RooStringVar*)ws.obj("fitObject"))->getVal() : "";
+  const std::string& DSTAG = (ws.obj("DSTAG")    ) ? dynamic_cast<RooStringVar*>(ws.obj("DSTAG")   )->getVal() : "";
+  const std::string& cha   = (ws.obj("channel")  ) ? dynamic_cast<RooStringVar*>(ws.obj("channel")  )->getVal() : "";
+  const std::string& col   = (ws.obj("fitSystem")) ? dynamic_cast<RooStringVar*>(ws.obj("fitSystem"))->getVal() : "";
+  const std::string& chg   = (ws.obj("fitCharge")) ? dynamic_cast<RooStringVar*>(ws.obj("fitCharge"))->getVal() : "";
+  const std::string& obj   = (ws.obj("fitObject")) ? dynamic_cast<RooStringVar*>(ws.obj("fitObject"))->getVal() : "";
   //
   const std::string& tag = ( obj + cha + chg + "_" + col );
   const std::string& dsName = ( "d" + chg + "_" + DSTAG );
@@ -92,17 +96,17 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   if (obj=="Z"  ) { process = "Z #rightarrow #mu^{+} + #mu^{-}"; }
   process = Form("#font[62]{#scale[1.1]{%s}}", process.c_str());
   //
-  StringDiMap_t legInfo;
+  StringDiMap_d legInfo;
   //
-  std::map< std::string , std::unique_ptr<RooPlot> > frame;
-  std::map< std::string , TPad* > pad; // Unique Pointer does produce Segmentation Fault, so don't use it
+  RooPlotPtrMap_d frame;
+  PadPtrMap_d pad; // Unique Pointer does produce Segmentation Fault, so don't use it
   //
   // Create the main plot of the fit
   //
   const std::string& frameName = Form("frame_Tot%s", tag.c_str());
   if (ws.obj(frameName.c_str())==NULL) { redoFrame = false; }
   //
-  if (!redoFrame && ws.obj(frameName.c_str())!=NULL) { frame["MAIN"] = std::unique_ptr<RooPlot>((RooPlot*)ws.obj(frameName.c_str())); }
+  if (!redoFrame && ws.obj(frameName.c_str())!=NULL) { frame["MAIN"] = std::unique_ptr<RooPlot>(dynamic_cast<RooPlot*>(ws.obj(frameName.c_str()))); }
   else {
     if (useDS==false) { std::cout << "[ERROR] Dataset " << dsName << " was not found!" << std::endl; return false; }
     frame["MAIN"] = std::unique_ptr<RooPlot>(ws.var(varName.c_str())->frame( RooFit::Range(plotWindow.c_str()) ));
@@ -117,9 +121,9 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
     }
     //
     if (ws.pdf(pdfName.c_str())) {
-      RooArgList pdfList = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->pdfList();
+      RooArgList pdfList = dynamic_cast<RooAddPdf*>(ws.pdf(pdfName.c_str()))->pdfList();
       if (pdfList.getSize()==1) {
-        const double& norm = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->expectedEvents(RooArgSet(*ws.var(varName.c_str())));
+        const double& norm = dynamic_cast<RooAddPdf*>(ws.pdf(pdfName.c_str()))->expectedEvents(RooArgSet(*ws.var(varName.c_str())));
         ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range(plotWindow.c_str()), RooFit::NormRange(plotWindow.c_str()),
                                         RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
                                         RooFit::LineColor(kBlack), RooFit::LineStyle(1)
@@ -145,11 +149,11 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   legInfo["DATA"][Form("plot_Tot%s", dsName.c_str())] = ( isMC ? "Simulation" : "Data" );
   //
   if (ws.pdf(pdfName.c_str())) {
-    RooArgList pdfList = ((RooAddPdf*)ws.pdf(pdfName.c_str()))->pdfList();
+    RooArgList pdfList = dynamic_cast<RooAddPdf*>(ws.pdf(pdfName.c_str()))->pdfList();
     if (pdfList.getSize()==1) {
       legInfo["PDF"][Form("plot_%s", pdfName.c_str())] = "Fit";
-      frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
-      RooHist* hPull = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of var
+      frame["EXTRA"] = std::unique_ptr<RooPlot>(dynamic_cast<RooPlot*>(frame.at("MAIN")->emptyClone("EXTRA")));
+      const auto& hPull = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of var
       if (!makePullHist (*hPull, *frame.at("MAIN").get(), "", "", true)) { return false; }; drawPull = true;
       hPull->SetName("hPull");
       frame.at("EXTRA")->addPlotable(hPull, "EP");
@@ -162,7 +166,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
         const std::string& name = Form("pdf%sTot_%s%s%s_%s", varName.c_str(), obj.c_str(), cha.c_str(), chg.c_str(), col.c_str());
         //legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
       }
-      frame["EXTRA"] = std::unique_ptr<RooPlot>((RooPlot*)frame.at("MAIN")->emptyClone("EXTRA"));
+      frame["EXTRA"] = std::unique_ptr<RooPlot>(dynamic_cast<RooPlot*>(frame.at("MAIN")->emptyClone("EXTRA")));
       RooHist* hExtra = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of var
       if (drawPull) { if (!makePullHist (*hExtra, *frame.at("MAIN"), "", "", true)) { return false; } }
       else          { if (!makeRatioHist(*hExtra, *frame.at("MAIN"), "", "", true)) { return false; } }
@@ -320,7 +324,8 @@ void printCandidateMassParameters(TPad& pad, const RooWorkspace& ws, const std::
     parIt = std::unique_ptr<TIterator>(parList->selectByAttrib("Constant", kFALSE)->createIterator());
   }
   else { parIt = std::unique_ptr<TIterator>(ws.allVars().selectByAttrib("Constant", kFALSE)->createIterator()); }
-  for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
+  for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next()) {
+    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
     // Parse the parameter's labels
     std::string label="", s(it->GetName());
     // Ignore dataset variables
@@ -357,8 +362,8 @@ void printCandidateMassBinning(TPad& pad, const RooWorkspace& ws, const std::str
   }
   std::vector<std::string> varNameList;
   if (ws.data(dsName.c_str())!=NULL) {
-    auto parIt = std::unique_ptr<TIterator>(((RooDataSet*)ws.data(dsName.c_str()))->get()->createIterator());
-    for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
+    auto parIt = std::unique_ptr<TIterator>(dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()))->get()->createIterator());
+    for (auto it = parIt->Next(); it!=NULL; it = parIt->Next()) {
       if (std::string(it->GetName())=="Cand_Mass") continue;
       varNameList.push_back(it->GetName());
     }
@@ -401,10 +406,10 @@ void printCandidateMassBinning(TPad& pad, const RooWorkspace& ws, const std::str
 };
 
 
-void printCandidateMassLegend(TPad& pad, TLegend& leg, const RooPlot& frame, const StringDiMap_t& legInfo, const double& size)
+void printCandidateMassLegend(TPad& pad, TLegend& leg, const RooPlot& frame, const StringDiMap_d& legInfo, const double& size)
 {
   pad.cd();
-  std::map< std::string , std::string > drawOption = { { "DATA" , "pe" } , { "PDF" , "l" } , { "TEMP" , "f" } };
+  StringMap_d drawOption = { { "DATA" , "pe" } , { "PDF" , "l" } , { "TEMP" , "f" } };
   const std::vector< std::string > pdfMapOrder = { "WToMu" , "QCD" , "DY" , "WToTau" , "DYToTau" , "TTbar" };
   for (const auto& map : legInfo) {
     if (map.first=="TEMP") {
@@ -426,4 +431,4 @@ void printCandidateMassLegend(TPad& pad, TLegend& leg, const RooPlot& frame, con
 };
 
 
-#endif // #ifndef drawCandidateMassPlot_C
+#endif // #ifndef Candidate_drawCandidateMassPlot_C
