@@ -557,7 +557,7 @@ Bool_t VertexCompositeTree::GetTree(const std::vector< std::string >& inFileName
   if (fileName[0].rfind("root://", 0)==0) { dir = dynamic_cast<TDirectory*>(f->Get(treeName.c_str())); }
   else { dir = dynamic_cast<TDirectory*>(f->Get((fileName[0]+":/"+treeName).c_str())); }
   if (!dir) { std::cout << "[ERROR] Failed to open directory: " << treeName << std::endl; return false; }
-  if (dir->GetListOfKeys()->Contains("VertexCompositeTree")) { fChainM_["VertexCompositeTree"] = new TChain((treeName+"/VertexCompositeTree").c_str() , "VertexCompositeTree"); }
+  if (dir->GetListOfKeys()->Contains("VertexCompositeNtuple")) { fChainM_["VertexCompositeNtuple"] = new TChain((treeName+"/VertexCompositeNtuple").c_str() , "VertexCompositeNtuple"); }
   if (fChainM_.size()==0) { std::cout << "[ERROR] fChain VertexCompositeTree was not created, some input files are   missing" << std::endl; return false; }
   // Add the files in the TChain
   for (auto& c : fChainM_) {
@@ -627,8 +627,8 @@ void VertexCompositeTree::InitTree(void)
   trigMuon1_ = 0;
   trigMuon2_ = 0;
   
-  if (fChainM_.count("VertexCompositeTree")>0) {
-    auto& fChain = fChainM_.at("VertexCompositeTree");
+  if (fChainM_.count("VertexCompositeNtuple")>0) {
+    auto& fChain = fChainM_.at("VertexCompositeNtuple");
 
     // SET EVENT INFO BRANCHES
     if (fChain->GetBranch("RunNb"))                       fChain->SetBranchAddress("RunNb",                     &RunNb_,                      &b_RunNb                     );
