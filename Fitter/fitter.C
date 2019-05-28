@@ -460,12 +460,11 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
   }
   info.Par["Model"] = "";
   info.Par["Cut"]   = "";
-  info.Flag["useCand_RapCM"] = (row.count("Cand_RapCM") > 0);
+  for (const auto& v : info.Var) { if (row.count(v.first+"CM")>0) { info.Flag["use"+v.first+"CM"] = true; } }
   // set parameters from file
   for (const auto& col : row) {
-    if (info.Flag.at("useCand_RapCM") && col.first=="Cand_Rap") continue;
-    std::string colName = col.first;
-    if (col.first=="Cand_RapCM") { colName = "Cand_Rap"; }
+    std::string colName = col.first; stringReplace(colName, "CM", "");
+    if (info.Flag.count("use"+col.first+"CM")>0 && info.Flag.at("use"+col.first+"CM")) continue;
     bool found = false;
     for (const auto& var : info.Var) {
       const auto& varName = var.first;

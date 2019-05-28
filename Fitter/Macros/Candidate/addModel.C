@@ -18,13 +18,13 @@
 #include "../Utilities/rooModelUtils.h"
 
 
-bool addModel(RooWorkspace& ws, const StringDiMap_t& models, const GlobalInfo& info, const std::string& chg, const std::string& varName)
+bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, const std::string& chg, const std::string& varName)
 {
   //
   const auto& cha         = info.Par.at("channel");
   const auto& varWindow   = (varName + "Window");
   const auto& varNormName = (varName+"Norm");
-  std::string varType = varName; if (varType.find("_")!=std::string::npos) { varType = varType.substr(varType.find("_")+1, varType.size()); }
+  std::string varType = varName; stringReplace(varType, "_", "");
   //
   for (const auto& col : info.StrS.at("fitSystem")) {
     RooArgList pdfListTot;
@@ -1085,6 +1085,7 @@ bool addModel(RooWorkspace& ws, const StringDiMap_t& models, const GlobalInfo& i
     }
     if (pdfListTot.getSize()>0) {
       const auto& pdfName = ( "pdf" + varType + "_Tot" + (cha+chg+"_"+col) );
+      info.Par["pdfName"+chg] = pdfName;
       auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfListTot));
       ws.import(*themodel);
     }

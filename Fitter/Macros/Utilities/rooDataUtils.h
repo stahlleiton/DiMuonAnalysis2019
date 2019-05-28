@@ -355,8 +355,8 @@ void updateParameterRange(RooWorkspace& myws, GlobalInfo&  info, const std::stri
   //
   if (myws.data(dsName.c_str())->reduce(varFitRange.c_str())->numEntries() <= myws.data(dsName.c_str())->numEntries()) {
     const auto& nBins = int( (varMax - varMin)/myws.var(var.c_str())->getBinWidth(0) );
-    myws.var(var.c_str())->setRange(Form("%sWindow", var.c_str()), varMin, varMax);
-    myws.var(var.c_str())->setBins(nBins, Form("%sWindow", var.c_str()));
+    myws.var(var.c_str())->setRange("FitWindow", varMin, varMax);
+    myws.var(var.c_str())->setBins(nBins, "FitWindow");
     //
     auto dataToFit = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(myws.data(dsName.c_str())->reduce(varFitRange.c_str())->Clone((dsName+"_FIT").c_str())));
     myws.import(*dataToFit);
@@ -608,14 +608,16 @@ void setDSParamaterRange(const RooDataSet& ds, const GlobalInfo& info)
 };
 
 
-void setGlobalParameterRange(RooWorkspace& myws, const GlobalInfo& info, const std::string& var="Cand_Mass")
+bool setFitParameterRange(RooWorkspace& myws, const GlobalInfo& info)
 {
-  if (!myws.var(var.c_str())) { std::cout << "[ERROR] Parameter " << var << " does not exist, failed to set global parameter range!" << std::endl; return; }
-  myws.var(var.c_str())->setRange((var+"Window").c_str(), info.Var.at(var).at("Min"), info.Var.at(var).at("Max"));
-  const auto& nBins = std::min(int( std::round((info.Var.at(var).at("Max") - info.Var.at(var).at("Min"))/info.Var.at(var).at("binWidth")) ), 2000);
-  myws.var(var.c_str())->setBins(nBins, (var+"Window").c_str());
-  myws.var(var.c_str())->setBins(nBins);
-  return;
+  for (const auto& var : info.StrS.at("fitVariable")) {
+    if (!myws.var(var.c_str())) { std::cout << "[ERROR] Parameter " << var << " does not exist, failed to set fit parameter range!" << std::endl; return false; }
+    myws.var(var.c_str())->setRange("FitWindow", info.Var.at(var).at("Min"), info.Var.at(var).at("Max"));
+    const auto& nBins = std::min(int( std::round((info.Var.at(var).at("Max") - info.Var.at(var).at("Min"))/info.Var.at(var).at("binWidth")) ), 2000);
+    myws.var(var.c_str())->setBins(nBins, "FitWindow");
+    myws.var(var.c_str())->setBins(nBins);
+  }
+  return true;
 };
 
 

@@ -27,7 +27,7 @@ bool buildCandidateMassModel(RooWorkspace& ws, const StringDiMap_t& models, Glob
   constrainQuarkoniumMassParameters(info, chg);
   //
   // Import the Candidate Mass Models to the local workspace
-  if (!addModel(ws, models, info, chg, "Cand_Mass")) { return false; }
+  if (!addModel(ws, info, models, chg, "Cand_Mass")) { return false; }
   //
   // Set Fixed parameters to constant (clean up)
   setFixedVarsToContantVars(ws);

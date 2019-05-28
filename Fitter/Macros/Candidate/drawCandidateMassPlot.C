@@ -32,8 +32,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   setTDRStyle();
   //
   const std::string& varName = "Cand_Mass";
-  const std::string& varType = "Mass";
-  const std::string& plotWindow = "Cand_MassWindowPlot";
+  auto varType = varName; stringReplace(varType, "_", "");
   //
   const std::string& DSTAG = (ws.obj("DSTAG")    ) ? dynamic_cast<RooStringVar*>(ws.obj("DSTAG")   )->getVal() : "";
   const std::string& cha   = (ws.obj("channel")  ) ? dynamic_cast<RooStringVar*>(ws.obj("channel")  )->getVal() : "";
@@ -44,16 +43,16 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   const std::string& tag = ( obj + cha + chg + "_" + col );
   const std::string& dsName = ( "d" + chg + "_" + DSTAG );
   const std::string& dsNameFit = ( (ws.data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName );
-  const std::string& pdfName = Form("pdfMass_Tot%s", tag.c_str());
+  const std::string& pdfName = Form("pdf%s_Tot%s", varType.c_str(), tag.c_str());
   const auto& setLogScale = yLogScale;
   //
   // Create the Range for Plotting
-  const double& binWidth = ws.var(varName.c_str())->getBinWidth(0);
-  const double& minRange = ws.var(varName.c_str())->getMin();
-  const double& maxRange = ( (maxRng>0.0) ? maxRng : ws.var(varName.c_str())->getMax() );
-  const auto&   nBins    = int(std::round((maxRange - minRange)/binWidth));
-  ws.var(varName.c_str())->setRange(plotWindow.c_str(), minRange, maxRange);
-  ws.var(varName.c_str())->setBins(nBins, plotWindow.c_str());
+  const auto& binWidth = ws.var(varName.c_str())->getBinWidth(0);
+  const auto& minRange = ws.var(varName.c_str())->getMin();
+  const auto& maxRange = ( (maxRng>0.0) ? maxRng : ws.var(varName.c_str())->getMax() );
+  const auto& nBins    = int(std::round((maxRange - minRange)/binWidth));
+  ws.var(varName.c_str())->setRange("PlotWindow", minRange, maxRange);
+  ws.var(varName.c_str())->setBins(nBins, "PlotWindow");
   // BUG FIX
   const int& oNBins = ws.var(varName.c_str())->getBins(); const double& oMinRange = ws.var(varName.c_str())->getMin(); const double& oMaxRange = ws.var(varName.c_str())->getMax();
   ws.var(varName.c_str())->setBins(nBins); ws.var(varName.c_str())->setRange(minRange, maxRange);
@@ -109,14 +108,14 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   if (!redoFrame && ws.obj(frameName.c_str())!=NULL) { frame["MAIN"] = std::unique_ptr<RooPlot>(dynamic_cast<RooPlot*>(ws.obj(frameName.c_str()))); }
   else {
     if (useDS==false) { std::cout << "[ERROR] Dataset " << dsName << " was not found!" << std::endl; return false; }
-    frame["MAIN"] = std::unique_ptr<RooPlot>(ws.var(varName.c_str())->frame( RooFit::Range(plotWindow.c_str()) ));
+    frame["MAIN"] = std::unique_ptr<RooPlot>(ws.var(varName.c_str())->frame( RooFit::Range("PlotWindow") ));
     if (ws.data(("CutAndCount_"+dsName).c_str())) {
-      ws.data(("CutAndCount_"+dsName).c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning(plotWindow.c_str()),
+      ws.data(("CutAndCount_"+dsName).c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("PlotWindow"),
                                                        RooFit::DataError(RooAbsData::SumW2), RooFit::XErrorSize(0),
                                                        RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
     }
     else {
-      ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning(plotWindow.c_str()),
+      ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("PlotWindow"),
                                       RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
     }
     //
@@ -124,7 +123,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
       RooArgList pdfList = dynamic_cast<RooAddPdf*>(ws.pdf(pdfName.c_str()))->pdfList();
       if (pdfList.getSize()==1) {
         const double& norm = dynamic_cast<RooAddPdf*>(ws.pdf(pdfName.c_str()))->expectedEvents(RooArgSet(*ws.var(varName.c_str())));
-        ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range(plotWindow.c_str()), RooFit::NormRange(plotWindow.c_str()),
+        ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"),
                                         RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
                                         RooFit::LineColor(kBlack), RooFit::LineStyle(1)
                                         );
@@ -135,7 +134,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
         //
         std::string pdfNameTot = Form("pdfPlot%s_pdf%sTot_%s%s%s_%s", (redoFrame?"RE":""), varName.c_str(), obj.c_str(), cha.c_str(), chg.c_str(), col.c_str());
         if (ws.pdf(pdfNameTot.c_str())==NULL) { pdfNameTot = pdfName; }
-        ws.pdf(pdfNameTot.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range(plotWindow.c_str()), RooFit::NormRange(plotWindow.c_str()),
+        ws.pdf(pdfNameTot.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"),
                                            RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
                                            RooFit::LineColor(kBlack), RooFit::LineStyle(1)
                                            );
@@ -145,6 +144,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
     frame.at("MAIN")->SetTitle(frameName.c_str());
     if (ws.obj(frameName.c_str())==NULL) { ws.import(*frame.at("MAIN"), frame.at("MAIN")->GetTitle()); }
   }
+  return false;
   //
   legInfo["DATA"][Form("plot_Tot%s", dsName.c_str())] = ( isMC ? "Simulation" : "Data" );
   //
@@ -254,7 +254,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
     pad.at("EXTRA")->Update();
   }
   //
-  setPlotRange(*frame.at("MAIN"), ws, varName, dsName, setLogScale, ws.var(varName.c_str())->getBins(plotWindow.c_str()));
+  setPlotRange(*frame.at("MAIN"), ws, varName, dsName, setLogScale, ws.var(varName.c_str())->getBins("PlotWindow"));
   //
   cFig->cd();
   pad.at("MAIN")->Draw();
