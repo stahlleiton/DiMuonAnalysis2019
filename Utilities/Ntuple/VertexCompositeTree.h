@@ -470,7 +470,7 @@ void VertexCompositeTree::SetBranch(const std::string& n)
   if (GetBranchStatus(n) == 0) {
     fChain_->SetBranchStatus(n.c_str(), 1);
     b.at(n)->GetEntry(entry_); // Needed for the first entry
-    if (fChain_->GetBranchStatus(n.c_str())) activeBranches_.insert(n);
+    if (fChain_->GetBranchStatus(n.c_str())==1) activeBranches_.insert(n);
   }
 };
 
