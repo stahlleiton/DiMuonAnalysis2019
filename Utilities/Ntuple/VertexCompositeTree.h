@@ -20,8 +20,8 @@
 
 
 typedef std::vector< std::vector<UChar_t> > UCharVecVec;
-const UInt_t NCAND = 500;
-const UInt_t NGEN  = 10;
+static const UInt_t NCAND = 500;
+static const UInt_t NGEN  = 10;
 
 
 class VertexCompositeTree {
@@ -219,6 +219,8 @@ public :
   Int_t     fCurrent_=-1;
   Long64_t  entry_;
   
+  std::set<std::string> activeBranches_;
+
   static const UInt_t NEP   = 3;
   static const UInt_t NTRG  = 15;
   static const UInt_t NSEL  = 10;
@@ -374,156 +376,8 @@ public :
   Float_t           EtaD2_gen_[NGEN]={0};   //[candSize_gen]
   Float_t           PhiD2_gen_[NGEN]={0};   //[candSize_gen]
 
-  // EVENT INFO BRANCHES
-  TBranch          *b_RunNb;   //!
-  TBranch          *b_LSNb;   //!
-  TBranch          *b_EventNb;   //!
-  TBranch          *b_nPV;   //!
-  TBranch          *b_bestvtxX;   //!
-  TBranch          *b_bestvtxY;   //!
-  TBranch          *b_bestvtxZ;   //!
-  TBranch          *b_centrality;   //!
-  TBranch          *b_Npixel;   //!
-  TBranch          *b_HFsumETPlus;   //!
-  TBranch          *b_HFsumETMinus;   //!
-  TBranch          *b_ZDCPlus;   //!
-  TBranch          *b_ZDCMinus;   //!
-  TBranch          *b_Ntrkoffline;   //!
-  TBranch          *b_trigPrescale;   //!
-  TBranch          *b_trigHLT;   //!
-  TBranch          *b_evtSel;   //!
-
-  // EVENT PLANE BRANCHES
-  TBranch          *b_ephfpAngle;   //!
-  TBranch          *b_ephfpQ;   //!
-  TBranch          *b_ephfpSumW;   //!
-  TBranch          *b_ephfmAngle;   //!
-  TBranch          *b_ephfmQ;   //!
-  TBranch          *b_ephfmSumW;   //!
-
-  // CANDIDATE INFO BRANCHES
-  TBranch          *b_candSize;   //!
-  TBranch          *b_pT;   //!
-  TBranch          *b_eta;   //!
-  TBranch          *b_y;   //!
-  TBranch          *b_phi;   //!
-  TBranch          *b_mass;   //!
-  TBranch          *b_flavor;   //!
-  TBranch          *b_VtxProb;   //!
-  TBranch          *b_3DCosPointingAngle;   //!
-  TBranch          *b_3DPointingAngle;   //!
-  TBranch          *b_2DCosPointingAngle;   //!
-  TBranch          *b_2DPointingAngle;   //!
-  TBranch          *b_3DDecayLengthSignificance;   //!
-  TBranch          *b_3DDecayLength;   //!
-  TBranch          *b_2DDecayLengthSignificance;   //!
-  TBranch          *b_2DDecayLength;   //!
-  TBranch          *b_zDCASignificanceDaugther1;   //!
-  TBranch          *b_xyDCASignificanceDaugther1;   //!
-  TBranch          *b_HighPurityDaugther1;   //!
-  TBranch          *b_NHitD1;   //!
-  TBranch          *b_pTD1;   //!
-  TBranch          *b_pTerrD1;   //!
-  TBranch          *b_EtaD1;   //!
-  TBranch          *b_PhiD1;   //!
-  TBranch          *b_chargeD1;   //!
-  TBranch          *b_dedxHarmonic2D1;   //!
-  TBranch          *b_zDCASignificanceDaugther2;   //!
-  TBranch          *b_xyDCASignificanceDaugther2;   //!
-  TBranch          *b_HighPurityDaugther2;   //!
-  TBranch          *b_NHitD2;   //!
-  TBranch          *b_pTD2;   //!
-  TBranch          *b_pTerrD2;   //!
-  TBranch          *b_EtaD2;   //!
-  TBranch          *b_PhiD2;   //!
-  TBranch          *b_chargeD2;   //!
-  TBranch          *b_dedxHarmonic2D2;   //!
-  TBranch          *b_isSwap;   //!
-  TBranch          *b_idmom_reco;   //!
-  TBranch          *b_matchGEN;   //!
-  TBranch          *b_PIDD1;   //!
-  TBranch          *b_PIDD2;   //!
-
-  // MUON INFO BRANCHES
-  TBranch          *b_OneStMuon1;   //!
-  TBranch          *b_PFMuon1;   //!
-  TBranch          *b_GlbMuon1;   //!
-  TBranch          *b_trkMuon1;   //!
-  TBranch          *b_tightMuon1;   //!
-  TBranch          *b_softMuon1;   //!
-  TBranch          *b_hybridMuon1;   //!
-  TBranch          *b_HPMuon1;   //!
-  TBranch          *b_trigMuon1;   //!
-  TBranch          *b_nMatchedStationD1;   //!
-  TBranch          *b_nTrackerLayerD1;   //!
-  TBranch          *b_nPixelLayerD1;   //!
-  TBranch          *b_nPixelHitD1;   //!
-  TBranch          *b_nMuonHitD1;   //!
-  TBranch          *b_GlbTrkChiD1;   //!
-  TBranch          *b_muondXYD1;   //!
-  TBranch          *b_muondZD1;   //!
-  TBranch          *b_dXYD1;   //!
-  TBranch          *b_dZD1;   //!
-  TBranch          *b_nMatchedChamberD1;   //!
-  TBranch          *b_EnergyDepositionD1;   //!
-  TBranch          *b_dx1_seg;   //!
-  TBranch          *b_dy1_seg;   //!
-  TBranch          *b_dxSig1_seg;   //!
-  TBranch          *b_dySig1_seg;   //!
-  TBranch          *b_ddxdz1_seg;   //!
-  TBranch          *b_ddydz1_seg;   //!
-  TBranch          *b_ddxdzSig1_seg;   //!
-  TBranch          *b_ddydzSig1_seg;   //!
-  TBranch          *b_OneStMuon2;   //!
-  TBranch          *b_PFMuon2;   //!
-  TBranch          *b_GlbMuon2;   //!
-  TBranch          *b_trkMuon2;   //!
-  TBranch          *b_tightMuon2;   //!
-  TBranch          *b_softMuon2;   //!
-  TBranch          *b_hybridMuon2;   //!
-  TBranch          *b_HPMuon2;   //!
-  TBranch          *b_trigMuon2;   //!
-  TBranch          *b_nMatchedStationD2;   //!
-  TBranch          *b_nTrackerLayerD2;   //!
-  TBranch          *b_nPixelLayerD2;   //!
-  TBranch          *b_nPixelHitD2;   //!
-  TBranch          *b_nMuonHitD2;   //!
-  TBranch          *b_GlbTrkChiD2;   //!
-  TBranch          *b_muondXYD2;   //!
-  TBranch          *b_muondZD2;   //!
-  TBranch          *b_dXYD2;   //!
-  TBranch          *b_dZD2;   //!
-  TBranch          *b_nMatchedChamberD2;   //!
-  TBranch          *b_EnergyDepositionD2;   //!
-  TBranch          *b_dx2_seg;   //!
-  TBranch          *b_dy2_seg;   //!
-  TBranch          *b_dxSig2_seg;   //!
-  TBranch          *b_dySig2_seg;   //!
-  TBranch          *b_ddxdz2_seg;   //!
-  TBranch          *b_ddydz2_seg;   //!
-  TBranch          *b_ddxdzSig2_seg;   //!
-  TBranch          *b_ddydzSig2_seg;   //!
-  
-  // GEN INFO BRANCHES
-  TBranch          *b_weight_gen;   //!
-  TBranch          *b_candSize_gen;   //!
-  TBranch          *b_pT_gen;   //!
-  TBranch          *b_eta_gen;   //!
-  TBranch          *b_y_gen;   //!
-  TBranch          *b_status_gen;   //!
-  TBranch          *b_PID_gen;   //!
-  TBranch          *b_MotherID_gen;   //!
-  TBranch          *b_RecIdx_gen;   //!
-  TBranch          *b_PIDD1_gen;   //!
-  TBranch          *b_chargeD1_gen;   //!
-  TBranch          *b_pTD1_gen;   //!
-  TBranch          *b_EtaD1_gen;   //!
-  TBranch          *b_PhiD1_gen;   //!
-  TBranch          *b_PIDD2_gen;   //!
-  TBranch          *b_chargeD2_gen;   //!
-  TBranch          *b_pTD2_gen;   //!
-  TBranch          *b_EtaD2_gen;   //!
-  TBranch          *b_PhiD2_gen;   //!
+  // BRANCHES
+  std::map<std::string, TBranch*> b; //!
 };
 
 VertexCompositeTree::VertexCompositeTree() : fChain_(0)
@@ -605,7 +459,8 @@ Long64_t VertexCompositeTree::LoadTree(Long64_t entry)
 };
 
 char VertexCompositeTree::GetBranchStatus(const std::string& n)
-{ 
+{
+  if (activeBranches_.count(n)>0) return 1;
   if (!fChain_ || !(fChain_->GetBranch(n.c_str()))) return -1;
   return fChain_->GetBranchStatus(n.c_str());
 };
@@ -614,7 +469,8 @@ void VertexCompositeTree::SetBranch(const std::string& n)
 {
   if (GetBranchStatus(n) == 0) {
     fChain_->SetBranchStatus(Form("*%s*", n.c_str()), 1);
-    LoadEntry(); // Needed for the first entry
+    b.at(n)->GetEntry(entry_); // Needed for the first entry
+    if (fChain_->GetBranchStatus(n.c_str())) activeBranches_.insert(n);
   }
 };
 
@@ -631,135 +487,135 @@ void VertexCompositeTree::InitTree(void)
     auto& fChain = fChainM_.at("VertexCompositeNtuple");
 
     // SET EVENT INFO BRANCHES
-    if (fChain->GetBranch("RunNb"))                       fChain->SetBranchAddress("RunNb",                     &RunNb_,                      &b_RunNb                     );
-    if (fChain->GetBranch("LSNb"))                        fChain->SetBranchAddress("LSNb",                      &LSNb_,                       &b_LSNb                      );
-    if (fChain->GetBranch("EventNb"))                     fChain->SetBranchAddress("EventNb",                   &EventNb_,                    &b_EventNb                   );
-    if (fChain->GetBranch("nPV"))                         fChain->SetBranchAddress("nPV",                       &nPV_,                        &b_nPV                       );
-    if (fChain->GetBranch("bestvtxX"))                    fChain->SetBranchAddress("bestvtxX",                  &bestvtxX_,                   &b_bestvtxX                  );
-    if (fChain->GetBranch("bestvtxY"))                    fChain->SetBranchAddress("bestvtxY",                  &bestvtxY_,                   &b_bestvtxY                  );
-    if (fChain->GetBranch("bestvtxZ"))                    fChain->SetBranchAddress("bestvtxZ",                  &bestvtxZ_,                   &b_bestvtxZ                  );
-    if (fChain->GetBranch("centrality"))                  fChain->SetBranchAddress("centrality",                &centrality_,                 &b_centrality                );
-    if (fChain->GetBranch("Npixel"))                      fChain->SetBranchAddress("Npixel",                    &Npixel_,                     &b_Npixel                    );
-    if (fChain->GetBranch("HFsumETPlus"))                 fChain->SetBranchAddress("HFsumETPlus",               &HFsumETPlus_,                &b_HFsumETPlus               );
-    if (fChain->GetBranch("HFsumETMinus"))                fChain->SetBranchAddress("HFsumETMinus",              &HFsumETMinus_,               &b_HFsumETMinus              );
-    if (fChain->GetBranch("ZDCPlus"))                     fChain->SetBranchAddress("ZDCPlus",                   &ZDCPlus_,                    &b_ZDCPlus                   );
-    if (fChain->GetBranch("ZDCMinus"))                    fChain->SetBranchAddress("ZDCMinus",                  &ZDCMinus_,                   &b_ZDCMinus                  );
-    if (fChain->GetBranch("Ntrkoffline"))                 fChain->SetBranchAddress("Ntrkoffline",               &Ntrkoffline_,                &b_Ntrkoffline               );
-    if (fChain->GetBranch("trigPrescale"))                fChain->SetBranchAddress("trigPrescale",               trigPrescale_,               &b_trigPrescale              );
-    if (fChain->GetBranch("trigHLT"))                     fChain->SetBranchAddress("trigHLT",                    trigHLT_,                    &b_trigHLT                   );
-    if (fChain->GetBranch("evtSel"))                      fChain->SetBranchAddress("evtSel",                     evtSel_,                     &b_evtSel                    );
+    if (fChain->GetBranch("RunNb"))                       fChain->SetBranchAddress("RunNb",                     &RunNb_,                      &(b["RunNb"])                     );
+    if (fChain->GetBranch("LSNb"))                        fChain->SetBranchAddress("LSNb",                      &LSNb_,                       &(b["LSNb"])                      );
+    if (fChain->GetBranch("EventNb"))                     fChain->SetBranchAddress("EventNb",                   &EventNb_,                    &(b["EventNb"])                   );
+    if (fChain->GetBranch("nPV"))                         fChain->SetBranchAddress("nPV",                       &nPV_,                        &(b["nPV"])                       );
+    if (fChain->GetBranch("bestvtxX"))                    fChain->SetBranchAddress("bestvtxX",                  &bestvtxX_,                   &(b["bestvtxX"])                  );
+    if (fChain->GetBranch("bestvtxY"))                    fChain->SetBranchAddress("bestvtxY",                  &bestvtxY_,                   &(b["bestvtxY"])                  );
+    if (fChain->GetBranch("bestvtxZ"))                    fChain->SetBranchAddress("bestvtxZ",                  &bestvtxZ_,                   &(b["bestvtxZ"])                  );
+    if (fChain->GetBranch("centrality"))                  fChain->SetBranchAddress("centrality",                &centrality_,                 &(b["centrality"])                );
+    if (fChain->GetBranch("Npixel"))                      fChain->SetBranchAddress("Npixel",                    &Npixel_,                     &(b["Npixel"])                    );
+    if (fChain->GetBranch("HFsumETPlus"))                 fChain->SetBranchAddress("HFsumETPlus",               &HFsumETPlus_,                &(b["HFsumETPlus"])               );
+    if (fChain->GetBranch("HFsumETMinus"))                fChain->SetBranchAddress("HFsumETMinus",              &HFsumETMinus_,               &(b["HFsumETMinus"])              );
+    if (fChain->GetBranch("ZDCPlus"))                     fChain->SetBranchAddress("ZDCPlus",                   &ZDCPlus_,                    &(b["ZDCPlus"])                   );
+    if (fChain->GetBranch("ZDCMinus"))                    fChain->SetBranchAddress("ZDCMinus",                  &ZDCMinus_,                   &(b["ZDCMinus"])                  );
+    if (fChain->GetBranch("Ntrkoffline"))                 fChain->SetBranchAddress("Ntrkoffline",               &Ntrkoffline_,                &(b["Ntrkoffline"])               );
+    if (fChain->GetBranch("trigPrescale"))                fChain->SetBranchAddress("trigPrescale",               trigPrescale_,               &(b["trigPrescale"])              );
+    if (fChain->GetBranch("trigHLT"))                     fChain->SetBranchAddress("trigHLT",                    trigHLT_,                    &(b["trigHLT"])                   );
+    if (fChain->GetBranch("evtSel"))                      fChain->SetBranchAddress("evtSel",                     evtSel_,                     &(b["evtSel"])                    );
 
     // SET EVENT PLANE BRANCHES
-    if (fChain->GetBranch("ephfpSumW"))                   fChain->SetBranchAddress("ephfpSumW",                 &ephfpSumW_,                  &b_ephfpSumW                 );
-    if (fChain->GetBranch("ephfpAngle"))                  fChain->SetBranchAddress("ephfpAngle",                 ephfpAngle_,                 &b_ephfpAngle                );
-    if (fChain->GetBranch("ephfpQ"))                      fChain->SetBranchAddress("ephfpQ",                     ephfpQ_,                     &b_ephfpQ                    );
-    if (fChain->GetBranch("ephfmSumW"))                   fChain->SetBranchAddress("ephfmSumW",                 &ephfmSumW_,                  &b_ephfmSumW                 );
-    if (fChain->GetBranch("ephfmAngle"))                  fChain->SetBranchAddress("ephfmAngle",                 ephfmAngle_,                 &b_ephfmAngle                );
-    if (fChain->GetBranch("ephfmQ"))                      fChain->SetBranchAddress("ephfmQ",                     ephfmQ_,                     &b_ephfmQ                    );
+    if (fChain->GetBranch("ephfpSumW"))                   fChain->SetBranchAddress("ephfpSumW",                 &ephfpSumW_,                  &(b["ephfpSumW"])                 );
+    if (fChain->GetBranch("ephfpAngle"))                  fChain->SetBranchAddress("ephfpAngle",                 ephfpAngle_,                 &(b["ephfpAngle"])                );
+    if (fChain->GetBranch("ephfpQ"))                      fChain->SetBranchAddress("ephfpQ",                     ephfpQ_,                     &(b["ephfpQ"])                    );
+    if (fChain->GetBranch("ephfmSumW"))                   fChain->SetBranchAddress("ephfmSumW",                 &ephfmSumW_,                  &(b["ephfmSumW"])                 );
+    if (fChain->GetBranch("ephfmAngle"))                  fChain->SetBranchAddress("ephfmAngle",                 ephfmAngle_,                 &(b["ephfmAngle"])                );
+    if (fChain->GetBranch("ephfmQ"))                      fChain->SetBranchAddress("ephfmQ",                     ephfmQ_,                     &(b["ephfmQ"])                    );
 
     // SET CANDIDATE INFO BRANCHES
-    if (fChain->GetBranch("candSize"))                    fChain->SetBranchAddress("candSize",                  &candSize_,                   &b_candSize                  );
-    if (fChain->GetBranch("pT"))                          fChain->SetBranchAddress("pT",                         pT_,                         &b_pT                        );
-    if (fChain->GetBranch("eta"))                         fChain->SetBranchAddress("eta",                        eta_,                        &b_eta                       );
-    if (fChain->GetBranch("y"))                           fChain->SetBranchAddress("y",                          y_,                          &b_y                         );
-    if (fChain->GetBranch("phi"))                         fChain->SetBranchAddress("phi",                        phi_,                        &b_phi                       );
-    if (fChain->GetBranch("mass"))                        fChain->SetBranchAddress("mass",                       mass_,                       &b_mass                      );
-    if (fChain->GetBranch("flavor"))                      fChain->SetBranchAddress("flavor",                     flavor_,                     &b_flavor                    );
-    if (fChain->GetBranch("VtxProb"))                     fChain->SetBranchAddress("VtxProb",                    VtxProb_,                    &b_VtxProb                   );
-    if (fChain->GetBranch("3DCosPointingAngle"))          fChain->SetBranchAddress("3DCosPointingAngle",         V3DCosPointingAngle_,        &b_3DCosPointingAngle        );
-    if (fChain->GetBranch("3DPointingAngle"))             fChain->SetBranchAddress("3DPointingAngle",            V3DPointingAngle_,           &b_3DPointingAngle           );
-    if (fChain->GetBranch("2DCosPointingAngle"))          fChain->SetBranchAddress("2DCosPointingAngle",         V2DCosPointingAngle_,        &b_2DCosPointingAngle        );
-    if (fChain->GetBranch("2DPointingAngle"))             fChain->SetBranchAddress("2DPointingAngle",            V2DPointingAngle_,           &b_2DPointingAngle           );
-    if (fChain->GetBranch("3DDecayLengthSignificance"))   fChain->SetBranchAddress("3DDecayLengthSignificance",  V3DDecayLengthSignificance_, &b_3DDecayLengthSignificance );
-    if (fChain->GetBranch("3DDecayLength"))               fChain->SetBranchAddress("3DDecayLength",              V3DDecayLength_,             &b_3DDecayLength             );
-    if (fChain->GetBranch("2DDecayLengthSignificance"))   fChain->SetBranchAddress("2DDecayLengthSignificance",  V2DDecayLengthSignificance_, &b_2DDecayLengthSignificance );
-    if (fChain->GetBranch("2DDecayLength"))               fChain->SetBranchAddress("2DDecayLength",              V2DDecayLength_,             &b_2DDecayLength             );
-    if (fChain->GetBranch("zDCASignificanceDaugther1"))   fChain->SetBranchAddress("zDCASignificanceDaugther1",  zDCASignificanceDaugther1_,  &b_zDCASignificanceDaugther1 );
-    if (fChain->GetBranch("xyDCASignificanceDaugther1"))  fChain->SetBranchAddress("xyDCASignificanceDaugther1", xyDCASignificanceDaugther1_, &b_xyDCASignificanceDaugther1);
-    if (fChain->GetBranch("HighPurityDaugther1"))         fChain->SetBranchAddress("HighPurityDaugther1",        HighPurityDaugther1_,        &b_HighPurityDaugther1       );
-    if (fChain->GetBranch("NHitD1"))                      fChain->SetBranchAddress("NHitD1",                     NHitD1_,                     &b_NHitD1                    );
-    if (fChain->GetBranch("pTD1"))                        fChain->SetBranchAddress("pTD1",                       pTD1_,                       &b_pTD1                      );
-    if (fChain->GetBranch("pTerrD1"))                     fChain->SetBranchAddress("pTerrD1",                    pTerrD1_,                    &b_pTerrD1                   );
-    if (fChain->GetBranch("EtaD1"))                       fChain->SetBranchAddress("EtaD1",                      EtaD1_,                      &b_EtaD1                     );
-    if (fChain->GetBranch("PhiD1"))                       fChain->SetBranchAddress("PhiD1",                      PhiD1_,                      &b_PhiD1                     );
-    if (fChain->GetBranch("chargeD1"))                    fChain->SetBranchAddress("chargeD1",                   chargeD1_,                   &b_chargeD1                  );
-    if (fChain->GetBranch("dedxHarmonic2D1"))             fChain->SetBranchAddress("dedxHarmonic2D1",            dedxHarmonic2D1_,            &b_dedxHarmonic2D1           );
-    if (fChain->GetBranch("zDCASignificanceDaugther2"))   fChain->SetBranchAddress("zDCASignificanceDaugther2",  zDCASignificanceDaugther2_,  &b_zDCASignificanceDaugther2 );
-    if (fChain->GetBranch("xyDCASignificanceDaugther2"))  fChain->SetBranchAddress("xyDCASignificanceDaugther2", xyDCASignificanceDaugther2_, &b_xyDCASignificanceDaugther2);
-    if (fChain->GetBranch("HighPurityDaugther2"))         fChain->SetBranchAddress("HighPurityDaugther2",        HighPurityDaugther2_,        &b_HighPurityDaugther2       );
-    if (fChain->GetBranch("NHitD2"))                      fChain->SetBranchAddress("NHitD2",                     NHitD2_,                     &b_NHitD2                    );
-    if (fChain->GetBranch("pTD2"))                        fChain->SetBranchAddress("pTD2",                       pTD2_,                       &b_pTD2                      );
-    if (fChain->GetBranch("pTerrD2"))                     fChain->SetBranchAddress("pTerrD2",                    pTerrD2_,                    &b_pTerrD2                   );
-    if (fChain->GetBranch("EtaD2"))                       fChain->SetBranchAddress("EtaD2",                      EtaD2_,                      &b_EtaD2                     );
-    if (fChain->GetBranch("PhiD2"))                       fChain->SetBranchAddress("PhiD2",                      PhiD2_,                      &b_PhiD2                     );
-    if (fChain->GetBranch("chargeD2"))                    fChain->SetBranchAddress("chargeD2",                   chargeD2_,                   &b_chargeD2                  );
-    if (fChain->GetBranch("dedxHarmonic2D2"))             fChain->SetBranchAddress("dedxHarmonic2D2",            dedxHarmonic2D2_,            &b_dedxHarmonic2D2           );
-    if (fChain->GetBranch("isSwap"))                      fChain->SetBranchAddress("isSwap",                     isSwap_,                     &b_isSwap                    );
-    if (fChain->GetBranch("idmom_reco"))                  fChain->SetBranchAddress("idmom_reco",                 idmom_reco_,                 &b_idmom_reco                );
-    if (fChain->GetBranch("matchGEN"))                    fChain->SetBranchAddress("matchGEN",                   matchGEN_,                   &b_matchGEN                  );
-    if (fChain->GetBranch("PIDD1"))                       fChain->SetBranchAddress("PIDD1",                      PIDD1_,                      &b_PIDD1                     );
-    if (fChain->GetBranch("PIDD2"))                       fChain->SetBranchAddress("PIDD2",                      PIDD2_,                      &b_PIDD2                     );
+    if (fChain->GetBranch("candSize"))                    fChain->SetBranchAddress("candSize",                  &candSize_,                   &(b["candSize"])                  );
+    if (fChain->GetBranch("pT"))                          fChain->SetBranchAddress("pT",                         pT_,                         &(b["pT"])                        );
+    if (fChain->GetBranch("eta"))                         fChain->SetBranchAddress("eta",                        eta_,                        &(b["eta"])                       );
+    if (fChain->GetBranch("y"))                           fChain->SetBranchAddress("y",                          y_,                          &(b["y"])                         );
+    if (fChain->GetBranch("phi"))                         fChain->SetBranchAddress("phi",                        phi_,                        &(b["phi"])                       );
+    if (fChain->GetBranch("mass"))                        fChain->SetBranchAddress("mass",                       mass_,                       &(b["mass"])                      );
+    if (fChain->GetBranch("flavor"))                      fChain->SetBranchAddress("flavor",                     flavor_,                     &(b["flavor"])                    );
+    if (fChain->GetBranch("VtxProb"))                     fChain->SetBranchAddress("VtxProb",                    VtxProb_,                    &(b["VtxProb"])                   );
+    if (fChain->GetBranch("3DCosPointingAngle"))          fChain->SetBranchAddress("3DCosPointingAngle",         V3DCosPointingAngle_,        &(b["3DCosPointingAngle"])        );
+    if (fChain->GetBranch("3DPointingAngle"))             fChain->SetBranchAddress("3DPointingAngle",            V3DPointingAngle_,           &(b["3DPointingAngle"])           );
+    if (fChain->GetBranch("2DCosPointingAngle"))          fChain->SetBranchAddress("2DCosPointingAngle",         V2DCosPointingAngle_,        &(b["2DCosPointingAngle"])        );
+    if (fChain->GetBranch("2DPointingAngle"))             fChain->SetBranchAddress("2DPointingAngle",            V2DPointingAngle_,           &(b["2DPointingAngle"])           );
+    if (fChain->GetBranch("3DDecayLengthSignificance"))   fChain->SetBranchAddress("3DDecayLengthSignificance",  V3DDecayLengthSignificance_, &(b["3DDecayLengthSignificance"]) );
+    if (fChain->GetBranch("3DDecayLength"))               fChain->SetBranchAddress("3DDecayLength",              V3DDecayLength_,             &(b["3DDecayLength"])             );
+    if (fChain->GetBranch("2DDecayLengthSignificance"))   fChain->SetBranchAddress("2DDecayLengthSignificance",  V2DDecayLengthSignificance_, &(b["2DDecayLengthSignificance"]) );
+    if (fChain->GetBranch("2DDecayLength"))               fChain->SetBranchAddress("2DDecayLength",              V2DDecayLength_,             &(b["2DDecayLength"])             );
+    if (fChain->GetBranch("zDCASignificanceDaugther1"))   fChain->SetBranchAddress("zDCASignificanceDaugther1",  zDCASignificanceDaugther1_,  &(b["zDCASignificanceDaugther1"]) );
+    if (fChain->GetBranch("xyDCASignificanceDaugther1"))  fChain->SetBranchAddress("xyDCASignificanceDaugther1", xyDCASignificanceDaugther1_, &(b["xyDCASignificanceDaugther1"]));
+    if (fChain->GetBranch("HighPurityDaugther1"))         fChain->SetBranchAddress("HighPurityDaugther1",        HighPurityDaugther1_,        &(b["HighPurityDaugther1"])       );
+    if (fChain->GetBranch("NHitD1"))                      fChain->SetBranchAddress("NHitD1",                     NHitD1_,                     &(b["NHitD1"])                    );
+    if (fChain->GetBranch("pTD1"))                        fChain->SetBranchAddress("pTD1",                       pTD1_,                       &(b["pTD1"])                      );
+    if (fChain->GetBranch("pTerrD1"))                     fChain->SetBranchAddress("pTerrD1",                    pTerrD1_,                    &(b["pTerrD1"])                   );
+    if (fChain->GetBranch("EtaD1"))                       fChain->SetBranchAddress("EtaD1",                      EtaD1_,                      &(b["EtaD1"])                     );
+    if (fChain->GetBranch("PhiD1"))                       fChain->SetBranchAddress("PhiD1",                      PhiD1_,                      &(b["PhiD1"])                     );
+    if (fChain->GetBranch("chargeD1"))                    fChain->SetBranchAddress("chargeD1",                   chargeD1_,                   &(b["chargeD1"])                  );
+    if (fChain->GetBranch("dedxHarmonic2D1"))             fChain->SetBranchAddress("dedxHarmonic2D1",            dedxHarmonic2D1_,            &(b["dedxHarmonic2D1"])           );
+    if (fChain->GetBranch("zDCASignificanceDaugther2"))   fChain->SetBranchAddress("zDCASignificanceDaugther2",  zDCASignificanceDaugther2_,  &(b["zDCASignificanceDaugther2"]) );
+    if (fChain->GetBranch("xyDCASignificanceDaugther2"))  fChain->SetBranchAddress("xyDCASignificanceDaugther2", xyDCASignificanceDaugther2_, &(b["xyDCASignificanceDaugther2"]));
+    if (fChain->GetBranch("HighPurityDaugther2"))         fChain->SetBranchAddress("HighPurityDaugther2",        HighPurityDaugther2_,        &(b["HighPurityDaugther2"])       );
+    if (fChain->GetBranch("NHitD2"))                      fChain->SetBranchAddress("NHitD2",                     NHitD2_,                     &(b["NHitD2"])                    );
+    if (fChain->GetBranch("pTD2"))                        fChain->SetBranchAddress("pTD2",                       pTD2_,                       &(b["pTD2"])                      );
+    if (fChain->GetBranch("pTerrD2"))                     fChain->SetBranchAddress("pTerrD2",                    pTerrD2_,                    &(b["pTerrD2"])                   );
+    if (fChain->GetBranch("EtaD2"))                       fChain->SetBranchAddress("EtaD2",                      EtaD2_,                      &(b["EtaD2"])                     );
+    if (fChain->GetBranch("PhiD2"))                       fChain->SetBranchAddress("PhiD2",                      PhiD2_,                      &(b["PhiD2"])                     );
+    if (fChain->GetBranch("chargeD2"))                    fChain->SetBranchAddress("chargeD2",                   chargeD2_,                   &(b["chargeD2"])                  );
+    if (fChain->GetBranch("dedxHarmonic2D2"))             fChain->SetBranchAddress("dedxHarmonic2D2",            dedxHarmonic2D2_,            &(b["dedxHarmonic2D2"])           );
+    if (fChain->GetBranch("isSwap"))                      fChain->SetBranchAddress("isSwap",                     isSwap_,                     &(b["isSwap"])                    );
+    if (fChain->GetBranch("idmom_reco"))                  fChain->SetBranchAddress("idmom_reco",                 idmom_reco_,                 &(b["idmom_reco"])                );
+    if (fChain->GetBranch("matchGEN"))                    fChain->SetBranchAddress("matchGEN",                   matchGEN_,                   &(b["matchGEN"])                  );
+    if (fChain->GetBranch("PIDD1"))                       fChain->SetBranchAddress("PIDD1",                      PIDD1_,                      &(b["PIDD1"])                     );
+    if (fChain->GetBranch("PIDD2"))                       fChain->SetBranchAddress("PIDD2",                      PIDD2_,                      &(b["PIDD2"])                     );
 
     // SET MUON INFO BRANCHES
-    if (fChain->GetBranch("OneStMuon1"))                  fChain->SetBranchAddress("OneStMuon1",                 OneStMuon1_,                 &b_OneStMuon1                );
-    if (fChain->GetBranch("PFMuon1"))                     fChain->SetBranchAddress("PFMuon1",                    PFMuon1_,                    &b_PFMuon1                   );
-    if (fChain->GetBranch("GlbMuon1"))                    fChain->SetBranchAddress("GlbMuon1",                   GlbMuon1_,                   &b_GlbMuon1                  );
-    if (fChain->GetBranch("trkMuon1"))                    fChain->SetBranchAddress("trkMuon1",                   trkMuon1_,                   &b_trkMuon1                  );
-    if (fChain->GetBranch("tightMuon1"))                  fChain->SetBranchAddress("tightMuon1",                 tightMuon1_,                 &b_tightMuon1                );
-    if (fChain->GetBranch("softMuon1"))                   fChain->SetBranchAddress("softMuon1",                  softMuon1_,                  &b_softMuon1                 );
-    if (fChain->GetBranch("hybridMuon1"))                 fChain->SetBranchAddress("hybridMuon1",                hybridMuon1_,                &b_hybridMuon1               );
-    if (fChain->GetBranch("HPMuon1"))                     fChain->SetBranchAddress("HPMuon1",                    HPMuon1_,                    &b_HPMuon1                   );
-    if (fChain->GetBranch("trigMuon1"))                   fChain->SetBranchAddress("trigMuon1",                 &trigMuon1_,                  &b_trigMuon1                 );
-    if (fChain->GetBranch("nMatchedStationD1"))           fChain->SetBranchAddress("nMatchedStationD1",          nMatchedStationD1_,          &b_nMatchedStationD1         );
-    if (fChain->GetBranch("nTrackerLayerD1"))             fChain->SetBranchAddress("nTrackerLayerD1",            nTrackerLayerD1_,            &b_nTrackerLayerD1           );
-    if (fChain->GetBranch("nPixelLayerD1"))               fChain->SetBranchAddress("nPixelLayerD1",              nPixelLayerD1_,              &b_nPixelLayerD1             );
-    if (fChain->GetBranch("nPixelHitD1"))                 fChain->SetBranchAddress("nPixelHitD1",                nPixelHitD1_,                &b_nPixelHitD1               );
-    if (fChain->GetBranch("nMuonHitD1"))                  fChain->SetBranchAddress("nMuonHitD1",                 nMuonHitD1_,                 &b_nMuonHitD1                );
-    if (fChain->GetBranch("GlbTrkChiD1"))                 fChain->SetBranchAddress("GlbTrkChiD1",                GlbTrkChiD1_,                &b_GlbTrkChiD1               );
-    if (fChain->GetBranch("muondZD1"))                    fChain->SetBranchAddress("muondZD1",                   muondZD1_,                   &b_muondZD1                  );
-    if (fChain->GetBranch("muondXYD1"))                   fChain->SetBranchAddress("muondXYD1",                  muondXYD1_,                  &b_muondXYD1                 );
-    if (fChain->GetBranch("dZD1"))                        fChain->SetBranchAddress("dZD1",                       dZD1_,                       &b_dZD1                      );
-    if (fChain->GetBranch("dXYD1"))                       fChain->SetBranchAddress("dXYD1",                      dXYD1_,                      &b_dXYD1                     );    
-    if (fChain->GetBranch("OneStMuon2"))                  fChain->SetBranchAddress("OneStMuon2",                 OneStMuon2_,                 &b_OneStMuon2                );
-    if (fChain->GetBranch("PFMuon2"))                     fChain->SetBranchAddress("PFMuon2",                    PFMuon2_,                    &b_PFMuon2                   );
-    if (fChain->GetBranch("GlbMuon2"))                    fChain->SetBranchAddress("GlbMuon2",                   GlbMuon2_,                   &b_GlbMuon2                  );
-    if (fChain->GetBranch("trkMuon2"))                    fChain->SetBranchAddress("trkMuon2",                   trkMuon2_,                   &b_trkMuon2                  );
-    if (fChain->GetBranch("tightMuon2"))                  fChain->SetBranchAddress("tightMuon2",                 tightMuon2_,                 &b_tightMuon2                );
-    if (fChain->GetBranch("softMuon2"))                   fChain->SetBranchAddress("softMuon2",                  softMuon2_,                  &b_softMuon2                 );
-    if (fChain->GetBranch("hybridMuon2"))                 fChain->SetBranchAddress("hybridMuon2",                hybridMuon2_,                &b_hybridMuon2               );
-    if (fChain->GetBranch("HPMuon2"))                     fChain->SetBranchAddress("HPMuon2",                    HPMuon2_,                    &b_HPMuon2                   );
-    if (fChain->GetBranch("trigMuon2"))                   fChain->SetBranchAddress("trigMuon2",                 &trigMuon2_,                  &b_trigMuon2                 );
-    if (fChain->GetBranch("nMatchedStationD2"))           fChain->SetBranchAddress("nMatchedStationD2",          nMatchedStationD2_,          &b_nMatchedStationD2         );
-    if (fChain->GetBranch("nTrackerLayerD2"))             fChain->SetBranchAddress("nTrackerLayerD2",            nTrackerLayerD2_,            &b_nTrackerLayerD2           );
-    if (fChain->GetBranch("nPixelLayerD2"))               fChain->SetBranchAddress("nPixelLayerD2",              nPixelLayerD2_,              &b_nPixelLayerD2             );
-    if (fChain->GetBranch("nPixelHitD2"))                 fChain->SetBranchAddress("nPixelHitD2",                nPixelHitD2_,                &b_nPixelHitD2               );
-    if (fChain->GetBranch("nMuonHitD2"))                  fChain->SetBranchAddress("nMuonHitD2",                 nMuonHitD2_,                 &b_nMuonHitD2                );
-    if (fChain->GetBranch("GlbTrkChiD2"))                 fChain->SetBranchAddress("GlbTrkChiD2",                GlbTrkChiD2_,                &b_GlbTrkChiD2               );
-    if (fChain->GetBranch("muondZD2"))                    fChain->SetBranchAddress("muondZD2",                   muondZD2_,                   &b_muondZD2                  );
-    if (fChain->GetBranch("muondXYD2"))                   fChain->SetBranchAddress("muondXYD2",                  muondXYD2_,                  &b_muondXYD2                 );
-    if (fChain->GetBranch("dZD2"))                        fChain->SetBranchAddress("dZD2",                       dZD2_,                       &b_dZD2                      );
-    if (fChain->GetBranch("dXYD2"))                       fChain->SetBranchAddress("dXYD2",                      dXYD2_,                      &b_dXYD2                     );
+    if (fChain->GetBranch("OneStMuon1"))                  fChain->SetBranchAddress("OneStMuon1",                 OneStMuon1_,                 &(b["OneStMuon1"])                );
+    if (fChain->GetBranch("PFMuon1"))                     fChain->SetBranchAddress("PFMuon1",                    PFMuon1_,                    &(b["PFMuon1"])                   );
+    if (fChain->GetBranch("GlbMuon1"))                    fChain->SetBranchAddress("GlbMuon1",                   GlbMuon1_,                   &(b["GlbMuon1"])                  );
+    if (fChain->GetBranch("trkMuon1"))                    fChain->SetBranchAddress("trkMuon1",                   trkMuon1_,                   &(b["trkMuon1"])                  );
+    if (fChain->GetBranch("tightMuon1"))                  fChain->SetBranchAddress("tightMuon1",                 tightMuon1_,                 &(b["tightMuon1"])                );
+    if (fChain->GetBranch("softMuon1"))                   fChain->SetBranchAddress("softMuon1",                  softMuon1_,                  &(b["softMuon1"])                 );
+    if (fChain->GetBranch("hybridMuon1"))                 fChain->SetBranchAddress("hybridMuon1",                hybridMuon1_,                &(b["hybridMuon1"])               );
+    if (fChain->GetBranch("HPMuon1"))                     fChain->SetBranchAddress("HPMuon1",                    HPMuon1_,                    &(b["HPMuon1"])                   );
+    if (fChain->GetBranch("trigMuon1"))                   fChain->SetBranchAddress("trigMuon1",                 &trigMuon1_,                  &(b["trigMuon1"])                 );
+    if (fChain->GetBranch("nMatchedStationD1"))           fChain->SetBranchAddress("nMatchedStationD1",          nMatchedStationD1_,          &(b["nMatchedStationD1"])         );
+    if (fChain->GetBranch("nTrackerLayerD1"))             fChain->SetBranchAddress("nTrackerLayerD1",            nTrackerLayerD1_,            &(b["nTrackerLayerD1"])           );
+    if (fChain->GetBranch("nPixelLayerD1"))               fChain->SetBranchAddress("nPixelLayerD1",              nPixelLayerD1_,              &(b["nPixelLayerD1"])             );
+    if (fChain->GetBranch("nPixelHitD1"))                 fChain->SetBranchAddress("nPixelHitD1",                nPixelHitD1_,                &(b["nPixelHitD1"])               );
+    if (fChain->GetBranch("nMuonHitD1"))                  fChain->SetBranchAddress("nMuonHitD1",                 nMuonHitD1_,                 &(b["nMuonHitD1"])                );
+    if (fChain->GetBranch("GlbTrkChiD1"))                 fChain->SetBranchAddress("GlbTrkChiD1",                GlbTrkChiD1_,                &(b["GlbTrkChiD1"])               );
+    if (fChain->GetBranch("muondZD1"))                    fChain->SetBranchAddress("muondZD1",                   muondZD1_,                   &(b["muondZD1"])                  );
+    if (fChain->GetBranch("muondXYD1"))                   fChain->SetBranchAddress("muondXYD1",                  muondXYD1_,                  &(b["muondXYD1"])                 );
+    if (fChain->GetBranch("dZD1"))                        fChain->SetBranchAddress("dZD1",                       dZD1_,                       &(b["dZD1"])                      );
+    if (fChain->GetBranch("dXYD1"))                       fChain->SetBranchAddress("dXYD1",                      dXYD1_,                      &(b["dXYD1"])                     );
+    if (fChain->GetBranch("OneStMuon2"))                  fChain->SetBranchAddress("OneStMuon2",                 OneStMuon2_,                 &(b["OneStMuon2"])                );
+    if (fChain->GetBranch("PFMuon2"))                     fChain->SetBranchAddress("PFMuon2",                    PFMuon2_,                    &(b["PFMuon2"])                   );
+    if (fChain->GetBranch("GlbMuon2"))                    fChain->SetBranchAddress("GlbMuon2",                   GlbMuon2_,                   &(b["GlbMuon2"])                  );
+    if (fChain->GetBranch("trkMuon2"))                    fChain->SetBranchAddress("trkMuon2",                   trkMuon2_,                   &(b["trkMuon2"])                  );
+    if (fChain->GetBranch("tightMuon2"))                  fChain->SetBranchAddress("tightMuon2",                 tightMuon2_,                 &(b["tightMuon2"])                );
+    if (fChain->GetBranch("softMuon2"))                   fChain->SetBranchAddress("softMuon2",                  softMuon2_,                  &(b["softMuon2"])                 );
+    if (fChain->GetBranch("hybridMuon2"))                 fChain->SetBranchAddress("hybridMuon2",                hybridMuon2_,                &(b["hybridMuon2"])               );
+    if (fChain->GetBranch("HPMuon2"))                     fChain->SetBranchAddress("HPMuon2",                    HPMuon2_,                    &(b["HPMuon2"])                   );
+    if (fChain->GetBranch("trigMuon2"))                   fChain->SetBranchAddress("trigMuon2",                 &trigMuon2_,                  &(b["trigMuon2"])                 );
+    if (fChain->GetBranch("nMatchedStationD2"))           fChain->SetBranchAddress("nMatchedStationD2",          nMatchedStationD2_,          &(b["nMatchedStationD2"])         );
+    if (fChain->GetBranch("nTrackerLayerD2"))             fChain->SetBranchAddress("nTrackerLayerD2",            nTrackerLayerD2_,            &(b["nTrackerLayerD2"])           );
+    if (fChain->GetBranch("nPixelLayerD2"))               fChain->SetBranchAddress("nPixelLayerD2",              nPixelLayerD2_,              &(b["nPixelLayerD2"])             );
+    if (fChain->GetBranch("nPixelHitD2"))                 fChain->SetBranchAddress("nPixelHitD2",                nPixelHitD2_,                &(b["nPixelHitD2"])               );
+    if (fChain->GetBranch("nMuonHitD2"))                  fChain->SetBranchAddress("nMuonHitD2",                 nMuonHitD2_,                 &(b["nMuonHitD2"])                );
+    if (fChain->GetBranch("GlbTrkChiD2"))                 fChain->SetBranchAddress("GlbTrkChiD2",                GlbTrkChiD2_,                &(b["GlbTrkChiD2"])               );
+    if (fChain->GetBranch("muondZD2"))                    fChain->SetBranchAddress("muondZD2",                   muondZD2_,                   &(b["muondZD2"])                  );
+    if (fChain->GetBranch("muondXYD2"))                   fChain->SetBranchAddress("muondXYD2",                  muondXYD2_,                  &(b["muondXYD2"])                 );
+    if (fChain->GetBranch("dZD2"))                        fChain->SetBranchAddress("dZD2",                       dZD2_,                       &(b["dZD2"])                      );
+    if (fChain->GetBranch("dXYD2"))                       fChain->SetBranchAddress("dXYD2",                      dXYD2_,                      &(b["dXYD2"])                     );
 
     // SET GEN INFO BRANCHES
-    if (fChain->GetBranch("weight_gen"))                  fChain->SetBranchAddress("weight_gen",                &weight_gen_,                 &b_weight_gen                );
-    if (fChain->GetBranch("candSize_gen"))                fChain->SetBranchAddress("candSize_gen",              &candSize_gen_,               &b_candSize_gen              );
-    if (fChain->GetBranch("pT_gen"))                      fChain->SetBranchAddress("pT_gen",                     pT_gen_,                     &b_pT_gen                    );
-    if (fChain->GetBranch("eta_gen"))                     fChain->SetBranchAddress("eta_gen",                    eta_gen_,                    &b_eta_gen                   );
-    if (fChain->GetBranch("y_gen"))                       fChain->SetBranchAddress("y_gen",                      y_gen_,                      &b_y_gen                     );
-    if (fChain->GetBranch("status_gen"))                  fChain->SetBranchAddress("status_gen",                 status_gen_,                 &b_status_gen                );
-    if (fChain->GetBranch("PID_gen"))                     fChain->SetBranchAddress("PID_gen",                    PID_gen_,                    &b_PID_gen                   );
-    if (fChain->GetBranch("MotherID_gen"))                fChain->SetBranchAddress("MotherID_gen",               MotherID_gen_,               &b_MotherID_gen              );
-    if (fChain->GetBranch("RecIdx_gen"))                  fChain->SetBranchAddress("RecIdx_gen",                 RecIdx_gen_,                 &b_RecIdx_gen                );
-    if (fChain->GetBranch("PIDD1_gen"))                   fChain->SetBranchAddress("PIDD1_gen",                  PIDD1_gen_,                  &b_PIDD1_gen                 );
-    if (fChain->GetBranch("chargeD1_gen"))                fChain->SetBranchAddress("chargeD1_gen",               chargeD1_gen_,               &b_chargeD1_gen              );
-    if (fChain->GetBranch("pTD1_gen"))                    fChain->SetBranchAddress("pTD1_gen",                   pTD1_gen_,                   &b_pTD1_gen                  );
-    if (fChain->GetBranch("EtaD1_gen"))                   fChain->SetBranchAddress("EtaD1_gen",                  EtaD1_gen_,                  &b_EtaD1_gen                 );
-    if (fChain->GetBranch("PhiD1_gen"))                   fChain->SetBranchAddress("PhiD1_gen",                  PhiD1_gen_,                  &b_PhiD1_gen                 );
-    if (fChain->GetBranch("PIDD2_gen"))                   fChain->SetBranchAddress("PIDD2_gen",                  PIDD2_gen_,                  &b_PIDD2_gen                 );
-    if (fChain->GetBranch("chargeD2_gen"))                fChain->SetBranchAddress("chargeD2_gen",               chargeD2_gen_,               &b_chargeD2_gen              );
-    if (fChain->GetBranch("pTD2_gen"))                    fChain->SetBranchAddress("pTD2_gen",                   pTD2_gen_,                   &b_pTD2_gen                  );
-    if (fChain->GetBranch("EtaD2_gen"))                   fChain->SetBranchAddress("EtaD2_gen",                  EtaD2_gen_,                  &b_EtaD2_gen                 );
-    if (fChain->GetBranch("PhiD2_gen"))                   fChain->SetBranchAddress("PhiD2_gen",                  PhiD2_gen_,                  &b_PhiD2_gen                 );
+    if (fChain->GetBranch("weight_gen"))                  fChain->SetBranchAddress("weight_gen",                &weight_gen_,                 &(b["weight_gen"])                );
+    if (fChain->GetBranch("candSize_gen"))                fChain->SetBranchAddress("candSize_gen",              &candSize_gen_,               &(b["candSize_gen"])              );
+    if (fChain->GetBranch("pT_gen"))                      fChain->SetBranchAddress("pT_gen",                     pT_gen_,                     &(b["pT_gen"])                    );
+    if (fChain->GetBranch("eta_gen"))                     fChain->SetBranchAddress("eta_gen",                    eta_gen_,                    &(b["eta_gen"])                   );
+    if (fChain->GetBranch("y_gen"))                       fChain->SetBranchAddress("y_gen",                      y_gen_,                      &(b["y_gen"])                     );
+    if (fChain->GetBranch("status_gen"))                  fChain->SetBranchAddress("status_gen",                 status_gen_,                 &(b["status_gen"])                );
+    if (fChain->GetBranch("PID_gen"))                     fChain->SetBranchAddress("PID_gen",                    PID_gen_,                    &(b["PID_gen"])                   );
+    if (fChain->GetBranch("MotherID_gen"))                fChain->SetBranchAddress("MotherID_gen",               MotherID_gen_,               &(b["MotherID_gen"])              );
+    if (fChain->GetBranch("RecIdx_gen"))                  fChain->SetBranchAddress("RecIdx_gen",                 RecIdx_gen_,                 &(b["RecIdx_gen"])                );
+    if (fChain->GetBranch("PIDD1_gen"))                   fChain->SetBranchAddress("PIDD1_gen",                  PIDD1_gen_,                  &(b["PIDD1_gen"])                 );
+    if (fChain->GetBranch("chargeD1_gen"))                fChain->SetBranchAddress("chargeD1_gen",               chargeD1_gen_,               &(b["chargeD1_gen"])              );
+    if (fChain->GetBranch("pTD1_gen"))                    fChain->SetBranchAddress("pTD1_gen",                   pTD1_gen_,                   &(b["pTD1_gen"])                  );
+    if (fChain->GetBranch("EtaD1_gen"))                   fChain->SetBranchAddress("EtaD1_gen",                  EtaD1_gen_,                  &(b["EtaD1_gen"])                 );
+    if (fChain->GetBranch("PhiD1_gen"))                   fChain->SetBranchAddress("PhiD1_gen",                  PhiD1_gen_,                  &(b["PhiD1_gen"])                 );
+    if (fChain->GetBranch("PIDD2_gen"))                   fChain->SetBranchAddress("PIDD2_gen",                  PIDD2_gen_,                  &(b["PIDD2_gen"])                 );
+    if (fChain->GetBranch("chargeD2_gen"))                fChain->SetBranchAddress("chargeD2_gen",               chargeD2_gen_,               &(b["chargeD2_gen"])              );
+    if (fChain->GetBranch("pTD2_gen"))                    fChain->SetBranchAddress("pTD2_gen",                   pTD2_gen_,                   &(b["pTD2_gen"])                  );
+    if (fChain->GetBranch("EtaD2_gen"))                   fChain->SetBranchAddress("EtaD2_gen",                  EtaD2_gen_,                  &(b["EtaD2_gen"])                 );
+    if (fChain->GetBranch("PhiD2_gen"))                   fChain->SetBranchAddress("PhiD2_gen",                  PhiD2_gen_,                  &(b["PhiD2_gen"])                 );
   }
 };
 
@@ -782,141 +638,141 @@ void VertexCompositeTree::Clear(void)
   if (GetBranchStatus("ZDCPlus")==1)      ZDCPlus_      = -1.;
   if (GetBranchStatus("ZDCMinus")==1)     ZDCMinus_     = -1.;
   if (GetBranchStatus("Ntrkoffline")==1)  Ntrkoffline_  = -1;
-  if (GetBranchStatus("trigPrescale")==1) std::fill(trigPrescale_, trigPrescale_+NTRG, -9);
-  if (GetBranchStatus("trigHLT")==1)      std::fill(trigHLT_, trigHLT_+NTRG, 0);
-  if (GetBranchStatus("evtSel")==1)       std::fill(evtSel_, evtSel_+NSEL, 0);
+  if (GetBranchStatus("trigPrescale")==1) std::fill_n(trigPrescale_, NTRG, -9);
+  if (GetBranchStatus("trigHLT")==1)      std::fill_n(trigHLT_, NTRG, 0);
+  if (GetBranchStatus("evtSel")==1)       std::fill_n(evtSel_, NSEL, 0);
 
   // CLEAR EVENT PLANE VARIABLES
   if (GetBranchStatus("ephfpSumW")==1)  ephfpSumW_ = -99.;
   if (GetBranchStatus("ephfmSumW")==1)  ephfmSumW_ = -99.;
-  if (GetBranchStatus("ephfpAngle")==1) std::fill(ephfpAngle_, ephfpAngle_+NEP, -99.);
-  if (GetBranchStatus("ephfpQ")==1)     std::fill(ephfpQ_, ephfpQ_+NEP, -99.);
-  if (GetBranchStatus("ephfmAngle")==1) std::fill(ephfmAngle_, ephfmAngle_+NEP, -99.);
-  if (GetBranchStatus("ephfmQ")==1)     std::fill(ephfmQ_, ephfmQ_+NEP, -99.);
+  if (GetBranchStatus("ephfpAngle")==1) std::fill_n(ephfpAngle_, NEP, -99.);
+  if (GetBranchStatus("ephfpQ")==1)     std::fill_n(ephfpQ_, NEP, -99.);
+  if (GetBranchStatus("ephfmAngle")==1) std::fill_n(ephfmAngle_, NEP, -99.);
+  if (GetBranchStatus("ephfmQ")==1)     std::fill_n(ephfmQ_, NEP, -99.);
 
   // CLEAR CANDIDATE INFO VARIABLES
   const auto& nCand = (candSize_>0 ? candSize_ : NCAND);
   if (GetBranchStatus("candSize")==1)                   candSize_ = 0;
-  if (GetBranchStatus("pT")==1)                         std::fill(pT_, pT_+nCand, -1.);
-  if (GetBranchStatus("eta")==1)                        std::fill(eta_, eta_+nCand, -9.);
-  if (GetBranchStatus("y")==1)                          std::fill(y_, y_+nCand, -9.);
-  if (GetBranchStatus("phi")==1)                        std::fill(phi_, phi_+nCand, -9.);
-  if (GetBranchStatus("mass")==1)                       std::fill(mass_, mass_+nCand, -1.);
-  if (GetBranchStatus("flavor")==1)                     std::fill(flavor_, flavor_+nCand, 0.);
-  if (GetBranchStatus("VtxProb")==1)                    std::fill(VtxProb_, VtxProb_+nCand, -1.);
-  if (GetBranchStatus("3DCosPointingAngle")==1)         std::fill(V3DCosPointingAngle_, V3DCosPointingAngle_+nCand, -9.);
-  if (GetBranchStatus("3DPointingAngle")==1)            std::fill(V3DPointingAngle_, V3DPointingAngle_+nCand, -9.);
-  if (GetBranchStatus("2DCosPointingAngle")==1)         std::fill(V2DCosPointingAngle_, V2DCosPointingAngle_+nCand, -9.);
-  if (GetBranchStatus("2DPointingAngle")==1)            std::fill(V2DPointingAngle_, V2DPointingAngle_+nCand, -9.);
-  if (GetBranchStatus("3DDecayLengthSignificance")==1)  std::fill(V3DDecayLengthSignificance_, V3DDecayLengthSignificance_+nCand, -1.);
-  if (GetBranchStatus("3DDecayLength")==1)              std::fill(V3DDecayLength_, V3DDecayLength_+nCand, -1.);
-  if (GetBranchStatus("2DDecayLengthSignificance")==1)  std::fill(V2DDecayLengthSignificance_, V2DDecayLengthSignificance_+nCand, -1.);
-  if (GetBranchStatus("2DDecayLength")==1)              std::fill(V2DDecayLength_, V2DDecayLength_+nCand, -1.);
-  if (GetBranchStatus("zDCASignificanceDaugther1")==1)  std::fill(zDCASignificanceDaugther1_, zDCASignificanceDaugther1_+nCand, -1.);
-  if (GetBranchStatus("xyDCASignificanceDaugther1")==1) std::fill(xyDCASignificanceDaugther1_, xyDCASignificanceDaugther1_+nCand, -1.);
-  if (GetBranchStatus("HighPurityDaugther1")==1)        std::fill(HighPurityDaugther1_, HighPurityDaugther1_+nCand, 0);
-  if (GetBranchStatus("NHitD1")==1)                     std::fill(NHitD1_, NHitD1_+nCand, -1.);
-  if (GetBranchStatus("pTD1")==1)                       std::fill(pTD1_, pTD1_+nCand, -1.);
-  if (GetBranchStatus("EtaD1")==1)                      std::fill(EtaD1_, EtaD1_+nCand, -9.);
-  if (GetBranchStatus("PhiD1")==1)                      std::fill(PhiD1_, PhiD1_+nCand, -9.);
-  if (GetBranchStatus("chargeD1")==1)                   std::fill(chargeD1_, chargeD1_+nCand, -9);
-  if (GetBranchStatus("dedxHarmonic2D1")==1)            std::fill(dedxHarmonic2D1_, dedxHarmonic2D1_+nCand, -1.);
-  if (GetBranchStatus("zDCASignificanceDaugther2")==1)  std::fill(zDCASignificanceDaugther2_, zDCASignificanceDaugther2_+nCand, -1.);
-  if (GetBranchStatus("xyDCASignificanceDaugther2")==1) std::fill(xyDCASignificanceDaugther2_, xyDCASignificanceDaugther2_+nCand, -1.);
-  if (GetBranchStatus("HighPurityDaugther2")==1)        std::fill(HighPurityDaugther2_, HighPurityDaugther2_+nCand, 0);
-  if (GetBranchStatus("NHitD2")==1)                     std::fill(NHitD2_, NHitD2_+nCand, -1.);
-  if (GetBranchStatus("pTD2")==1)                       std::fill(pTD2_, pTD2_+nCand, -1.);
-  if (GetBranchStatus("EtaD2")==1)                      std::fill(EtaD2_, EtaD2_+nCand, -9.);
-  if (GetBranchStatus("PhiD2")==1)                      std::fill(PhiD2_, PhiD2_+nCand, -9.);
-  if (GetBranchStatus("chargeD2")==1)                   std::fill(chargeD2_, chargeD2_+nCand, -9);
-  if (GetBranchStatus("dedxHarmonic2D2")==1)            std::fill(dedxHarmonic2D2_, dedxHarmonic2D2_+nCand, -1.);
-  if (GetBranchStatus("isSwap")==1)                     std::fill(isSwap_, isSwap_+nCand, 0);
-  if (GetBranchStatus("idmom_reco")==1)                 std::fill(idmom_reco_, idmom_reco_+nCand, -999);
-  if (GetBranchStatus("matchGEN")==1)                   std::fill(matchGEN_, matchGEN_+nCand, 0);
-  if (GetBranchStatus("PIDD1")==1)                      std::fill(PIDD1_, PIDD1_+nCand, -999);
-  if (GetBranchStatus("PIDD2")==1)                      std::fill(PIDD2_, PIDD2_+nCand, -999);
+  if (GetBranchStatus("pT")==1)                         std::fill_n(pT_, nCand, -1.);
+  if (GetBranchStatus("eta")==1)                        std::fill_n(eta_, nCand, -9.);
+  if (GetBranchStatus("y")==1)                          std::fill_n(y_, nCand, -9.);
+  if (GetBranchStatus("phi")==1)                        std::fill_n(phi_, nCand, -9.);
+  if (GetBranchStatus("mass")==1)                       std::fill_n(mass_, nCand, -1.);
+  if (GetBranchStatus("flavor")==1)                     std::fill_n(flavor_, nCand, 0.);
+  if (GetBranchStatus("VtxProb")==1)                    std::fill_n(VtxProb_, nCand, -1.);
+  if (GetBranchStatus("3DCosPointingAngle")==1)         std::fill_n(V3DCosPointingAngle_, nCand, -9.);
+  if (GetBranchStatus("3DPointingAngle")==1)            std::fill_n(V3DPointingAngle_, nCand, -9.);
+  if (GetBranchStatus("2DCosPointingAngle")==1)         std::fill_n(V2DCosPointingAngle_, nCand, -9.);
+  if (GetBranchStatus("2DPointingAngle")==1)            std::fill_n(V2DPointingAngle_, nCand, -9.);
+  if (GetBranchStatus("3DDecayLengthSignificance")==1)  std::fill_n(V3DDecayLengthSignificance_, nCand, -1.);
+  if (GetBranchStatus("3DDecayLength")==1)              std::fill_n(V3DDecayLength_, nCand, -1.);
+  if (GetBranchStatus("2DDecayLengthSignificance")==1)  std::fill_n(V2DDecayLengthSignificance_, nCand, -1.);
+  if (GetBranchStatus("2DDecayLength")==1)              std::fill_n(V2DDecayLength_, nCand, -1.);
+  if (GetBranchStatus("zDCASignificanceDaugther1")==1)  std::fill_n(zDCASignificanceDaugther1_, nCand, -1.);
+  if (GetBranchStatus("xyDCASignificanceDaugther1")==1) std::fill_n(xyDCASignificanceDaugther1_, nCand, -1.);
+  if (GetBranchStatus("HighPurityDaugther1")==1)        std::fill_n(HighPurityDaugther1_, nCand, 0);
+  if (GetBranchStatus("NHitD1")==1)                     std::fill_n(NHitD1_, nCand, -1.);
+  if (GetBranchStatus("pTD1")==1)                       std::fill_n(pTD1_, nCand, -1.);
+  if (GetBranchStatus("EtaD1")==1)                      std::fill_n(EtaD1_, nCand, -9.);
+  if (GetBranchStatus("PhiD1")==1)                      std::fill_n(PhiD1_, nCand, -9.);
+  if (GetBranchStatus("chargeD1")==1)                   std::fill_n(chargeD1_, nCand, -9);
+  if (GetBranchStatus("dedxHarmonic2D1")==1)            std::fill_n(dedxHarmonic2D1_, nCand, -1.);
+  if (GetBranchStatus("zDCASignificanceDaugther2")==1)  std::fill_n(zDCASignificanceDaugther2_, nCand, -1.);
+  if (GetBranchStatus("xyDCASignificanceDaugther2")==1) std::fill_n(xyDCASignificanceDaugther2_, nCand, -1.);
+  if (GetBranchStatus("HighPurityDaugther2")==1)        std::fill_n(HighPurityDaugther2_, nCand, 0);
+  if (GetBranchStatus("NHitD2")==1)                     std::fill_n(NHitD2_, nCand, -1.);
+  if (GetBranchStatus("pTD2")==1)                       std::fill_n(pTD2_, nCand, -1.);
+  if (GetBranchStatus("EtaD2")==1)                      std::fill_n(EtaD2_, nCand, -9.);
+  if (GetBranchStatus("PhiD2")==1)                      std::fill_n(PhiD2_, nCand, -9.);
+  if (GetBranchStatus("chargeD2")==1)                   std::fill_n(chargeD2_, nCand, -9);
+  if (GetBranchStatus("dedxHarmonic2D2")==1)            std::fill_n(dedxHarmonic2D2_, nCand, -1.);
+  if (GetBranchStatus("isSwap")==1)                     std::fill_n(isSwap_, nCand, 0);
+  if (GetBranchStatus("idmom_reco")==1)                 std::fill_n(idmom_reco_, nCand, -999);
+  if (GetBranchStatus("matchGEN")==1)                   std::fill_n(matchGEN_, nCand, 0);
+  if (GetBranchStatus("PIDD1")==1)                      std::fill_n(PIDD1_, nCand, -999);
+  if (GetBranchStatus("PIDD2")==1)                      std::fill_n(PIDD2_, nCand, -999);
 
   // CLEAR MUON INFO VARIABLES
-  if (GetBranchStatus("OneStMuon1")==1)         std::fill(OneStMuon1_, OneStMuon1_+nCand, 0);
-  if (GetBranchStatus("PFMuon1")==1)            std::fill(PFMuon1_, PFMuon1_+nCand, 0);
-  if (GetBranchStatus("GlbMuon1")==1)           std::fill(GlbMuon1_, GlbMuon1_+nCand, 0);
-  if (GetBranchStatus("trkMuon1")==1)           std::fill(trkMuon1_, trkMuon1_+nCand, 0);
-  if (GetBranchStatus("tightMuon1")==1)         std::fill(tightMuon1_, tightMuon1_+nCand, 0);
-  if (GetBranchStatus("softMuon1")==1)          std::fill(softMuon1_, softMuon1_+nCand, 0);
-  if (GetBranchStatus("hybridMuon1")==1)        std::fill(hybridMuon1_, hybridMuon1_+nCand, 0);
-  if (GetBranchStatus("HPMuon1")==1)            std::fill(HPMuon1_, HPMuon1_+nCand, 0);
+  if (GetBranchStatus("OneStMuon1")==1)         std::fill_n(OneStMuon1_, nCand, 0);
+  if (GetBranchStatus("PFMuon1")==1)            std::fill_n(PFMuon1_, nCand, 0);
+  if (GetBranchStatus("GlbMuon1")==1)           std::fill_n(GlbMuon1_, nCand, 0);
+  if (GetBranchStatus("trkMuon1")==1)           std::fill_n(trkMuon1_, nCand, 0);
+  if (GetBranchStatus("tightMuon1")==1)         std::fill_n(tightMuon1_, nCand, 0);
+  if (GetBranchStatus("softMuon1")==1)          std::fill_n(softMuon1_, nCand, 0);
+  if (GetBranchStatus("hybridMuon1")==1)        std::fill_n(hybridMuon1_, nCand, 0);
+  if (GetBranchStatus("HPMuon1")==1)            std::fill_n(HPMuon1_, nCand, 0);
   if (GetBranchStatus("trigMuon1")==1 && trigMuon1_) trigMuon1_->clear();
-  if (GetBranchStatus("nMatchedStationD1")==1)  std::fill(nMatchedStationD1_, nMatchedStationD1_+nCand, -1);
-  if (GetBranchStatus("nTrackerLayerD1")==1)    std::fill(nTrackerLayerD1_, nTrackerLayerD1_+nCand, -1);
-  if (GetBranchStatus("nPixelLayerD1")==1)      std::fill(nPixelLayerD1_, nPixelLayerD1_+nCand, -1);
-  if (GetBranchStatus("nPixelHitD1")==1)        std::fill(nPixelHitD1_, nPixelHitD1_+nCand, -1);
-  if (GetBranchStatus("nMuonHitD1")==1)         std::fill(nMuonHitD1_, nMuonHitD1_+nCand, -1);
-  if (GetBranchStatus("GlbTrkChiD1")==1)        std::fill(GlbTrkChiD1_, GlbTrkChiD1_+nCand, 99.);
-  if (GetBranchStatus("muondZD1")==1)           std::fill(muondZD1_, muondZD1_+nCand, -99.);
-  if (GetBranchStatus("muondXYD1")==1)          std::fill(muondXYD1_, muondXYD1_+nCand, -99.);
-  if (GetBranchStatus("dZD1")==1)               std::fill(dZD1_, dZD1_+nCand, -99.);
-  if (GetBranchStatus("dXYD1")==1)              std::fill(dXYD1_, dXYD1_+nCand, -99.);
-  if (GetBranchStatus("nMatchedChamberD1")==1)  std::fill(nMatchedChamberD1_, nMatchedChamberD1_+nCand, -1);
-  if (GetBranchStatus("EnergyDepositionD1")==1) std::fill(EnergyDepositionD1_, EnergyDepositionD1_+nCand, -1.);
-  if (GetBranchStatus("dx1_seg")==1)            std::fill(dx1_seg_, dx1_seg_+nCand, -99.);
-  if (GetBranchStatus("dy1_seg")==1)            std::fill(dy1_seg_, dy1_seg_+nCand, -99.);
-  if (GetBranchStatus("dxSig1_seg")==1)         std::fill(dxSig1_seg_, dxSig1_seg_+nCand, -99.);
-  if (GetBranchStatus("dySig1_seg")==1)         std::fill(dySig1_seg_, dySig1_seg_+nCand, -99.);
-  if (GetBranchStatus("ddxdz1_seg")==1)         std::fill(ddxdz1_seg_, ddxdz1_seg_+nCand, -99.);
-  if (GetBranchStatus("ddydz1_seg")==1)         std::fill(ddydz1_seg_, ddydz1_seg_+nCand, -99.);
-  if (GetBranchStatus("ddxdzSig1_seg")==1)      std::fill(ddxdzSig1_seg_, ddxdzSig1_seg_+nCand, -99.);
-  if (GetBranchStatus("ddydzSig1_seg")==1)      std::fill(ddydzSig1_seg_, ddydzSig1_seg_+nCand, -99.);
-  if (GetBranchStatus("OneStMuon2")==1)         std::fill(OneStMuon2_, OneStMuon2_+nCand, 0);
-  if (GetBranchStatus("PFMuon2")==1)            std::fill(PFMuon2_, PFMuon2_+nCand, 0);
-  if (GetBranchStatus("GlbMuon2")==1)           std::fill(GlbMuon2_, GlbMuon2_+nCand, 0);
-  if (GetBranchStatus("trkMuon2")==1)           std::fill(trkMuon2_, trkMuon2_+nCand, 0);
-  if (GetBranchStatus("tightMuon2")==1)         std::fill(tightMuon2_, tightMuon2_+nCand, 0);
-  if (GetBranchStatus("softMuon2")==1)          std::fill(softMuon2_, softMuon2_+nCand, 0);
-  if (GetBranchStatus("hybridMuon2")==1)        std::fill(hybridMuon2_, hybridMuon2_+nCand, 0);
-  if (GetBranchStatus("HPMuon2")==1)            std::fill(HPMuon2_, HPMuon2_+nCand, 0);
+  if (GetBranchStatus("nMatchedStationD1")==1)  std::fill_n(nMatchedStationD1_, nCand, -1);
+  if (GetBranchStatus("nTrackerLayerD1")==1)    std::fill_n(nTrackerLayerD1_, nCand, -1);
+  if (GetBranchStatus("nPixelLayerD1")==1)      std::fill_n(nPixelLayerD1_, nCand, -1);
+  if (GetBranchStatus("nPixelHitD1")==1)        std::fill_n(nPixelHitD1_, nCand, -1);
+  if (GetBranchStatus("nMuonHitD1")==1)         std::fill_n(nMuonHitD1_, nCand, -1);
+  if (GetBranchStatus("GlbTrkChiD1")==1)        std::fill_n(GlbTrkChiD1_, nCand, 99.);
+  if (GetBranchStatus("muondZD1")==1)           std::fill_n(muondZD1_, nCand, -99.);
+  if (GetBranchStatus("muondXYD1")==1)          std::fill_n(muondXYD1_, nCand, -99.);
+  if (GetBranchStatus("dZD1")==1)               std::fill_n(dZD1_, nCand, -99.);
+  if (GetBranchStatus("dXYD1")==1)              std::fill_n(dXYD1_, nCand, -99.);
+  if (GetBranchStatus("nMatchedChamberD1")==1)  std::fill_n(nMatchedChamberD1_, nCand, -1);
+  if (GetBranchStatus("EnergyDepositionD1")==1) std::fill_n(EnergyDepositionD1_, nCand, -1.);
+  if (GetBranchStatus("dx1_seg")==1)            std::fill_n(dx1_seg_, nCand, -99.);
+  if (GetBranchStatus("dy1_seg")==1)            std::fill_n(dy1_seg_, nCand, -99.);
+  if (GetBranchStatus("dxSig1_seg")==1)         std::fill_n(dxSig1_seg_, nCand, -99.);
+  if (GetBranchStatus("dySig1_seg")==1)         std::fill_n(dySig1_seg_, nCand, -99.);
+  if (GetBranchStatus("ddxdz1_seg")==1)         std::fill_n(ddxdz1_seg_, nCand, -99.);
+  if (GetBranchStatus("ddydz1_seg")==1)         std::fill_n(ddydz1_seg_, nCand, -99.);
+  if (GetBranchStatus("ddxdzSig1_seg")==1)      std::fill_n(ddxdzSig1_seg_, nCand, -99.);
+  if (GetBranchStatus("ddydzSig1_seg")==1)      std::fill_n(ddydzSig1_seg_, nCand, -99.);
+  if (GetBranchStatus("OneStMuon2")==1)         std::fill_n(OneStMuon2_, nCand, 0);
+  if (GetBranchStatus("PFMuon2")==1)            std::fill_n(PFMuon2_, nCand, 0);
+  if (GetBranchStatus("GlbMuon2")==1)           std::fill_n(GlbMuon2_, nCand, 0);
+  if (GetBranchStatus("trkMuon2")==1)           std::fill_n(trkMuon2_, nCand, 0);
+  if (GetBranchStatus("tightMuon2")==1)         std::fill_n(tightMuon2_, nCand, 0);
+  if (GetBranchStatus("softMuon2")==1)          std::fill_n(softMuon2_, nCand, 0);
+  if (GetBranchStatus("hybridMuon2")==1)        std::fill_n(hybridMuon2_, nCand, 0);
+  if (GetBranchStatus("HPMuon2")==1)            std::fill_n(HPMuon2_, nCand, 0);
   if (GetBranchStatus("trigMuon2")==1 && trigMuon2_) trigMuon2_->clear();
-  if (GetBranchStatus("nMatchedStationD2")==1)  std::fill(nMatchedStationD2_, nMatchedStationD2_+nCand, -1);
-  if (GetBranchStatus("nTrackerLayerD2")==1)    std::fill(nTrackerLayerD2_, nTrackerLayerD2_+nCand, -1);
-  if (GetBranchStatus("nPixelLayerD2")==1)      std::fill(nPixelLayerD2_, nPixelLayerD2_+nCand, -1);
-  if (GetBranchStatus("nPixelHitD2")==1)        std::fill(nPixelHitD2_, nPixelHitD2_+nCand, -1);
-  if (GetBranchStatus("nMuonHitD2")==1)         std::fill(nMuonHitD2_, nMuonHitD2_+nCand, -1);
-  if (GetBranchStatus("GlbTrkChiD2")==1)        std::fill(GlbTrkChiD2_, GlbTrkChiD2_+nCand, 99.);
-  if (GetBranchStatus("muondZD2")==1)           std::fill(muondZD2_, muondZD2_+nCand, -99.);
-  if (GetBranchStatus("muondXYD2")==1)          std::fill(muondXYD2_, muondXYD2_+nCand, -99.);
-  if (GetBranchStatus("dZD2")==1)               std::fill(dZD2_, dZD2_+nCand, -99.);
-  if (GetBranchStatus("dXYD2")==1)              std::fill(dXYD2_, dXYD2_+nCand, -99.);
-  if (GetBranchStatus("nMatchedChamberD2")==1)  std::fill(nMatchedChamberD2_, nMatchedChamberD2_+nCand, -1);
-  if (GetBranchStatus("EnergyDepositionD2")==1) std::fill(EnergyDepositionD2_, EnergyDepositionD2_+nCand, -1.);
-  if (GetBranchStatus("dx2_seg")==1)            std::fill(dx2_seg_, dx2_seg_+nCand, -99.);
-  if (GetBranchStatus("dy2_seg")==1)            std::fill(dy2_seg_, dy2_seg_+nCand, -99.);
-  if (GetBranchStatus("dxSig2_seg")==1)         std::fill(dxSig2_seg_, dxSig2_seg_+nCand, -99.);
-  if (GetBranchStatus("dySig2_seg")==1)         std::fill(dySig2_seg_, dySig2_seg_+nCand, -99.);
-  if (GetBranchStatus("ddxdz2_seg")==1)         std::fill(ddxdz2_seg_, ddxdz2_seg_+nCand, -99.);
-  if (GetBranchStatus("ddydz2_seg")==1)         std::fill(ddydz2_seg_, ddydz2_seg_+nCand, -99.);
-  if (GetBranchStatus("ddxdzSig2_seg")==1)      std::fill(ddxdzSig2_seg_, ddxdzSig2_seg_+nCand, -99.);
-  if (GetBranchStatus("ddydzSig2_seg")==1)      std::fill(ddydzSig2_seg_, ddydzSig2_seg_+nCand, -99.);
+  if (GetBranchStatus("nMatchedStationD2")==1)  std::fill_n(nMatchedStationD2_, nCand, -1);
+  if (GetBranchStatus("nTrackerLayerD2")==1)    std::fill_n(nTrackerLayerD2_, nCand, -1);
+  if (GetBranchStatus("nPixelLayerD2")==1)      std::fill_n(nPixelLayerD2_, nCand, -1);
+  if (GetBranchStatus("nPixelHitD2")==1)        std::fill_n(nPixelHitD2_, nCand, -1);
+  if (GetBranchStatus("nMuonHitD2")==1)         std::fill_n(nMuonHitD2_, nCand, -1);
+  if (GetBranchStatus("GlbTrkChiD2")==1)        std::fill_n(GlbTrkChiD2_, nCand, 99.);
+  if (GetBranchStatus("muondZD2")==1)           std::fill_n(muondZD2_, nCand, -99.);
+  if (GetBranchStatus("muondXYD2")==1)          std::fill_n(muondXYD2_, nCand, -99.);
+  if (GetBranchStatus("dZD2")==1)               std::fill_n(dZD2_, nCand, -99.);
+  if (GetBranchStatus("dXYD2")==1)              std::fill_n(dXYD2_, nCand, -99.);
+  if (GetBranchStatus("nMatchedChamberD2")==1)  std::fill_n(nMatchedChamberD2_, nCand, -1);
+  if (GetBranchStatus("EnergyDepositionD2")==1) std::fill_n(EnergyDepositionD2_, nCand, -1.);
+  if (GetBranchStatus("dx2_seg")==1)            std::fill_n(dx2_seg_, nCand, -99.);
+  if (GetBranchStatus("dy2_seg")==1)            std::fill_n(dy2_seg_, nCand, -99.);
+  if (GetBranchStatus("dxSig2_seg")==1)         std::fill_n(dxSig2_seg_, nCand, -99.);
+  if (GetBranchStatus("dySig2_seg")==1)         std::fill_n(dySig2_seg_, nCand, -99.);
+  if (GetBranchStatus("ddxdz2_seg")==1)         std::fill_n(ddxdz2_seg_, nCand, -99.);
+  if (GetBranchStatus("ddydz2_seg")==1)         std::fill_n(ddydz2_seg_, nCand, -99.);
+  if (GetBranchStatus("ddxdzSig2_seg")==1)      std::fill_n(ddxdzSig2_seg_, nCand, -99.);
+  if (GetBranchStatus("ddydzSig2_seg")==1)      std::fill_n(ddydzSig2_seg_, nCand, -99.);
 
   // CLEAR GEN INFO VARIABLES
   const auto& nGen = (candSize_gen_>0 ? candSize_gen_ : NGEN);
   if (GetBranchStatus("weight_gen")==1)   weight_gen_ = -99.;
   if (GetBranchStatus("candSize_gen")==1) candSize_gen_ = 0;
-  if (GetBranchStatus("pT_gen")==1)       std::fill(pT_gen_, pT_gen_+nGen, -1.);
-  if (GetBranchStatus("eta_gen")==1)      std::fill(eta_gen_, eta_gen_+nGen, -9.);
-  if (GetBranchStatus("y_gen")==1)        std::fill(y_gen_, y_gen_+nGen, -9.);
-  if (GetBranchStatus("status_gen")==1)   std::fill(status_gen_, status_gen_+nGen, -9);
-  if (GetBranchStatus("PID_gen")==1)      std::fill(PID_gen_, PID_gen_+nGen, -999);
-  if (GetBranchStatus("MotherID_gen")==1) std::fill(MotherID_gen_, MotherID_gen_+nGen, -999);
-  if (GetBranchStatus("RecIdx_gen")==1)   std::fill(RecIdx_gen_, RecIdx_gen_+nGen, -1);
-  if (GetBranchStatus("PIDD1_gen")==1)    std::fill(PIDD1_gen_, PIDD1_gen_+nGen, -999);
-  if (GetBranchStatus("chargeD1_gen")==1) std::fill(chargeD1_gen_, chargeD1_gen_+nGen, -9);
-  if (GetBranchStatus("pTD1_gen")==1)     std::fill(pTD1_gen_, pTD1_gen_+nGen, -1.);
-  if (GetBranchStatus("EtaD1_gen")==1)    std::fill(EtaD1_gen_, EtaD1_gen_+nGen, -9.);
-  if (GetBranchStatus("PhiD1_gen")==1)    std::fill(PhiD1_gen_, PhiD1_gen_+nGen, -9.);
-  if (GetBranchStatus("PIDD2_gen")==1)    std::fill(PIDD2_gen_, PIDD2_gen_+nGen, -999);
-  if (GetBranchStatus("chargeD2_gen")==1) std::fill(chargeD2_gen_, chargeD2_gen_+nGen, -9);
-  if (GetBranchStatus("pTD2_gen")==1)     std::fill(pTD2_gen_, pTD2_gen_+nGen, -1.);
-  if (GetBranchStatus("EtaD2_gen")==1)    std::fill(EtaD2_gen_, EtaD2_gen_+nGen, -9.);
-  if (GetBranchStatus("PhiD2_gen")==1)    std::fill(PhiD2_gen_, PhiD2_gen_+nGen, -9.);
+  if (GetBranchStatus("pT_gen")==1)       std::fill_n(pT_gen_, nGen, -1.);
+  if (GetBranchStatus("eta_gen")==1)      std::fill_n(eta_gen_, nGen, -9.);
+  if (GetBranchStatus("y_gen")==1)        std::fill_n(y_gen_, nGen, -9.);
+  if (GetBranchStatus("status_gen")==1)   std::fill_n(status_gen_, nGen, -9);
+  if (GetBranchStatus("PID_gen")==1)      std::fill_n(PID_gen_, nGen, -999);
+  if (GetBranchStatus("MotherID_gen")==1) std::fill_n(MotherID_gen_, nGen, -999);
+  if (GetBranchStatus("RecIdx_gen")==1)   std::fill_n(RecIdx_gen_, nGen, -1);
+  if (GetBranchStatus("PIDD1_gen")==1)    std::fill_n(PIDD1_gen_, nGen, -999);
+  if (GetBranchStatus("chargeD1_gen")==1) std::fill_n(chargeD1_gen_, nGen, -9);
+  if (GetBranchStatus("pTD1_gen")==1)     std::fill_n(pTD1_gen_, nGen, -1.);
+  if (GetBranchStatus("EtaD1_gen")==1)    std::fill_n(EtaD1_gen_, nGen, -9.);
+  if (GetBranchStatus("PhiD1_gen")==1)    std::fill_n(PhiD1_gen_, nGen, -9.);
+  if (GetBranchStatus("PIDD2_gen")==1)    std::fill_n(PIDD2_gen_, nGen, -999);
+  if (GetBranchStatus("chargeD2_gen")==1) std::fill_n(chargeD2_gen_, nGen, -9);
+  if (GetBranchStatus("pTD2_gen")==1)     std::fill_n(pTD2_gen_, nGen, -1.);
+  if (GetBranchStatus("EtaD2_gen")==1)    std::fill_n(EtaD2_gen_, nGen, -9.);
+  if (GetBranchStatus("PhiD2_gen")==1)    std::fill_n(PhiD2_gen_, nGen, -9.);
 };
 
 void VertexCompositeTree::GenerateDictionaries(void)
