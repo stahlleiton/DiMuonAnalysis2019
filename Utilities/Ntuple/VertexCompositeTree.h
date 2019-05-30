@@ -777,14 +777,14 @@ void VertexCompositeTree::Clear(void)
 
 void VertexCompositeTree::GenerateDictionaries(void)
 {
-  std::vector< std::string > inList = {
-    "vector<vector<UChar_t>>",
-  };
+  const std::string& dic = "vector<vector<UChar_t>>;vector<UChar_t>";
   const std::string& CWD = getcwd(NULL, 0);
-  gSystem->mkdir((CWD+"/cpp").c_str(), kTRUE);
+  const std::string& incP = gInterpreter->GetIncludePath();
+  if (incP.rfind(CWD+"/cpp")!=std::string::npos)  return;
+  gSystem->mkdir((CWD+"/cpp").c_str());
   gSystem->ChangeDirectory((CWD+"/cpp").c_str());
-  gInterpreter->AddIncludePath(Form("%s", (CWD+"/cpp").c_str())); // Needed to find the new dictionaries
-  for (const auto& d : inList) { gInterpreter->GenerateDictionary(d.c_str(), "vector"); }
+  gInterpreter->AddIncludePath((CWD+"/cpp").c_str()); // Needed to find the new dictionaries
+  gInterpreter->GenerateDictionary(dic.c_str(), "vector");
   gSystem->ChangeDirectory(CWD.c_str());
 };
 

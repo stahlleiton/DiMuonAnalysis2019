@@ -85,7 +85,7 @@ void findDirInFile(std::string& dirName, const std::string& fileName)
   if (fName.rfind("/store/", 0)==0) { fName = "root://cms-xrd-global.cern.ch/" + fName; }
   auto file = std::unique_ptr<TFile>(TFile::Open(fName.c_str()));
   if (file && file->IsOpen() && !file->IsZombie()) {
-    const auto& dir = dynamic_cast<TDirectory*>(file->GetListOfKeys()->First());
+    const auto& dir = static_cast<TDirectory*>(file->GetListOfKeys()->First());
     if (dir) { dirName = dir->GetName(); }
   }
   if (file) file->Close();

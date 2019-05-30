@@ -81,6 +81,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     // Find directory in ROOT file
     std::string dirName = "";
     findDirInFile(dirName, inputFileNames[0]);
+    if (dirName=="") { std::cout << "[ERROR] Failed to find the directory in: " << inputFileNames[0] << std::endl; return false; }
     //
     auto candOSTree = std::unique_ptr<VertexCompositeTree>(new VertexCompositeTree());
     if (!candOSTree->GetTree(inputFileNames, dirName)) return false;
@@ -243,11 +244,11 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           // Apply double muon acceptance
           const auto& pT   = candOSTree->pT()[iC];
           const auto& mass = candOSTree->mass()[iC];
-          const bool& massCut = ( (mass > 0.0 && mass < 1.6) || (mass > 2.0 && mass < 2.5) || (mass > 4.1 && mass < 7.0) || (mass > 13.0 && mass < 70.0) );
+          const bool& massCut = ( (mass > 0.0 && mass < 1.6) || (mass > 2.0 && mass < 2.5) || (mass > 4.1 && mass < 6.0) || (mass > 15.0 && mass < 55.0) );
           if (PD!="UPC" && pT>1.0 && massCut) continue;
           //
           // Apply double muon quality cuts
-          if (candOSTree->VtxProb()[iC]<=0.01) continue;
+          if (mass<20.0 && candOSTree->VtxProb()[iC]<=0.001) continue;
           //
           // Apply MC cuts
           if (isMC) {
@@ -334,11 +335,11 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           // Apply double muon acceptance
           const auto& pT   = candSSTree->pT()[iC];
           const auto& mass = candSSTree->mass()[iC];
-          const bool& massCut = ( (mass > 0.0 && mass < 1.6) || (mass > 2.0 && mass < 2.5) || (mass > 4.1 && mass < 7.0) || (mass > 13.0 && mass < 70.0) );
+          const bool& massCut = ( (mass > 0.0 && mass < 1.6) || (mass > 2.0 && mass < 2.5) || (mass > 4.1 && mass < 6.0) || (mass > 15.0 && mass < 55.0) );
           if (PD!="UPC" && pT>1.0 && massCut) continue;
           //
           // Apply double muon quality cuts
-          if (candSSTree->VtxProb()[iC]<=0.01) continue;
+          if (mass<20 && candSSTree->VtxProb()[iC]<=0.001) continue;
           //
           // Compute the pseudo-proper-decay length
           const auto& p    = pT*std::cosh(candSSTree->eta()[iC]);
@@ -406,6 +407,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
 bool checkVertexCompositeDS(const RooDataSet& ds, const std::string& analysis)
 {
   if (ds.numEntries()==0 || ds.sumEntries()==0) { std::cout << "[WARNING] Original dataset: " << ds.GetName() << " is empty, will remake it!" << std::endl; return false; }
+  const bool& isMC = (std::string(ds.GetName()).find("_MC")!=std::string::npos);
   const auto& row = ds.get();
   if (analysis.rfind("CandTo", 0)==0) {
     if (
@@ -415,7 +417,7 @@ bool checkVertexCompositeDS(const RooDataSet& ds, const std::string& analysis)
         ( row->find("Cand_Len") !=0 ) &&
         ( row->find("Cand_APhi") !=0 ) &&
         ( row->find("Cand_Qual") !=0 ) &&
-        ( row->find("Cand_IsSwap") !=0 ) &&
+        ( !isMC || row->find("Cand_IsSwap") !=0 ) &&
         ( row->find("Dau1_Pt") !=0 ) &&
         ( row->find("Dau1_Eta") !=0 ) &&
         ( row->find("Dau2_Pt") !=0 ) &&
