@@ -441,7 +441,7 @@ Int_t VertexCompositeTree::GetEntry(Long64_t entry)
   // Read contents of entry.
   entry_ = entry;
   if (LoadTree(entry_) < 0) return -1;
-  Clear();
+  //Clear();
   const auto& status = LoadEntry();
   // Check contents of entry
   if (candSize_ >= NCAND) { std::cout << "[ERROR] Reconstructed candidate size ("<<candSize_<<") is larger than "<<NCAND << std::endl; return -9; }
