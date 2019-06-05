@@ -60,8 +60,8 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	    {
 	      // check that all input parameters are defined
 	      if (!( 
-		    info.Par.count("N_"+label) &&
-		    info.Par.count("Cut_"+label)
+		    contain(info.Par, "N_"+label) &&
+		    contain(info.Par, "Cut_"+label)
 		     )) {
 		std::cout << "[ERROR] Initial parameters where not found for " << tag << " CutAndCount Model in " << col << std::endl; return false;
 	      }
@@ -75,7 +75,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	    {
 	      // check that all input parameters are defined
 	      if (!( 
-		    info.Par.count("N_"+label)
+		    contain(info.Par, "N_"+label)
 		     )) {
 		std::cout << "[ERROR] Initial parameters where not found for " << tag << " Template Model in " << col << std::endl; return false;
 	      }
@@ -83,7 +83,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      std::string dsName = ( "d" + chg + "_MC_" + obj + "_" + info.Par.at("channelDS") + "_" + col );
 	      const std::vector< double > range = { double(ws.var(varName.c_str())->getBins(varWindow.c_str())) , ws.var(varName.c_str())->getMin(varWindow.c_str()) , ws.var(varName.c_str())->getMax(varWindow.c_str()) };
 	      const auto& proceed = histToPdf(ws, pdfName, dsName, varName, range);
-              if (info.Var.count("recoMCEntries")==0 || info.Var.at("recoMCEntries").count(label)==0) {
+              if (!contain(info.Var, "recoMCEntries") || !contain(info.Var.at("recoMCEntries"), label)) {
                 if (proceed && (std::abs(info.Var.at("recoMCEntries").at(label)-ws.data(Form("dh%s_%s", varName.c_str(), label.c_str()))->sumEntries())>0.5)) {
                   std::cout << "[WARNING] The number of events in " << Form("dh%s_%s", varName.c_str(), label.c_str()) << " changed from (" << info.Var.at("recoMCEntries").at(label) << ") to (" <<
                     ws.data(Form("dh%s_%s", varName.c_str(), label.c_str()))->sumEntries() << ")" << std::endl;
@@ -115,9 +115,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
       
               // check that all input parameters are defined
               if (!( 
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("m_"+label) &&
-                    info.Par.count("Sigma1_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "m_"+label) &&
+                    contain(info.Par, "Sigma1_"+label)
                      )) { 
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Single Gaussian Model in " << col << std::endl; return false;
               }
@@ -126,9 +126,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               RooArgList pdfConstrains;
               StringVector_t varNames = {"m", "Sigma1"};
               for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
                 // create the Gaussian PDFs for Constrain fits
-                if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
                   ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
                   pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
                 }
@@ -152,11 +152,11 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined
               if (!( 
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("m_"+label) &&
-                    info.Par.count("Sigma1_"+label) &&
-                    info.Par.count("Sigma2_"+label) &&
-                    info.Par.count("f_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "m_"+label) &&
+                    contain(info.Par, "Sigma1_"+label) &&
+                    contain(info.Par, "Sigma2_"+label) &&
+                    contain(info.Par, "f_"+label)
                      )) { 
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Double Gaussian Model in " << col << std::endl; return false;
               }
@@ -165,9 +165,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               RooArgList pdfConstrains;
               StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f"};
               for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
                 // create the Gaussian PDFs for Constrain fits
-                if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
                   ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
                   pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
                 }
@@ -201,11 +201,11 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined
               if (!( 
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("m_"+label) &&
-                    info.Par.count("Sigma1_"+label) &&
-                    info.Par.count("Alpha_"+label) &&
-                    info.Par.count("n_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "m_"+label) &&
+                    contain(info.Par, "Sigma1_"+label) &&
+                    contain(info.Par, "Alpha_"+label) &&
+                    contain(info.Par, "n_"+label)
                      )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Single Crystal Ball Model in " << col << std::endl; return false;
               }
@@ -214,9 +214,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               RooArgList pdfConstrains;
               StringVector_t varNames = {"m", "Sigma1", "Alpha", "n"};
               for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
                 // create the Gaussian PDFs for Constrain fits
-                if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
                   ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
                   pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
                 }
@@ -242,15 +242,15 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("m_"+label) &&
-                    info.Par.count("Sigma1_"+label) &&
-                    info.Par.count("Sigma2_"+label) &&
-                    info.Par.count("Alpha_"+label) &&
-                    info.Par.count("Alpha2_"+label) &&
-                    info.Par.count("n_"+label) &&
-                    info.Par.count("n2_"+label) &&
-                    info.Par.count("f_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "m_"+label) &&
+                    contain(info.Par, "Sigma1_"+label) &&
+                    contain(info.Par, "Sigma2_"+label) &&
+                    contain(info.Par, "Alpha_"+label) &&
+                    contain(info.Par, "Alpha2_"+label) &&
+                    contain(info.Par, "n_"+label) &&
+                    contain(info.Par, "n2_"+label) &&
+                    contain(info.Par, "f_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Double Crystal Ball Model in " << col << std::endl; return false;
               }
@@ -259,9 +259,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               RooArgList pdfConstrains;
               StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "Alpha2", "n", "n2", "f"};
               for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
                 // create the Gaussian PDFs for Constrain fits
-                if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
                   ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
                   pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
                 }
@@ -299,13 +299,13 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("m_"+label) &&
-                    info.Par.count("Sigma1_"+label) &&
-                    info.Par.count("Sigma2_"+label) &&
-                    info.Par.count("Alpha_"+label) &&
-                    info.Par.count("n_"+label) &&
-                    info.Par.count("f_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "m_"+label) &&
+                    contain(info.Par, "Sigma1_"+label) &&
+                    contain(info.Par, "Sigma2_"+label) &&
+                    contain(info.Par, "Alpha_"+label) &&
+                    contain(info.Par, "n_"+label) &&
+                    contain(info.Par, "f_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Gaussian and Crystal Ball Model in " << col << std::endl; return false;
               }
@@ -314,9 +314,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               RooArgList pdfConstrains;
               StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "f"};
               for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
                 // create the Gaussian PDFs for Constrain fits
-                if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
                   ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
                   pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
                 }
@@ -352,10 +352,10 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("m_"+label) &&
-                    info.Par.count("Sigma1_"+label) &&
-                    info.Par.count("Sigma2_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "m_"+label) &&
+                    contain(info.Par, "Sigma1_"+label) &&
+                    contain(info.Par, "Sigma2_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Voigtian Model in " << col << std::endl; return false;
               }
@@ -364,9 +364,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               RooArgList pdfConstrains;
               StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2"};
               for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
                 // create the Gaussian PDFs for Constrain fits
-                if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
                   ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
                   pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
                 }
@@ -391,12 +391,12 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("m_"+label) &&
-                    info.Par.count("Sigma1_"+label) &&
-                    info.Par.count("Sigma2_"+label) &&
-                    info.Par.count("Alpha_"+label) &&
-                    info.Par.count("n_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "m_"+label) &&
+                    contain(info.Par, "Sigma1_"+label) &&
+                    contain(info.Par, "Sigma2_"+label) &&
+                    contain(info.Par, "Alpha_"+label) &&
+                    contain(info.Par, "n_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Breit-Wigner-CrystalBall Model in " << col << std::endl; return false;
               }
@@ -405,9 +405,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               RooArgList pdfConstrains;
               StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n"};
               for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
                 // create the Gaussian PDFs for Constrain fits
-                if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+                if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
                   ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
                   pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
                 }
@@ -446,7 +446,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
           case (int(Model::Uniform)):
             {
               // check that all input parameters are defined
-              if (!info.Par.count("N_"+label)) {
+              if (!contain(info.Par, "N_"+label)) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Uniform Model in " << col << std::endl; return false;
               }
 	      // create the variables for this model
@@ -467,8 +467,8 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " First Order Chebychev in " << col << std::endl; return false;
               }
@@ -477,9 +477,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -502,9 +502,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label) &&
-                    info.Par.count("Lambda2_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label) &&
+                    contain(info.Par, "Lambda2_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Second Order Chebychev in " << col << std::endl; return false;
               }
@@ -513,9 +513,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -539,10 +539,10 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label) &&
-                    info.Par.count("Lambda2_"+label) &&
-                    info.Par.count("Lambda3_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label) &&
+                    contain(info.Par, "Lambda2_"+label) &&
+                    contain(info.Par, "Lambda3_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Third Order Chebychev in " << col << std::endl; return false;
               }
@@ -551,9 +551,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -578,11 +578,11 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label) &&
-                    info.Par.count("Lambda2_"+label) &&
-                    info.Par.count("Lambda3_"+label) &&
-                    info.Par.count("Lambda4_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label) &&
+                    contain(info.Par, "Lambda2_"+label) &&
+                    contain(info.Par, "Lambda3_"+label) &&
+                    contain(info.Par, "Lambda4_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Fourth Order Chebychev in " << col << std::endl; return false;
               }
@@ -591,9 +591,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -619,12 +619,12 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label) &&
-                    info.Par.count("Lambda2_"+label) &&
-                    info.Par.count("Lambda3_"+label) &&
-                    info.Par.count("Lambda4_"+label) &&
-                    info.Par.count("Lambda5_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label) &&
+                    contain(info.Par, "Lambda2_"+label) &&
+                    contain(info.Par, "Lambda3_"+label) &&
+                    contain(info.Par, "Lambda4_"+label) &&
+                    contain(info.Par, "Lambda5_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Fifth Order Chebychev in " << col << std::endl; return false;
               }
@@ -633,9 +633,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4", "Lambda5"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -662,13 +662,13 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label) &&
-                    info.Par.count("Lambda2_"+label) &&
-                    info.Par.count("Lambda3_"+label) &&
-                    info.Par.count("Lambda4_"+label) &&
-                    info.Par.count("Lambda5_"+label) &&
-                    info.Par.count("Lambda6_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label) &&
+                    contain(info.Par, "Lambda2_"+label) &&
+                    contain(info.Par, "Lambda3_"+label) &&
+                    contain(info.Par, "Lambda4_"+label) &&
+                    contain(info.Par, "Lambda5_"+label) &&
+                    contain(info.Par, "Lambda6_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Sixth Order Chebychev in " << col << std::endl; return false;
               }
@@ -677,9 +677,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4", "Lambda5", "Lambda6"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -707,8 +707,8 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!( 
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label)
                      )) { 
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " First Order Exponential Chebychev " << col << std::endl; return false;
               }
@@ -717,9 +717,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -751,9 +751,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label) &&
-                    info.Par.count("Lambda2_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label) &&
+                    contain(info.Par, "Lambda2_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Second Order Exponential Chebychev in " << col << std::endl; return false;
               }
@@ -762,9 +762,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -797,10 +797,10 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label) &&
-                    info.Par.count("Lambda2_"+label) &&
-                    info.Par.count("Lambda3_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label) &&
+                    contain(info.Par, "Lambda2_"+label) &&
+                    contain(info.Par, "Lambda3_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Third Order Exponential Chebychev in " << col << std::endl; return false;
               }
@@ -809,9 +809,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -845,11 +845,11 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label) &&
-                    info.Par.count("Lambda2_"+label) &&
-                    info.Par.count("Lambda3_"+label) &&
-                    info.Par.count("Lambda4_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label) &&
+                    contain(info.Par, "Lambda2_"+label) &&
+                    contain(info.Par, "Lambda3_"+label) &&
+                    contain(info.Par, "Lambda4_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Fourth Order Exponential Chebychev in " << col << std::endl; return false;
               }
@@ -858,9 +858,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -895,12 +895,12 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label) &&
-                    info.Par.count("Lambda2_"+label) &&
-                    info.Par.count("Lambda3_"+label) &&
-                    info.Par.count("Lambda4_"+label) &&
-                    info.Par.count("Lambda5_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label) &&
+                    contain(info.Par, "Lambda2_"+label) &&
+                    contain(info.Par, "Lambda3_"+label) &&
+                    contain(info.Par, "Lambda4_"+label) &&
+                    contain(info.Par, "Lambda5_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Fifth Order Exponential Chebychev in " << col << std::endl; return false;
               }
@@ -909,9 +909,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4", "Lambda5"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -947,13 +947,13 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label) &&
-                    info.Par.count("Lambda2_"+label) &&
-                    info.Par.count("Lambda3_"+label) &&
-                    info.Par.count("Lambda4_"+label) &&
-                    info.Par.count("Lambda5_"+label) &&
-                    info.Par.count("Lambda6_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label) &&
+                    contain(info.Par, "Lambda2_"+label) &&
+                    contain(info.Par, "Lambda3_"+label) &&
+                    contain(info.Par, "Lambda4_"+label) &&
+                    contain(info.Par, "Lambda5_"+label) &&
+                    contain(info.Par, "Lambda6_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Sixth Order Exponential Chebychev in " << col << std::endl; return false;
               }
@@ -962,9 +962,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1", "Lambda2", "Lambda3", "Lambda4", "Lambda5", "Lambda6"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -1001,8 +1001,8 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Lambda1_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Lambda1_"+label)
                     )) { 
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " Exponential in " << col << std::endl; return false;
               }
@@ -1011,9 +1011,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Lambda1"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}
@@ -1035,10 +1035,10 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
             {
               // check that all input parameters are defined 
               if (!(
-		    info.Par.count("N_"+label) &&
-                    info.Par.count("Sigma_"+label) &&
-                    info.Par.count("xb_"+label) &&
-                    info.Par.count("Lambda_"+label)
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "Sigma_"+label) &&
+                    contain(info.Par, "xb_"+label) &&
+                    contain(info.Par, "Lambda_"+label)
                     )) {
                 std::cout << "[ERROR] Initial parameters where not found for " << tag << " ExpError in " << col << std::endl; return false;
               }
@@ -1047,9 +1047,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      RooArgList pdfConstrains;
 	      StringVector_t varNames = {"Sigma", "xb", "Lambda"};
 	      for (const auto& v : varNames) {
-		if (info.Par.count(v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
 		// create the Gaussian PDFs for Constrain fits
-		if (info.Par.count("val"+v+"_"+label) && info.Par.count("sig"+v+"_"+label)) {
+		if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
 		  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
 		  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
 		}

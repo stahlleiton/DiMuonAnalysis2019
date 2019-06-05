@@ -1,7 +1,7 @@
 #ifndef drawUtils_h
 #define drawUtils_h
 
-#include "TROOT.h"
+
 #include "TSystem.h"
 #include "TIterator.h"
 #include "TH1.h"
@@ -22,6 +22,7 @@
 #include "RooPlot.h"
 #include "RooAbsPdf.h"
 #include "RooAddPdf.h"
+#include "RooExtendPdf.h"
 #include "RooRealVar.h"
 #include "RooStringVar.h"
 #include "RooCurve.h"
@@ -32,23 +33,134 @@
 #include "../../../Utilities/CMS/tdrstyle.C"
 #include "../../../Utilities/CMS/CMS_lumi.C"
 #include "../../../Utilities/RooGoF.C"
+#include "../../../Utilities/dataUtils.h"
 
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <vector>
 
 
-typedef std::unordered_map< std::string , std::string > StringMap_d;
-typedef std::unordered_map< std::string , StringMap_d > StringDiMap_d;
-typedef std::unordered_map< std::string , std::unique_ptr<RooPlot> > RooPlotPtrMap_d;
-typedef std::unordered_map< std::string , TPad*       > PadPtrMap_d; // Unique Pointer does produce Segmentation Fault, so don't use it
+typedef std::vector<std::string > StringVector_d;
+typedef std::map< std::string , std::string > StringMap_d;
+typedef std::map< std::string , StringMap_d > StringDiMap_d;
+typedef std::map< std::string , TPad*       > PadPtrMap_d; // Unique Pointer does produce Segmentation Fault, so don't use it
+typedef std::map< std::string , std::unique_ptr<RooPlot> > RooPlotPtrMap_d;
+
+
+const std::map< std::string , std::vector<int> > PDFMAP_ =
+  {
+   {"JPsi", {11, kRed+1}}, {"Ups1S", {10, kGreen+3}}, {"Ups2S", {9, kGreen-5}}, {"Psi2S", {8, kRed-7}},
+   {"Ups3S", {7, kGreen-6}}, {"DY", {6, kBlue+2}}, {"Z", {5, kBlue-4}}, {"TTbar", {4, kOrange+1}},
+   {"D0", {3, kViolet+9}}, {"D0Swap", {2, kViolet-6}}, {"Bkg", {1, kAzure-9}}
+  };
+
+
+bool changeToHistPdf(RooWorkspace& ws, std::string& pdfName, const std::string& varName)
+{
+  if (pdfName.find("pdfHIST")!=std::string::npos) { return true; }
+  const auto& oPDF = ws.pdf(pdfName.c_str());
+  if (!oPDF) { std::cout << "[ERROR] changeToHistPdf: PDF " << pdfName << " was not found!" << std::endl; return false; }
+  const auto& aPDF = dynamic_cast<RooAddPdf*>(oPDF);
+  if (!aPDF) { std::cout << "[ERROR] changeToHistPdf: PDF " << pdfName << " does not derive from RooAddPdf!" << std::endl; return false; }
+  const auto& var = ws.var(varName.c_str());
+  if (!var) { std::cout << "[ERROR] changeToHistPdf: Variable " << varName << " was not found!" << std::endl; return false; }
+  // Loop over the sub PDFs
+  RooArgList pdfs;
+  auto pdfIt = std::unique_ptr<TIterator>(aPDF->pdfList().createIterator());
+  for (auto itp = pdfIt->Next(); itp!=NULL; itp = pdfIt->Next()) {
+    const auto& it = dynamic_cast<RooAbsPdf*>(itp); if (!it) continue;
+    // Check if PDF is already a RooHistPdf
+    if (dynamic_cast<RooHistPdf*>(itp)){ pdfs.add(*it); continue; }
+    // Define the Hist PDF name
+    std::string hPDFName = it->GetName(); stringReplace(hPDFName, "pdf", "pdfHIST");
+    std::string hDSName = hPDFName; stringReplace(hDSName, "pdf", "ds");
+    // Create the Hist PDF
+    if (!ws.data(hDSName.c_str())) {
+      auto data = std::unique_ptr<RooDataHist>(it->generateBinned(RooArgSet(*var), 1000000, RooFit::Name(hDSName.c_str()), RooFit::ExpectedData()));
+      if (!data) { std::cout << "[ERROR] changeToHistPdf: RooDataHist " << hDSName << " was not created!" << std::endl; return false; }
+      if (ws.import(*data)) { return false; }
+    }
+    if (!ws.pdf(hPDFName.c_str())) {
+      auto pdf = std::unique_ptr<RooHistPdf>(new RooHistPdf(hPDFName.c_str(), hPDFName.c_str(), *var, *dynamic_cast<RooDataHist*>(ws.data(hDSName.c_str()))));
+      if (!pdf) { std::cout << "[ERROR] changeToHistPdf: RooHistPdf " << hPDFName << " was not created!" << std::endl; return false; }
+      if (ws.import(*pdf)) { return false; }
+      pdfs.add(*pdf);
+    }
+  }
+  stringReplace(pdfName, "pdf", "pdfHIST");
+  const auto& addPDF = RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfs);
+  if (!ws.pdf(pdfName.c_str()) && ws.import(addPDF)) { return false; }
+  return true;
+};
+
+
+bool addPdfToList(RooArgList& pdfs, RooArgList& yields, const RooWorkspace& ws, const RooArgList& pdfList)
+{
+  auto pdfIt = std::unique_ptr<TIterator>(pdfList.createIterator());
+  for (auto it = pdfIt->Next(); it!=NULL; it = pdfIt->Next()) {
+    std::string label = it->GetName(); label = label.substr(label.find("_")+1);
+    std::string pTag = it->GetName(); pTag = pTag.substr(0, pTag.find("Tot_"));
+    // Add the PDF
+    const auto& pName = (ws.pdf((pTag+"BIN_"+label).c_str()) ? (pTag+"BIN_"+label) : (pTag+"_"+label));
+    const auto& pdf = ws.pdf(pName.c_str());
+    if (!pdf) { std::cout << "[ERROR] addPdfToList: PDF " << pName << " was not found!" << std::endl; return false; }
+    pdfs.add(*pdf);
+    // Add the yield
+    const auto& yield = (ws.var(("N_"+label).c_str()) ? ws.var(("N_"+label).c_str()) : ws.function(("N_"+label).c_str()));
+    if (!yield) { std::cout << "[ERROR] addPdfToList: Parameter N_" << label << " was not found!" << std::endl; return false; }
+    yields.add(*yield);
+  }
+  return true;
+};
+
+
+void getLumiLabels(StringVector_d& labels, const std::string& PD, const std::string& col, const bool& isMC)
+{
+  std::string lumiLabel="";
+  const auto& colV = parseColStr(col);
+  if (!colV.empty()) {
+    auto colN = colV[0];
+    if (colN=="PP") { colN = "pp"; } else if (colN=="PA") { colN = "pPb"; }
+    lumiLabel += colN;
+  }
+  if (isMC) { lumiLabel += " Simulation)"; }
+  else if (col=="PbPb5Y18") { lumiLabel += Form(" %.0f #mub^{-1}", PbPb::R5TeV::Y2018::LumiFromPD(PD)); }
+  else if (col=="PP13Y17" ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R13TeV::Y2018::LumiFromPD(PD)); }
+  else if (col=="PP5Y17"  ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R5TeV::Y2017::LumiFromPD(PD)); }
+  else if (col.rfind("8Y16")!=std::string::npos) { lumiLabel += Form(" %.1f nb^{-1}", pPb::R8TeV::Y2016::LumiFromPD(PD, col)); }
+  else if (col=="PbPb5Y15") { lumiLabel += Form(" %.0f #mub^{-1}", PbPb::R5TeV::Y2015::LumiFromPD(PD)); }
+  labels.push_back(lumiLabel);
+  //
+  std::string lumiLabel2="";
+  if (colV.size()>1) {
+    auto colE = colV[1];
+    if (colE=="5") { colE = "5.02 TeV"; } else if (colE=="8") { colE = "8.16 TeV"; } 
+    colE = ((colV[0]=="PP") ? "#sqrt{s} = " : "#sqrt{s_{NN}} = ") +colE;
+    lumiLabel2 += colE;
+  }
+  labels.push_back(lumiLabel2);
+};
 
 
 void formatLegendEntry(TLegendEntry& e, const double& size=0.060)
 {
   e.SetTextSize(size);
+};
+
+
+void setVarToTag(RooWorkspace& ws, const std::string& varName, const std::string& tag="")
+{
+  const auto& var = ws.var(varName.c_str());
+  if (!var || tag=="") return;
+  // Extract the info
+  const auto& varMin = var->getMin(tag.c_str());
+  const auto& varMax = var->getMax(tag.c_str());
+  const auto& varBin = var->getBins(tag.c_str());
+  // Set the info
+  var->setBins(varBin);
+  var->setRange(varMin, varMax);
 };
 
 
@@ -119,8 +231,9 @@ void setPlotRange(RooPlot& frame, const RooWorkspace& ws, const std::string& var
   TH1D hData, hFit;
   if (ws.data(dsName.c_str())!=NULL) {
     auto h = std::unique_ptr<TH1>(ws.data(dsName.c_str())->createHistogram("hist", *ws.var(varName.c_str()), RooFit::Binning(nBins, frame.GetXaxis()->GetXmin(), frame.GetXaxis()->GetXmax())));
-    const auto& h1D = dynamic_cast<TH1D*>(h.get());
+    const auto& h1D = static_cast<TH1D*>(h.get());
     if (h1D) { hData = *h1D; }
+    else { std::cout << "[ERROR] setPlotRange: Histogram for " << dsName << " was not created!" << std::endl; return; }
   }
   else {
     if (!rooPlotToTH1(hData, hFit, frame)) { std::cout << "[ERROR] Could not find the RooHist from the frame!" << std::endl; return; }
@@ -139,17 +252,18 @@ void setPlotRange(RooPlot& frame, const RooWorkspace& ws, const std::string& var
     Yup = YMax+(YMax-0.0)*0.55;
     Ydown = 0.0;
   }
-  frame.GetYaxis()->SetRangeUser(Ydown,Yup);
+  frame.GetYaxis()->SetRangeUser(Ydown, Yup);
+  std::cout << "[INFO] Setting plot y-axis range to: " << Ydown << " - " << Yup << std::endl;
   //
   // Draw Lines for the var range if cut
-  if (varName=="MET" && ws.data((dsName+"_FIT").c_str())!=NULL) {
-    const double& varMin = ws.var(varName.c_str())->getMin(Form("%sWindow", varName.c_str()));
+  if (dsName.find("_FIT")!=std::string::npos) {
+    const auto& varMin = ws.var(varName.c_str())->getMin("FitWindow");
     if (varMin > 0.0) {
       auto minline = new TLine(varMin, 0.0, varMin, (setLogScale?(Ydown*TMath::Power((Yup/Ydown),0.5)):(Ydown + (Yup-Ydown)*0.5)));
       minline->SetLineStyle(2); minline->SetLineColor(1); minline->SetLineWidth(3);
       frame.addObject(minline);
     }
-    double varMax = ws.var(varName.c_str())->getMax(Form("%sWindow", varName.c_str()));
+    const auto& varMax = ws.var(varName.c_str())->getMax("FitWindow");
     auto maxline = new TLine(varMax, 0.0, varMax, (setLogScale?(Ydown*TMath::Power((Yup/Ydown),0.5)):(Ydown + (Yup-Ydown)*0.5)));
     maxline->SetLineStyle(2); maxline->SetLineColor(1); maxline->SetLineWidth(3);
     frame.addObject(maxline);
@@ -187,7 +301,7 @@ bool printGoF(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& v
   RooCurve* rFit = frame.getCurve(Form("plot_%s", pdfLabel.c_str()));
   if (!rFit) { std::cout << "[ERROR] The latest RooCurve was not found" << std::endl; return false; }
   // Find histogram object
-  RooHist* rData = frame.getHist(Form("plot_Tot%s", dataLabel.c_str()));
+  RooHist* rData = frame.getHist(Form("plot_%s", dataLabel.c_str()));
   if (!rData) { std::cout << "[ERROR] The latest RooHist was not found" << std::endl; return false; }
   //
   pad.cd();
@@ -224,7 +338,8 @@ bool printGoF(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& v
   //
   // Determine the number of free parameters
   auto parList = std::unique_ptr<RooArgSet>(ws.pdf(pdfLabel.c_str())->getParameters(*ws.data(dataLabel.c_str())));
-  const int& nFitPar = parList->selectByAttrib("Constant", kFALSE)->getSize();
+  auto varList = std::unique_ptr<RooAbsCollection>(parList->selectByAttrib("Constant", false));
+  const int& nFitPar = varList->getSize();
   //
   // Baker-Cousins chi2 test
   int ndof_BCChi2 = -1;
@@ -418,55 +533,148 @@ bool isParAtLimit(const RooRealVar& var)
 };
 
 
-bool getVar(std::vector<RooRealVar>& varVec, const RooWorkspace& ws, const std::string& name, const std::string& pdfName)
+RooAbsCollection* skimSet(const RooArgSet& set, const std::string& varStr="*", const StringVector_d& excV={}, const std::string& state="Constant")
 {
-  varVec.clear();
-  auto parIt = std::unique_ptr<TIterator>(ws.allVars().selectByAttrib("Constant", kFALSE)->createIterator());
-  for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next() ) {
-    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
-    std::string s(it->GetName());
-    if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
-    if((s.find("OS")!=std::string::npos)!=(pdfName.find("OS")!=std::string::npos)){ continue; }
-    if (s.find(name)!=std::string::npos) { varVec.push_back(*it);}
+  // Select variables passing varStr
+  auto vSet = std::unique_ptr<RooAbsCollection>(set.selectByName(varStr.c_str(), true));
+  // Remove variables passing state
+  const auto& sSet = vSet->selectByAttrib(state.c_str(), false);
+  // Remove variables in excV
+  for (const auto& o : excV) { const auto& p = sSet->find(o.c_str()); if (p) { sSet->remove(*p); } }
+  return sSet;
+};
+  
+
+std::vector<RooRealVar> getModelVar(const RooWorkspace& ws, const std::string& name="*")
+{
+  // Get information from workspace
+  const std::string& cha     = (ws.obj("channel") ? dynamic_cast<RooStringVar*>(ws.obj("channel"))->getVal() : "");
+  const std::string& pdfName = (ws.obj("pdfName") ? dynamic_cast<RooStringVar*>(ws.obj("pdfName"))->getVal() : "");
+  const std::string& dsName  = (ws.obj("dsName")  ? dynamic_cast<RooStringVar*>(ws.obj("dsName") )->getVal() : "");
+  // Define the var name
+  const auto& label = (pdfName.find("_")!=std::string::npos ? pdfName.substr(pdfName.find(cha)) : "");
+  const auto& varStr = name + "_*" + (label=="" ? "" : label);
+  // Define the list of observables
+  StringVector_d obsV;
+  if (ws.data(dsName.c_str())) {
+    const  auto& listObs = const_cast<RooWorkspace*>(&ws)->set(("SET_"+dsName).c_str());
+    auto parIt = std::unique_ptr<TIterator>(listObs->createIterator());
+    for (auto it = parIt->Next(); it!=NULL; it = parIt->Next() ) { obsV.push_back(it->GetName()); }
   }
-  if (varVec.size()>0) return true;
-  auto fncIt = std::unique_ptr<TIterator>(ws.allFunctions().selectByAttrib("Constant", kFALSE)->createIterator());
-  for (auto itp = fncIt->Next(); itp!=NULL; itp = fncIt->Next() ) {
+  // Get the var set
+  auto parSet = std::unique_ptr<RooArgSet>(ws.pdf(pdfName.c_str()) ? ws.pdf(pdfName.c_str())->getParameters(RooArgSet()) : NULL);
+  auto varSet = std::unique_ptr<RooAbsCollection>(skimSet((parSet ? *parSet : ws.allVars()), varStr, obsV));
+  if (varSet->getSize()==0) { varSet.reset(skimSet(ws.allFunctions(), varStr, obsV)); }
+  // Fill the vector of variables
+  std::vector<RooRealVar> varV;
+  auto parIt = std::unique_ptr<TIterator>(varSet->createIterator());
+  for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next()) {
     const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
-    std::string s(it->GetName());
-    if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
-    if((s.find("OS")!=std::string::npos)!=(pdfName.find("OS")!=std::string::npos)){ continue; }
-    if (s.find(name)!=std::string::npos) { varVec.push_back(*it); }
+    varV.push_back(*it);
   }
-  return (varVec.size()>0);
+  // Set yields at the beginning and order based on object
+  std::vector<RooRealVar> varVec;
+  for (const auto& v : varV) { if (std::string(v.GetName()).rfind("N_",0)==0) { varVec.push_back(v); } }
+  for (const auto& p : PDFMAP_) {
+    if (p.first=="Bkg") continue;
+    for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.find(p.first)!=std::string::npos) { varVec.push_back(v); } }
+  }
+  for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.find("Bkg")!=std::string::npos) { varVec.push_back(v); } }
+  return varVec;
 };
 
 
-void parseVarName(const std::string& name, std::string& label)
+std::string formatCut(const std::string& cut)
 {
-  label = "";
+  if (cut=="") return cut;
+  std::string str = cut;
+  str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
+  // Format the variable string
+  const auto& varL = StringMap_d({{"Cand_Pt", "p_{T}"}, {"Cand_Mass", "M"}});
+  for (const auto& vL : varL) { stringReplace(str, vL.first, vL.second); }
+  // Format the observables
+  for (const auto& elem : VARLABEL_) { stringReplace(str, elem.first, elem.second); }
+  // Format the object string
+  const auto& objL = StringMap_d({{"Pl", "^{+}+x"}, {"Mi", "^{#font[122]{\55}}+x"}, {"To", "#rightarrow"},
+				  {"El", "e"}, {"Mu", "#mu"}, {"Tau","#tau"},
+				  {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+				  {"JPsi", "J/#psi"}, {"Psi(2S)", "#psi(2S)"},
+				  {"Ups(1S)", "#Upsilon(1S)"}, {"Ups(2S)", "#Upsilon(2S)"}, {"Ups(3S)", "#Upsilon(3S)"},
+				  {"&&", " & "}, {"(", ""}, {")", ""}, {"<=", "#leq"}, {"<", " < "}, {">=", " #geq "}, {">", " > "}});
+  for (const auto& oL : objL) { stringReplace(str, oL.first, oL.second); }
+  return str;
+};
+
+
+std::string formatPar(const std::string& name, const std::string& cha)
+{
+  std::string label = cha;
+  if (label=="ToMuMu") { label = "#mu^{+}#mu^{#font[122]{\55}} "; }
+  const auto& parL = StringMap_d({{"Cand_Mass", "Mass GeV/c^{2}"}, {"Cand_Pt", "p_{T} GeV/c"}});
+  for (const auto& pL : parL) { if (name==pL.first) { label += pL.second; break; } }
+  return label;
+};
+
+
+std::string parseVarName(const std::string& name)
+{
+  std::string label = "";
   // Parse the parameter's labels
   stringstream ss(name); std::string s1, s2, s3;
   getline(ss, s1, '_'); getline(ss, s2, '_'); getline(ss, s3, '_');
   // Format model parameters
-  if (s1=="Alpha"){ s1="#alpha"; } else if (s1=="Beta"){ s1="#beta"; }
-  else if (s1=="Sigma0"){ s1="#sigma0"; } else if (s1=="Sigma1"){ s1="#sigma1"; } else if (s1=="Sigma2"){ s1="#sigma2"; } else if (s1=="rSigma21"){ s1="#frac{#sigma2}{#sigma1}"; }
-  else if (s1=="Lambda1"){ s1="#lambda1"; } else if (s1=="Lambda2"){ s1="#lambda2"; } else if (s1=="Lambda3"){ s1="#lambda3"; }
-  else if (s1=="Lambda4"){ s1="#lambda4"; } else if (s1=="Lambda5"){ s1="#lambda5"; } else if (s1=="Lambda6"){ s1="#lambda6"; }
-  else if (s1=="XSection"){ s1="#sigma"; } else if (s1=="AccXEff"){ s1="#alphax#epsilon"; }
+  const auto& varL = StringMap_d({{"Alpha", "#alpha"}, {"Beta", "#beta"}, {"Lambda", "#lambda"}, {"Sigma", "#sigma"}, {"rSigma21","#sigma2/#sigma1"},
+				  {"XSection","#sigma"}, {"AccXEff","#alphax#epsilon"}});
+  for (const auto& vL : varL) { if (s1.rfind(vL.first, 0)==0) { stringReplace(s1, vL.first, vL.second); break; } }
   // Format Object name
-  std::string chg = ""; if (s2.find("Pl")!=std::string::npos) { chg = "+"; } else if (s2.find("Mi")!=std::string::npos) { chg = "-"; }
-  if (s2.find("WToTau")!=std::string::npos) { s2 = "W#rightarrow#tau"; } else if (s2.find("WW")!=std::string::npos) { s2 = "WW"; }
-  else if (s2.find("WZ")!=std::string::npos) { s2 = "WZ"; } else if (s2.find("W")!=std::string::npos) { s2 = "W#rightarrow#mu"; }
-  else if (s2.find("DYToTau")!=std::string::npos) { s2 = "Z/#gamma*#rightarrow#tau"; }
-  else if (s2.find("DY")!=std::string::npos) { s2 = "Z/#gamma*"; } else if (s2.find("Z")!=std::string::npos) { s2 = "Z"; }
-  else if (s2.find("QCD")!=std::string::npos) { s2 = "QCD"; } else if (s2.find("TTbar")!=std::string::npos) { s2 = "t#bar{t}"; }
-  else if (s2.find("JPsi")!=std::string::npos) { s2 = "J/#psi"; } else if (s2.find("Psi2S")!=std::string::npos) { s2 = "#psi(2S)"; }
-  else if (s2.find("Ups1S")!=std::string::npos) { s2 = "#Upsilon(1S)"; } else if (s2.find("Ups2S")!=std::string::npos) { s2 = "#Upsilon(2S)"; }
-  else if (s2.find("Ups3S")!=std::string::npos) { s2 = "#Upsilon(3S)"; } else if (s2.find("Bkg")!=std::string::npos) { s2 = "Bkg"; }
-  s2 = ( s2 + chg );
-  if(s3!=""){ label = Form("%s_{%s}^{%s}", s1.c_str(), s2.c_str(), s3.c_str()); } else { label = Form("%s^{%s}", s1.c_str(), s2.c_str()); }
-  return;
+  const auto& objL = StringMap_d({{"Bkg", "Bkg"}, {"Z", "Z"}, {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+				  {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
+				  {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
+  for (const auto& oL : objL) { if (s2.find(oL.first)!=std::string::npos) { s2 = oL.second; break; } }
+  // Format System name
+  const auto& s3V = parseColStr(s3);
+  auto col = (!s3V.empty() ? s3V[0] : ""); if (col=="PA") { col = "pA"; } else if (col=="PP") { col = "pp"; }
+  if (col!="") { label = Form("%s_{%s}^{%s}", s1.c_str(), s2.c_str(), col.c_str()); } else { label = Form("%s^{%s}", s1.c_str(), s2.c_str()); }
+  return label;
+};
+
+
+std::string parseObject(const std::string& inObj)
+{
+  // Format Object name
+  const auto& objL = StringMap_d({{"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+				  {"PsinS", "#psi(nS)"}, {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
+				  {"UpsnS", "#Upsilon(nS)"}, {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
+  return (objL.find(inObj)!=objL.end() ? objL.at(inObj) : inObj);
+};
+
+
+std::string parseProcess(const std::string& obj, const std::string& cha)
+{
+  // Format Object name
+  std::string proc = obj;
+  if (proc=="") return proc;
+  const auto& objL = StringMap_d({{"To", " #rightarrow "}, {"El", "e"}, {"Mu", "#mu"}, {"Tau","#tau"},
+				  {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+				  {"PsinS", "#psi(nS)"}, {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
+				  {"UpsnS", "#Upsilon(nS)"}, {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
+  for (const auto& oL : objL) { stringReplace(proc, oL.first, oL.second); }
+  // Format the channel
+  proc += cha;
+  const auto& chaL = StringMap_d({{"ToMuMu", " #rightarrow #mu^{+} + #mu^{#font[122]{\55}}"}});
+  for (const auto& cL : chaL) { stringReplace(proc, cL.first, cL.second); }
+  proc = ("#font[62]{#scale[1.1]{"+proc+"}}");
+  return proc;
+};
+
+
+std::string parseProcess(const std::set<std::string>& objV, const std::string& cha)
+{
+  std::string obj="";
+  if (objV.size()==1) { obj = *objV.begin(); }
+  else if (objV.find("Ups1S")!=objV.end()) { obj = "UpsnS"; }
+  else if (objV.find("JPsi")!=objV.end()) { obj = "PsinS"; }
+  return parseProcess(obj, cha);
 };
 
 

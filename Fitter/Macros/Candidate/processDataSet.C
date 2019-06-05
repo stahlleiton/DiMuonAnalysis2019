@@ -55,7 +55,7 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   // Define the invariant mass range
   double minM = 999999., maxM = -999999.;
   for (const auto& obj : info.StrS.at("incObject")) {
-    if (MASS.count(obj)>0) {
+    if (contain(MASS, obj)) {
       if (minM > MASS.at(obj).at("Min")) { minM = MASS.at(obj).at("Min"); }
       if (maxM < MASS.at(obj).at("Max")) { maxM = MASS.at(obj).at("Max"); }
     }
@@ -120,6 +120,7 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
       if (!data) { std::cout << "[ERROR] Skimmed dataset " << ds->GetName() << " is NULL!" << std::endl; return false; }
       if (data->sumEntries()==0){ std::cout << "[WARNING] Skimmed dataset " <<  ds->GetName() << " is empty!" << std::endl; }
       std::cout << "[INFO] Reduced dataset " << ds->GetName() << " from " << ds->sumEntries() << " to " << data->sumEntries() << " entries" << std::endl;
+      addString(tmpWS, "skimDS", cutStr); // Save the cut expression for bookkeeping
       tmpWS.import(*data);
     }
     clearWorkspace(ws.second);
@@ -144,7 +145,7 @@ bool invertEtaAndFill(RooDataSet& dsPA, RooDataSet& dsPbp)
     }
   }
   // Fill the PA dataset
-  if (varNames.size()>0) {
+  if (!varNames.empty()) {
     for(int i = 0; i < ds.numEntries(); i++){
       auto set = *ds.get(i);
       // Invert the rapidities
@@ -165,7 +166,7 @@ bool invertEtaAndFill(RooDataSet& dsPA, RooDataSet& dsPbp)
 
 bool combineDataSet(RooWorkspaceMap_t& workspaces, GlobalInfo& info, const std::string& run)
 {
-  if (info.Flag.count("fitPA"+run)==0 || info.Flag.at("fitPA"+run)==false) { return true; }
+  if (!contain(info.Flag, "fitPA"+run) || info.Flag.at("fitPA"+run)==false) { return true; }
   //
   std::cout << "[INFO] Proceed to combine the pPb" << run << " RooDatasets" << std::endl;
   //
@@ -180,8 +181,8 @@ bool combineDataSet(RooWorkspaceMap_t& workspaces, GlobalInfo& info, const std::
     const auto& sample_PA  = smTag+"_PA"+run;
     //
     // Check input datasets
-    if (workspaces.count(sample_pPb)==0) { std::cout << "[ERROR] RooWorkspace for sample " << sample_pPb << " does not exist!" << std::endl; return false; }
-    if (workspaces.count(sample_Pbp)==0) { std::cout << "[ERROR] RooWorkspace for sample " << sample_Pbp << " does not exist!" << std::endl; return false; }
+    if (!contain(workspaces, sample_pPb)) { std::cout << "[ERROR] RooWorkspace for sample " << sample_pPb << " does not exist!" << std::endl; return false; }
+    if (!contain(workspaces, sample_Pbp)) { std::cout << "[ERROR] RooWorkspace for sample " << sample_Pbp << " does not exist!" << std::endl; return false; }
     const auto& ws_pPb = workspaces.at(sample_pPb);
     const auto& ws_Pbp = workspaces.at(sample_Pbp);
     auto& ws_PA = workspaces[sample_PA];
@@ -222,7 +223,7 @@ bool combineDataSet(RooWorkspaceMap_t& workspaces, GlobalInfo& info, const std::
       ws_PA.import(*ds_PA);
       if (ws_PA.data(dsTag_PA.c_str())==NULL) { std::cout << "[ERROR] RooDataSet " << dsTag_PA << " was not imported!" << std::endl; return false; }
       else { std::cout << "[INFO] RooDataSet " << dsTag_PA << " was created with " << ds_PA->numEntries() << " entries!" << std::endl; }
-      if (info.StrS.at("DSTAG").count(sample_pPb)) { info.StrS.at("DSTAG").insert(sample_PA); }
+      if (contain(info.StrS.at("DSTAG"), sample_pPb)) { info.StrS.at("DSTAG").insert(sample_PA); }
     }
   }
   //

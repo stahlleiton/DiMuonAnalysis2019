@@ -56,9 +56,9 @@ bool checkAnalysis(const GlobalInfo& info)
 
 bool checkFileInfo(const StringVectorMap_t& fileInfo)
 {
-  if ( fileInfo.at("outputFileDir").size()==0  ) { std::cout << "[ERROR] OutputFileDir is empty!" << std::endl; return false;  }
-  if ( fileInfo.at("inputFileNames").size()==0 ) { std::cout << "[ERROR] InputFileNames is empty!" << std::endl; return false; }
-  if ( fileInfo.at("dsNames").size()==0        ) { std::cout << "[ERROR] DSNames is empty!" << std::endl; return false;        }
+  if (fileInfo.at("outputFileDir").empty() ) { std::cout << "[ERROR] OutputFileDir is empty!" << std::endl; return false;  }
+  if (fileInfo.at("inputFileNames").empty()) { std::cout << "[ERROR] InputFileNames is empty!" << std::endl; return false; }
+  if (fileInfo.at("dsNames").empty()       ) { std::cout << "[ERROR] DSNames is empty!" << std::endl; return false;        }
   return true;
 };
 

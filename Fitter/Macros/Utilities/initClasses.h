@@ -132,14 +132,16 @@ const IntMap_t ModelDictionary = {
 };
 
 
-const StringMap_t varLabel = {
-  { "Cand_Mass"   , "M"      },
-  { "Cand_Rap"    , "y"      },
-  { "Cand_RapCM"  , "y_{CM}" },
-  { "Cand_AbsRap" , "|y|"    },
-  { "Cand_Pt"     , "p_{T}"  },
-  { "Cand_Len"    , "c#tau"  },
-  { "Centrality"  , "Cent."  }
+const StringMap_t VARLABEL_ = {
+  { "Cand_Mass"   , "M"         },
+  { "Cand_Rap"    , "y"         },
+  { "Cand_RapCM"  , "y_{CM}"    },
+  { "Cand_AbsRap" , "|y|"       },
+  { "Cand_Pt"     , "p_{T}"     },
+  { "Cand_Len"    , "c#tau"     },
+  { "Cand_APhi"   , "#phi_{#mu}"},
+  { "Centrality"  , "Cent."     },
+  { "NTrack"      , "Ntrk"      },
 };
 
 
@@ -226,7 +228,7 @@ typedef struct GlobalInfo {
   {
     if (ref.size() != this->Var.size()) return false;
     for (const auto& var : this->Var) {
-      if (ref.count(var.first)==0 || ref.at(var.first).count("Min")==0 || ref.at(var.first).count("Max")==0) return false;
+      if (ref.find(var.first)==ref.end() || ref.at(var.first).find("Min")==ref.at(var.first).end() || ref.at(var.first).find("Max")==ref.at(var.first).end()) return false;
       if (var.second.at("Min") != ref.at(var.first).at("Min")) return false;
       if (var.second.at("Max") != ref.at(var.first).at("Max")) return false;
     }
@@ -236,7 +238,7 @@ typedef struct GlobalInfo {
   {
     if (ref.size() != this->Par.size()) return false;
     for (const auto& par : this->Par) {
-      if (ref.count(par.first)==0) return false;
+      if (ref.find(par.first)==ref.end()) return false;
       if (par.second != ref.at(par.first)) return false;
     }
     return true;
@@ -245,7 +247,7 @@ typedef struct GlobalInfo {
   {
     if (ref.size() != this->Int.size()) return false;
     for (const auto& i : this->Int) {
-      if (ref.count(i.first)==0) return false;
+      if (ref.find(i.first)==ref.end()) return false;
       if (i.second != ref.at(i.first)) return false;
     }
     return true;
@@ -254,7 +256,7 @@ typedef struct GlobalInfo {
   {
     if (ref.size() != this->StrV.size()) return false;
     for (const auto& i : this->StrV) {
-      if (ref.count(i.first)==0) return false;
+      if (ref.find(i.first)==ref.end()) return false;
       if (i.second != ref.at(i.first)) return false;
     }
     return true;
@@ -263,7 +265,7 @@ typedef struct GlobalInfo {
   {
     if (ref.size() != this->StrS.size()) return false;
     for (const auto& i : this->StrS) {
-      if (ref.count(i.first)==0) return false;
+      if (ref.find(i.first)==ref.end()) return false;
       if (i.second != ref.at(i.first)) return false;
     }
     return true;
@@ -272,7 +274,7 @@ typedef struct GlobalInfo {
   {
     if (ref.size() != this->Flag.size()) return false;
     for (const auto& flag : this->Flag) {
-      if (ref.count(flag.first)==0) return false;
+      if (ref.find(flag.first)==ref.end()) return false;
       if (flag.second != ref.at(flag.first)) return false;
     }
     return true;

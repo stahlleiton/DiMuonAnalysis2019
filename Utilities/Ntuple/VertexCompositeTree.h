@@ -460,7 +460,7 @@ Long64_t VertexCompositeTree::LoadTree(Long64_t entry)
 
 char VertexCompositeTree::GetBranchStatus(const std::string& n)
 {
-  if (std::binary_search(activeBranches_.begin(), activeBranches_.end(), n)) return 1;
+  if (activeBranches_.find(n)!=activeBranches_.end()) return 1;
   if (!fChain_ || !(fChain_->GetBranch(n.c_str()))) return -1;
   return fChain_->GetBranchStatus(n.c_str());
 };

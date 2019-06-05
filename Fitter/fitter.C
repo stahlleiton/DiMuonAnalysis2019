@@ -12,6 +12,7 @@
 #include <string>
 #include <bitset>
 #include <algorithm>
+#include <future>
 
 #include "../Utilities/dataUtils.h"
 #include "Macros/Utilities/initClasses.h"
@@ -102,7 +103,7 @@ void fitter(
     //
     userInput.Par["treeType"] = "VertexCompositeTree";
     //
-    userInput.Var["Cand_Mass"]["binWidth"] = 0.06;
+    userInput.Var["Cand_Mass"]["binWidth"] = 0.05;
     userInput.Var["Cand_Pt"  ]["binWidth"] = 2.0;
   }
   //
@@ -167,9 +168,9 @@ void fitter(
   for (const auto& var : userInput.StrV.at("variable") ) { if (userInput.Flag.at("fit"+var)) { userInput.StrS["fitVariable"].insert(var); } }
   //
   // Clear extra variables if missing
-  if (userInput.Par.count("anaType")==0) { userInput.Par["anaType"]  = ""; }
-  if (userInput.Int.count("triggerIndex")==0) { userInput.Int["triggerIndex"] = -1; }
-  if (userInput.Par.count("treeType")==0) { userInput.Par["treeType"] = ""; }
+  if (!contain(userInput.Par, "anaType")) { userInput.Par["anaType"]  = ""; }
+  if (!contain(userInput.Int, "triggerIndex")) { userInput.Int["triggerIndex"] = -1; }
+  if (!contain(userInput.Par, "treeType")) { userInput.Par["treeType"] = ""; }
   const bool& useExtDS = (userInput.Flag.at("useExtDS") && (workDirName.find("Test")==std::string::npos));
   for (const auto& var : userInput.StrV.at("variable")) { if (userInput.Flag.at("fit"+var) || !useExtDS) { userInput.Par["extFitDir_"+var] = ""; userInput.Par["extInitFileDir_"+var] = "";} }
   for (const auto& var : userInput.StrV.at("variable")) { for (const auto& obj : userInput.StrV.at("object")) { if (userInput.Flag.at("fit"+var) || !useExtDS) { userInput.Par["extInitFileDir_"+var+"_"+obj] = ""; } } }
@@ -278,12 +279,13 @@ void fitter(
     const auto& outputDir = DIR.at("output")[index];
     //
     for (const auto& DSTAG : userInput.StrS.at("DSTAG")) {
+      const auto& dsCol = DSTAG.substr(DSTAG.rfind("_")+1);
       //
-      if (iniWorkspaces.count(DSTAG)>0) {
+      if (contain(iniWorkspaces, DSTAG)) {
         //
         for (const auto& infoMapVector : infoMapVectors[j]) {
           const auto& col = infoMapVector.first;
-          if (userInput.Flag.at(Form("fit%s", col.c_str())) && (DSTAG.rfind(col)!=std::string::npos)) {
+          if (userInput.Flag.at("fit"+col) && (col==dsCol)) {
             //
             for (const auto& infoVector : infoMapVector.second) {
               //
@@ -298,9 +300,6 @@ void fitter(
                                             )
                     ) { return; }
               }
-              //
-              userInput.Print();
-              return;
             }
           }
         }
@@ -310,6 +309,7 @@ void fitter(
       }
     }
   }
+  std::cout << "[INFO] All fits completed succesfully!" << std::endl;
 };
 
 
@@ -324,7 +324,7 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
   gSystem->Exec(Form("rm -f %s/cpp/AutoDict*", getcwd(NULL,0)));
   userInput.StrS["DSTAG"].clear(); // Array to store the different tags in the list of trees
   for (const auto& fileCollection : inputFileCollection) {
-    // Get the file tag which has the following format: DSTAG_CHAN_COLL , i.e. DATA_MUON_Pbp
+    // Get the file tag which has the following format: DSTAG_PD_CHAN_COLL , i.e. DATA_MUON_DIMUON_pPb5Y16
     const auto& FILETAG = fileCollection.first;
     if (!FILETAG.size()) { std::cout << "[ERROR] FILETAG is empty!" << std::endl; return false; }
     userInput.Par["localDSDir"] = DIR.at("dataset")[0];
@@ -335,8 +335,8 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
       if ( (FILETAG.rfind(CHA)!=std::string::npos) && !userInput.Flag.at("do"+cha) ) { ignore = true; break; }
     }
     if (ignore) continue;
-    for (const auto& col : userInput.StrV.at("system")) { if ( (FILETAG.rfind(col)!=std::string::npos) && !userInput.Flag.at("do"+col) ) { ignore = true; break; } }
-    if (ignore) continue;
+    const auto& col = FILETAG.substr(FILETAG.rfind("_")+1);
+    if (!contain(userInput.Flag, "do"+col) || !userInput.Flag.at("do"+col)) continue;
     // Extract the filenames
     std::string dir = "";
     bool fitDS = false;
@@ -385,9 +385,10 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
       // Produce the output datasets
       if(!tree2DataSet(workspace, fileInfo, userInput)){ return false; }
       if (fitDS) { for (const auto& DSTAG : fileInfo.at("dsNames")) { userInput.StrS.at("DSTAG").insert(DSTAG); } }
+      else { userInput.Flag.at("fit"+col) = false; }
     }
   }
-  if (workspace.size()==0) {
+  if (workspace.empty()) {
     std::cout << "[ERROR] No tree files were found matching the user's input settings!" << std::endl; return false;
   }
   //
@@ -399,7 +400,7 @@ bool addParameters(GlobalInfoVector_t& infoVector , GlobalInfo& userInfo , const
 {
   StringMapVector_t  data;
   if(!parseFile(data, inputFile)) { return false; }
-  if (infoVector.size()==0) {
+  if (infoVector.empty()) {
     for (const auto& row : data) {
       GlobalInfo info = GlobalInfo();
       if(!setParameters(info, userInfo, row)) { return false; }
@@ -460,11 +461,11 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
   }
   info.Par["Model"] = "";
   info.Par["Cut"]   = "";
-  for (const auto& v : info.Var) { if (row.count(v.first+"CM")>0) { info.Flag["use"+v.first+"CM"] = true; } }
+  for (const auto& v : info.Var) { if (contain(row, v.first+"CM")) { info.Flag["use"+v.first+"CM"] = true; } }
   // set parameters from file
   for (const auto& col : row) {
     std::string colName = col.first; stringReplace(colName, "CM", "");
-    if (info.Flag.count("use"+col.first+"CM")>0 && info.Flag.at("use"+col.first+"CM")) continue;
+    if (contain(info.Flag, "use"+col.first+"CM") && info.Flag.at("use"+col.first+"CM")) continue;
     bool found = false;
     for (const auto& var : info.Var) {
       const auto& varName = var.first;
@@ -472,6 +473,7 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
         if (col.second=="") {
           std::cout << "[ERROR] Input column " << varName << " has invalid value: " << col.second << std::endl; return false;
         }
+	else if (col.second=="NONE") { found = true; break; }
         std::vector<double> v;
         if (!parseString(v, col.second)) { return false; }
         if (v.size()!=2 && v.size()!=1) {
@@ -494,7 +496,7 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
             if (par.first=="Model" && colName.find(s)!=std::string::npos) {
               const auto& mcTemp = "incMCTemp_"+s;
               const bool& incTemp = (userInfo.Flag.at("fitMC")==false && col.second.find("TEMP")!=std::string::npos);
-              if (userInfo.Flag.count(mcTemp)==0) { userInfo.Flag[mcTemp] = incTemp; }
+              if (!contain(userInfo.Flag, mcTemp)) { userInfo.Flag[mcTemp] = incTemp; }
               StringVector_t modV;
               splitString(modV, col.second, "+");
               for (const auto& mod : modV) {
@@ -530,7 +532,7 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
         const auto& value = col.second;
         if (!parseString(v, value)) { return false; }
         if (v.size()!=1) { std::cout << "[ERROR] Initial parameter " << colName << " has incorrect number of values, it has: " << v.size() << std::endl; return false; }
-        if ( (userInfo.Var.count(colName)==0) || (userInfo.Var.at(colName).count("Val")==0) ) { userInfo.Var[colName]["Val"] = v.at(0); }
+        if (!contain(userInfo.Var, colName) || !contain(userInfo.Var.at(colName), "Val")) { userInfo.Var[colName]["Val"] = v.at(0); }
         else if (std::abs(userInfo.Var.at(colName).at("Val")-v.at(0))>0.000001) {
           std::cout << "[ERROR] Value of " << colName << " ( " << v.at(0) << " ) is inconsistent between different files ( " << userInfo.Var.at(colName).at("Val") << " ) " << std::endl; return false;
         }
@@ -608,7 +610,7 @@ bool parseFile(StringMapVector_t& data, const std::string& fileName)
   StringDiVector_t content, tmp;
   if(!readFile(tmp, fileName, -1, 1)){ return false; }
   StringVector_t header = tmp.at(0);
-  if (header.size()==0) { std::cout << "[ERROR] The header is null!" << std::endl; return false; }
+  if (header.empty()) { std::cout << "[ERROR] The header is null!" << std::endl; return false; }
   if(!readFile(content, fileName, header.size())){ return false; }
   for (const auto& rHeader : header) {
     if (rHeader=="") { std::cout << "[ERROR] A column has no label!" << std::endl; return false; }

@@ -27,13 +27,19 @@
 // Utiliy Functions
 
 
-template<class T, class U = T>
-T exchange(T& obj, U&& new_value)
-{
-    T old_value = std::move(obj);
-    obj = std::forward<U>(new_value);
-    return old_value;
-};
+template<class C, class T>
+inline auto contain_impl(const C& c, const T& x, int)
+-> decltype(c.find(x), true)
+{ return end(c) != c.find(x); }
+
+template<class C, class T>
+inline bool contain_impl(const C& v, const T& x, long)
+{ return end(v) != std::find(begin(v), end(v), x); }
+
+template<class C, class T>
+auto contain(const C& c, const T& x)
+-> decltype(end(c), true)
+{ return contain_impl(c, x, 0); }
 
 
 bool existDir(const std::string& dir)
@@ -117,6 +123,21 @@ void stringReplace(std::string& txt, const std::string& from, const std::string&
 };
 
 
+std::vector<std::string>
+parseColStr(const std::string& colStr)
+{
+  std::vector<std::string> vecStr;
+  if (colStr=="") return vecStr;
+  const auto& cStr = (colStr.rfind("_")!=std::string::npos ? colStr.substr(colStr.rfind("_")+1) : colStr);
+  const auto& posN = cStr.find(*std::find_if(cStr.begin(), cStr.end(), [](unsigned char c){ return std::isdigit(c); }));
+  vecStr.push_back(cStr.substr(0, posN));
+  const auto& posY = cStr.rfind("Y");
+  if (posN!=std::string::npos) vecStr.push_back(cStr.substr(posN, posY-posN));
+  if (posY!=std::string::npos) vecStr.push_back(cStr.substr(posY+1));
+  return vecStr;
+};
+
+
 void roundValue(double& value , const uint& nDecimals)
 {
   double tmp = value;
@@ -124,6 +145,13 @@ void roundValue(double& value , const uint& nDecimals)
   tmp = std::round(tmp);
   tmp /= std::pow(10.0, nDecimals);
   value = tmp;
+};
+
+
+int getNBins(const double& min, const double& max, const double& binW)
+{
+  const auto& nBins = std::round((max - min)/binW);
+  return std::min(int(nBins), 2000);
 };
 
 

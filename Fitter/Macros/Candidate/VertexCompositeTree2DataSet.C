@@ -141,7 +141,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     else if (evtCol=="PbPb5Y18") { evtSelIdx.push_back(PbPb::R5TeV::Y2018::colEvtSel); }
     else if (evtCol=="PbPb5Y15") { evtSelIdx.push_back(PbPb::R5TeV::Y2015::colEvtSel); }
     else if (evtCol.rfind("8Y16")!=std::string::npos) { evtSelIdx.push_back(pPb::R8TeV::Y2016::colEvtSel); }
-    if (evtSelIdx.size()==0) { std::cout << "[ERROR] Could not determine the event selection index for the sample" << std::endl; return false; }
+    if (evtSelIdx.empty()) { std::cout << "[ERROR] Could not determine the event selection index for the sample" << std::endl; return false; }
     //
     // Determine the trigger paths
     std::vector<uint> trigIdx;
@@ -164,7 +164,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     else if (PD=="HIGHMULT"    && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAFullTracks_Multiplicity185); }
     else if (PD=="HIGHMULT2"   && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAFullTracks_Multiplicity250); }
     else if (PD=="MINBIAS"     && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAL1MinimumBiasHF_OR_SinglePixelTrack); }
-    if (trigIdx.size()==0) { std::cout << "[ERROR] Could not determine the trigger index for the sample" << std::endl; return false; }
+    if (trigIdx.empty()) { std::cout << "[ERROR] Could not determine the trigger index for the sample" << std::endl; return false; }
     //
     ///// Iterate over the Input Ntuple
     int treeIdx = -1;
@@ -258,7 +258,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
             const auto& tmp = dsNames[0].substr(dsNames[0].find("_")+1);
             auto par = tmp.substr(0, tmp.find("_"));
             for (const auto& p : MASS) { if (par.find(p.first)!=std::string::npos) { par = p.first; break; } }
-            if (MASS.count(par)==0) { std::cout << "[ERROR] MC particle "<<par<<" is not valid!" << std::endl; return false; }
+            if (!contain(MASS, par)) { std::cout << "[ERROR] MC particle "<<par<<" is not valid!" << std::endl; return false; }
             if (fabs(candOSTree->idmom_reco()[iC])!=int(MASS.at(par).at("PID"))) continue;
           }
           //

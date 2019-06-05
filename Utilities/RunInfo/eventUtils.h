@@ -7,4 +7,4 @@
 #include "pp/eventUtils.h"
 
 
-#endif /* RunInfoeventUtils_H_ */
+#endif /* RunInfo_eventUtils_H_ */

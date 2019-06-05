@@ -1,19 +1,13 @@
 #ifndef Candidate_drawCandidateMassPlot_C
 #define Candidate_drawCandidateMassPlot_C
 
-#include "RooWorkspace.h"
-
-#include <iostream>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 #include "../Utilities/drawUtils.h"
 
 
-void printCandidateMassParameters  ( TPad& pad , const RooWorkspace& ws , const std::string& pdfName, const std::string& varName , const uint& drawMode );
-void printCandidateMassBinning     ( TPad& pad , const RooWorkspace& ws , const std::string& dsName , const std::vector< std::string >& text , const uint& drawMode , const int& plotStyle );
-void printCandidateMassLegend      ( TPad& pad , TLegend& leg , const RooPlot& frame , const StringDiMap_d& legInfo , const double& size=0.05 );
+void    printCandidateParameters  ( TPad& pad , const RooWorkspace& ws , const uint& drawMode );
+void    printCandidateTextInfo    ( TPad& pad , const RooWorkspace& ws , const std::string& varN , const uint& drawMode , const int& plotStyle );
+TLegend printCandidateLegend      ( TPad& pad , const RooPlot& frame   , const StringMap_d& legInfo , const int& plotStyle );
 
 
 bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
@@ -23,8 +17,9 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
                             const bool& yLogScale,
                             const double& maxRng = -1.0,
                             const bool& doGoF = true,
-                            const int&  plotStyle = 0, // 3: Thesis , 2: Paper , 1: PAS , 0: AN
-                                  bool redoFrame = false
+                            const int&  plotStyle = 0, // 2: Paper , 1: PAS , 0: AN
+			    const bool& redoFrame = false,
+			    const bool& doHistPDF = false
                             )
 {
   //
@@ -32,193 +27,236 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   setTDRStyle();
   //
   const std::string& varName = "Cand_Mass";
-  auto varType = varName; stringReplace(varType, "_", "");
-  //
-  const std::string& DSTAG = (ws.obj("DSTAG")    ) ? dynamic_cast<RooStringVar*>(ws.obj("DSTAG")   )->getVal() : "";
-  const std::string& cha   = (ws.obj("channel")  ) ? dynamic_cast<RooStringVar*>(ws.obj("channel")  )->getVal() : "";
-  const std::string& col   = (ws.obj("fitSystem")) ? dynamic_cast<RooStringVar*>(ws.obj("fitSystem"))->getVal() : "";
-  const std::string& chg   = (ws.obj("fitCharge")) ? dynamic_cast<RooStringVar*>(ws.obj("fitCharge"))->getVal() : "";
-  const std::string& obj   = (ws.obj("fitObject")) ? dynamic_cast<RooStringVar*>(ws.obj("fitObject"))->getVal() : "";
-  //
-  const std::string& tag = ( obj + cha + chg + "_" + col );
-  const std::string& dsName = ( "d" + chg + "_" + DSTAG );
-  const std::string& dsNameFit = ( (ws.data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName );
-  const std::string& pdfName = Form("pdf%s_Tot%s", varType.c_str(), tag.c_str());
+  auto varTag = varName; stringReplace(varTag, "_", "");
   const auto& setLogScale = yLogScale;
   //
-  // Create the Range for Plotting
-  const auto& binWidth = ws.var(varName.c_str())->getBinWidth(0);
-  const auto& minRange = ws.var(varName.c_str())->getMin();
-  const auto& maxRange = ( (maxRng>0.0) ? maxRng : ws.var(varName.c_str())->getMax() );
-  const auto& nBins    = int(std::round((maxRange - minRange)/binWidth));
-  ws.var(varName.c_str())->setRange("PlotWindow", minRange, maxRange);
-  ws.var(varName.c_str())->setBins(nBins, "PlotWindow");
-  // BUG FIX
-  const int& oNBins = ws.var(varName.c_str())->getBins(); const double& oMinRange = ws.var(varName.c_str())->getMin(); const double& oMaxRange = ws.var(varName.c_str())->getMax();
-  ws.var(varName.c_str())->setBins(nBins); ws.var(varName.c_str())->setRange(minRange, maxRange);
+  const std::string& DSTAG   = (ws.obj("DSTAG")     ? dynamic_cast<RooStringVar*>(ws.obj("DSTAG")    )->getVal() : "");
+  const std::string& cha     = (ws.obj("channel")   ? dynamic_cast<RooStringVar*>(ws.obj("channel")  )->getVal() : "");
+  const std::string& col     = (ws.obj("fitSystem") ? dynamic_cast<RooStringVar*>(ws.obj("fitSystem"))->getVal() : "");
+  const std::string& chg     = (ws.obj("fitCharge") ? dynamic_cast<RooStringVar*>(ws.obj("fitCharge"))->getVal() : "");
+  const std::string& PDFName = (ws.obj("pdfName")   ? dynamic_cast<RooStringVar*>(ws.obj("pdfName")  )->getVal() : "");
+  const std::string& DSName  = (ws.obj("dsName")    ? dynamic_cast<RooStringVar*>(ws.obj("dsName")   )->getVal() : "");
+  const std::string& PD      = (ws.obj("PD")        ? dynamic_cast<RooStringVar*>(ws.obj("PD")       )->getVal() : "");
   //
-  const bool& useDS = (ws.data(dsName.c_str())!=NULL);
+  const auto& dsName = DSName + (ws.data((DSName+"_FIT").c_str()) ? "_FIT" : "");
+  const auto& dsNameFit = (ws.data(("CutAndCount_"+dsName).c_str()) ? ("CutAndCount_"+dsName) : dsName);
+  const auto& fitDS = ws.data(dsNameFit.c_str());
+  if (!fitDS) { std::cout << "[ERROR] Fit dataset " << dsNameFit << " was not found!" << std::endl;  return false; }
+  auto pdfName = PDFName;
+  if (doHistPDF) { stringReplace(pdfName, "pdf", "pdfHIST"); if (!ws.pdf(pdfName.c_str())) { pdfName = PDFName; } }
+  const auto& fitPDF = dynamic_cast<RooAddPdf*>(ws.pdf(pdfName.c_str()));
+  const auto& label = (cha + chg + "_" + col);
+  //
+  // Create the Range for Plotting
+  const auto& fitVar = ws.var(varName.c_str());
+  if (!fitVar) { std::cout << "[ERROR] Fit variable " << varName << " was not found!" << std::endl;  return false; }
+  const auto& fitSet = RooArgSet(*fitVar);
+  const auto& binWidth = fitVar->getBinWidth(0);
+  const auto& minRange = fitVar->getMin();
+  const auto& maxRange = ( (maxRng>0.0) ? maxRng : fitVar->getMax() );
+  const auto& nBins    = int(std::round((maxRange - minRange)/binWidth));
+  fitVar->setRange("PlotWindow", minRange, maxRange);
+  fitVar->setBins(nBins, "PlotWindow");
+  setVarToTag(ws, varName, "PlotWindow");
+  //
+  const bool& useDS = (fitDS!=NULL);
   const bool& isMC = (DSTAG.rfind("MC",0)==0);
-  const bool& isWeighted = (useDS ? ws.data(dsName.c_str())->isWeighted() : false);
+  const bool& isWeighted = (useDS ? ws.data(dsNameFit.c_str())->isWeighted() : false);
+  //
   int drawMode = 0;
   bool drawPull = false;  // false : Draw DATA/FIT , true : Draw the Pull
   //
-  // Format Object name
-  std::string process = "";
-  std::string chgL = " "; if (chg=="Pl") { chgL = "+"; } else if (chg=="Mi") { chgL = "#font[122]{\55}"; }
-  if      (obj=="WToTau" ) { process = Form("W^{%s}#rightarrow#tau^{%s}", chgL.c_str(), chgL.c_str()); }
-  else if (obj=="DYToTau") { process = Form("Z/#gamma*#rightarrow#tau^{%s}", chgL.c_str()); }
-  else if (obj=="W"      ) { process = Form("W^{%s}" , chgL.c_str()); }
-  else if (obj=="WZ"     ) { process = Form("W^{%s}Z", chgL.c_str()); }
-  else if (obj=="WW"     ) { process = "W^{+}W^{-}"; }
-  else if (obj=="DY"     ) { process = "Z/#gamma*";  }
-  else if (obj=="Z"      ) { process = "Z";          }
-  else if (obj=="ZZ"     ) { process = "ZZ";         }
-  else if (obj=="QCD"    ) { process = "QCD";        }
-  else if (obj=="TTbar"  ) { process = "t#bar{t}";   }
-  else if (obj=="JPsi"   ) { process = "J/#psi";     }
-  else if (obj=="Psi2S"  ) { process = "#psi(2S)";   }
-  else if (obj=="Ups1S"  ) { process = "#Upsilon(1S)"; }
-  else if (obj=="Ups2S"  ) { process = "#Upsilon(2S)"; }
-  else if (obj=="Ups3S"  ) { process = "#Upsilon(3S)"; }
-  else if (obj=="Bkg"    ) { process = "Bkg";        }
-  else { process = "#Upsilon"; }
-  if (cha=="ToMuMu") { process += " #rightarrow #mu^{+} + #mu^{-}"; }
-  else if (cha=="ToMu") {
-    if (obj=="W") {
-      if (plotStyle < 3) { process += Form("#kern[0.2]{#rightarrow}#kern[0.2]{#mu^{%s}}#kern[0.2]{%s}", chgL.c_str(), (chg=="Pl"?"#nu_{#mu}":"#bar{#nu}_{#mu}")); }
-      else { process += Form(" #rightarrow #mu^{%s} + %s", chgL.c_str(), (chg=="Pl"?"#nu_{#mu}":"#bar{#nu}_{#mu}")); }
-    }
-    else { process += Form(" #rightarrow #mu^{%s} + x", chgL.c_str()); }
-  }
-  if (obj=="DY" ) { process = "Z/#gamma* #rightarrow #mu^{+} + #mu^{-}"; }
-  if (obj=="Z"  ) { process = "Z #rightarrow #mu^{+} + #mu^{-}"; }
-  process = Form("#font[62]{#scale[1.1]{%s}}", process.c_str());
-  //
-  StringDiMap_d legInfo;
-  //
+  StringMap_d legInfo;
   RooPlotPtrMap_d frame;
   PadPtrMap_d pad; // Unique Pointer does produce Segmentation Fault, so don't use it
   //
   // Create the main plot of the fit
   //
-  const std::string& frameName = Form("frame_Tot%s", tag.c_str());
-  if (ws.obj(frameName.c_str())==NULL) { redoFrame = false; }
+  std::cout << "[INFO] Drawing plot for " << pdfName << " fitted on " << dsNameFit << std::endl;
   //
-  if (!redoFrame && ws.obj(frameName.c_str())!=NULL) { frame["MAIN"] = std::unique_ptr<RooPlot>(dynamic_cast<RooPlot*>(ws.obj(frameName.c_str()))); }
+  const auto& frameName = "frame_Tot"+label;
+  const bool& reFrame = (ws.obj(frameName.c_str()) ? redoFrame : false);
+  //
+  if (!reFrame && ws.obj(frameName.c_str())) {
+    frame["MAIN"] = std::unique_ptr<RooPlot>(dynamic_cast<RooPlot*>(ws.obj(frameName.c_str())));
+  }
   else {
-    if (useDS==false) { std::cout << "[ERROR] Dataset " << dsName << " was not found!" << std::endl; return false; }
-    frame["MAIN"] = std::unique_ptr<RooPlot>(ws.var(varName.c_str())->frame( RooFit::Range("PlotWindow") ));
-    if (ws.data(("CutAndCount_"+dsName).c_str())) {
-      ws.data(("CutAndCount_"+dsName).c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("PlotWindow"),
-                                                       RooFit::DataError(RooAbsData::SumW2), RooFit::XErrorSize(0),
-                                                       RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+    // Create the frame
+    if (useDS==false) { std::cout << "[ERROR] Dataset " << dsNameFit << " was not found!" << std::endl; return false; }
+    frame["MAIN"] = std::unique_ptr<RooPlot>(fitVar->frame( RooFit::Range("PlotWindow") ));
+    // Check if we want to change PDFs to Histograms
+    if (ws.pdf(pdfName.c_str()) && doHistPDF && !changeToHistPdf(ws, pdfName, varName)) { return false; }
+    // Plot the data
+    if (fitDS) {
+      fitDS->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+dsNameFit).c_str()), RooFit::Binning("PlotWindow"),
+		    RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
     }
-    else {
-      ws.data(dsName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_Tot%s", dsName.c_str())), RooFit::Binning("PlotWindow"),
-                                      RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+    // Plot the signal and background PDFs
+    if (fitPDF) {
+      // Check number of PDFs used
+      const auto& fitPDFList = fitPDF->pdfList();
+      // One PDF Case: Draw PDF subcomponents
+      if (fitPDFList.getSize()==1) {
+	std::string label = fitPDFList.at(0)->GetName(); label = label.substr(label.find("_")+1);
+	const auto& pdf = dynamic_cast<RooAddPdf*>(ws.pdf(("pdf"+varTag+"_"+label).c_str()));
+	if (pdf && pdf->pdfList().getSize()>1) {
+	  const auto& norm = dynamic_cast<RooAddPdf*>(pdf)->expectedEvents(fitSet);
+	  const auto& pdfColor = std::vector<int>({kRed+1, kBlue+2, kGreen+3});
+	  auto pdfIt = std::unique_ptr<TIterator>(pdf->pdfList().createIterator()); int iPdf = 0;
+	  for (auto it = pdfIt->Next(); it!=NULL; it = pdfIt->Next(), iPdf++) {
+	    ws.pdf(it->GetName())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", it->GetName())), RooFit::Range("PlotWindow"),
+					  RooFit::NormRange("PlotWindow"), RooFit::Normalization(norm, RooAbsReal::NumEvent),
+					  RooFit::FillColor(pdfColor.at(iPdf)), RooFit::LineStyle(1), RooFit::Precision(1e-7));
+	  }
+	}
+      }
+      // Case: Multiple PDFs
+      else {	
+	// Extract the PDFs
+	std::map< int , RooAbsPdf* > pdfStackMap, pdfDrawMap;
+	auto pdfIt = std::unique_ptr<TIterator>(fitPDFList.createIterator());
+	for (auto itp = pdfIt->Next(); itp!=NULL; itp = pdfIt->Next()) {
+ 	  const auto& it = dynamic_cast<RooAbsPdf*>(itp); if (!it) continue;
+	  std::string obj = it->GetName(); obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
+	  if (!contain(PDFMAP_, obj)) { std::cout << "[ERROR] Object " << obj << " is not defined in PDFMAP!" << std::endl; return false; }
+	  // Store the PDFs
+	  const bool& doStack = (varName.find("Mass")==std::string::npos || obj.find("Swap")!=std::string::npos || obj=="Bkg");
+	  if  (doStack) { pdfStackMap[PDFMAP_.at(obj)[0]] = it; }
+	  else { pdfDrawMap[PDFMAP_.at(obj)[0]] = it; }
+	}
+	// Loop over the stacked PDFs
+	if (pdfStackMap.size()>1) {
+	  double norm = 99999999.999;
+	  RooArgList pdfList; for (const auto& p : pdfStackMap) { pdfList.add(*p.second); }
+	  for (const auto& elem : pdfStackMap) {
+	    const auto& pdf = elem.second;
+	    const std::string& pName = pdf->GetName();
+	    std::string label = pName; label = label.substr(label.find("_")+1);
+	    const auto& obj = label.substr(0, label.find(cha));
+	    const auto& yield = (ws.var(("N_"+label).c_str()) ? ws.var(("N_"+label).c_str()) : ws.function(("N_"+label).c_str()));
+	    if (!yield) { std::cout << "[ERROR] Yield N_" << label << " was not found!" << std::endl; return false; }
+	    if (norm > 0.0) {
+	      // Add the PDFs from the list
+	      RooArgList coef, pdfs;
+	      if(!addPdfToList(pdfs, coef, ws, pdfList)) { return false; }
+	      const auto& pdfPlotName = std::string("pdfPlot")+(reFrame?"RE_":"_")+pName;
+	      const auto& addPDF = RooAddPdf(pdfPlotName.c_str(), pdfPlotName.c_str(), pdfs, coef);
+	      if (norm==99999999.999) { norm = addPDF.expectedEvents(fitSet); }
+	      if (!ws.pdf(pdfPlotName.c_str()) && ws.import(addPDF)) { return false; }
+	      // Plot the sum of PDFs
+	      ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"),
+						  RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
+						  RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("F"));
+	      std::cout << "INSIDE 1: "  <<  pName << "  " << obj << "   "  << PDFMAP_.at(obj)[1] << "  " << norm << "   " << pdfPlotName <<  std::endl;
+	    }
+	    norm -= yield->getVal();
+	    pdfList.remove(*pdf);
+	  }
+	}
+	else if (pdfStackMap.size()==1) {
+	  const auto& pdf = pdfStackMap.begin()->second;
+	  const auto& norm = dynamic_cast<RooExtendPdf*>(pdf)->expectedEvents(fitSet);
+	  const std::string& pName = pdf->GetName();
+	  std::string obj = pName; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find("To"));
+	  // Plot the PDF
+	  ws.pdf(pName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"),
+	  				RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
+	  				RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("F"));
+	}
+	// Loop over the non-stacked PDFs
+	if (!pdfDrawMap.empty()) {
+	  const auto& norm =fitPDF->expectedEvents(fitSet);
+	  RooArgList stackPdfs; for (const auto& p : pdfStackMap) { stackPdfs.add(*p.second); }
+	  for (const auto& elem : pdfDrawMap) {
+	    const auto& pdf = elem.second;
+	    const std::string& pName = pdf->GetName();
+	    std::string obj = pName; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
+	    // Add the components
+	    RooArgList pdfs; pdfs.add(*pdf);
+	    // Plot the PDF
+	    ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Components(pdfs),
+					    RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"), RooFit::Normalization(norm, RooAbsReal::NumEvent),
+					    RooFit::LineColor(PDFMAP_.at(obj)[1]), RooFit::LineStyle(2));
+	  }
+	}
+      }
     }
-    //
-    if (ws.pdf(pdfName.c_str())) {
-      RooArgList pdfList = dynamic_cast<RooAddPdf*>(ws.pdf(pdfName.c_str()))->pdfList();
-      if (pdfList.getSize()==1) {
-        const double& norm = dynamic_cast<RooAddPdf*>(ws.pdf(pdfName.c_str()))->expectedEvents(RooArgSet(*ws.var(varName.c_str())));
-        ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"),
-                                        RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
-                                        RooFit::LineColor(kBlack), RooFit::LineStyle(1)
-                                        );
-      }
-      else {
-        //
-        const double& norm = ws.data(dsNameFit.c_str())->sumEntries();
-        //
-        std::string pdfNameTot = Form("pdfPlot%s_pdf%sTot_%s%s%s_%s", (redoFrame?"RE":""), varName.c_str(), obj.c_str(), cha.c_str(), chg.c_str(), col.c_str());
-        if (ws.pdf(pdfNameTot.c_str())==NULL) { pdfNameTot = pdfName; }
-        ws.pdf(pdfNameTot.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", pdfName.c_str())), RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"),
-                                           RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
-                                           RooFit::LineColor(kBlack), RooFit::LineStyle(1)
-                                           );
-      }
+    // Plot the data
+    if (fitDS) {
+      fitDS->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+dsNameFit).c_str()), RooFit::Binning("PlotWindow"),
+		   RooFit::MarkerColor(kBlack), RooFit::LineColor(kBlack), RooFit::MarkerSize(1.2));
+    }
+    // Plot total PDF
+    if (fitPDF) {
+      const auto& norm = fitDS->sumEntries();
+      fitPDF->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pdfName).c_str()), RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"),
+		     RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-7), RooFit::LineColor(kBlack), RooFit::LineStyle(1));
     }
     // Store the frame
     frame.at("MAIN")->SetTitle(frameName.c_str());
-    if (ws.obj(frameName.c_str())==NULL) { ws.import(*frame.at("MAIN"), frame.at("MAIN")->GetTitle()); }
+    if (!ws.obj(frameName.c_str()) && ws.import(*frame.at("MAIN"), frame.at("MAIN")->GetTitle())) { return false; }
   }
-  return false;
   //
-  legInfo["DATA"][Form("plot_Tot%s", dsName.c_str())] = ( isMC ? "Simulation" : "Data" );
-  //
-  if (ws.pdf(pdfName.c_str())) {
-    RooArgList pdfList = dynamic_cast<RooAddPdf*>(ws.pdf(pdfName.c_str()))->pdfList();
-    if (pdfList.getSize()==1) {
-      legInfo["PDF"][Form("plot_%s", pdfName.c_str())] = "Fit";
-      frame["EXTRA"] = std::unique_ptr<RooPlot>(dynamic_cast<RooPlot*>(frame.at("MAIN")->emptyClone("EXTRA")));
-      const auto& hPull = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of var
-      if (!makePullHist (*hPull, *frame.at("MAIN").get(), "", "", true)) { return false; }; drawPull = true;
-      hPull->SetName("hPull");
-      frame.at("EXTRA")->addPlotable(hPull, "EP");
-      drawMode = 1;
-    }
+  // Create the extra frames and legend information
+  if (fitDS) { legInfo["plot_"+dsNameFit] = (isMC ? "Simulation" : "Data"); }
+  if (fitPDF) {
+    legInfo["plot_"+pdfName] = "Fit";
+    const auto& fitPDFList = fitPDF->pdfList();
+    if (fitPDFList.getSize()==1) { drawPull = true; }
     else {
-      const std::vector< std::string > pdfOrder = { "W" , "QCD" , "DY" , "WToTau" , "DYToTau" , "TTbar" };
-      for (const auto& pdfT : pdfOrder) {
-        const auto& obj = pdfT;
-        const std::string& name = Form("pdf%sTot_%s%s%s_%s", varName.c_str(), obj.c_str(), cha.c_str(), chg.c_str(), col.c_str());
-        //legInfo["TEMP"][Form("plot_%s", name.c_str())] = formatCut(obj);
+      auto pdfIt = std::unique_ptr<TIterator>(fitPDFList.createIterator());
+      for (auto it = pdfIt->Next(); it!=NULL; it = pdfIt->Next()) {
+	const std::string& pName = it->GetName();
+	auto obj = pName; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
+        legInfo["plot_"+pName] = formatCut(obj);
       }
-      frame["EXTRA"] = std::unique_ptr<RooPlot>(dynamic_cast<RooPlot*>(frame.at("MAIN")->emptyClone("EXTRA")));
-      RooHist* hExtra = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of var
-      if (drawPull) { if (!makePullHist (*hExtra, *frame.at("MAIN"), "", "", true)) { return false; } }
-      else          { if (!makeRatioHist(*hExtra, *frame.at("MAIN"), "", "", true)) { return false; } }
-      hExtra->SetName("hExtra");
-      frame.at("EXTRA")->addPlotable(hExtra, "EP");
-      drawMode = 1;
     }
+    frame["EXTRA"] = std::unique_ptr<RooPlot>(dynamic_cast<RooPlot*>(frame.at("MAIN")->emptyClone("EXTRA")));
+    RooHist* hExtra = new RooHist(2.0); // !!!DONT USE UNIQUE POINTER!!!!, 2 represents the binWidth of var
+    if (drawPull) { if (!makePullHist (*hExtra, *frame.at("MAIN"), "", "", true)) { return false; } }
+    else          { if (!makeRatioHist(*hExtra, *frame.at("MAIN"), "", "", true)) { return false; } }
+    hExtra->SetName("hExtra");
+    frame.at("EXTRA")->addPlotable(hExtra, "EP");
+    drawMode = 1;
   }
   //
-  std::unique_ptr<TCanvas> cFig  = std::unique_ptr<TCanvas>(new TCanvas( Form("c%sFig_Tot%s", varType.c_str(), tag.c_str()), "cFig", 800, 800 ));
+  // Create the canvas
+  std::unique_ptr<TCanvas> cFig  = std::unique_ptr<TCanvas>(new TCanvas(("c"+varTag+"Fig_Tot"+label).c_str(), "cFig", 800, 800));
   cFig->cd();
   //
+  // Edit the main frame
+  if (contain(frame, "MAIN")) {
+    //TGaxis::SetMaxDigits(4);
+    frame.at("MAIN")->SetTitle("");
+    frame.at("MAIN")->SetMarkerSize(1.5);
+    frame.at("MAIN")->GetYaxis()->CenterTitle(kTRUE);
+    frame.at("MAIN")->GetXaxis()->CenterTitle(kTRUE);
+    frame.at("MAIN")->GetXaxis()->SetTitleOffset(1.1);
+    frame.at("MAIN")->GetXaxis()->SetTitleSize(0.036);
+    frame.at("MAIN")->GetXaxis()->SetLabelSize(0.033);
+    if (drawMode==0) {
+      frame.at("MAIN")->GetYaxis()->SetTitleOffset(1.5);
+      frame.at("MAIN")->GetYaxis()->SetTitleSize(0.036);
+      frame.at("MAIN")->GetYaxis()->SetLabelSize(0.033);
+      frame.at("MAIN")->GetXaxis()->SetTitle(formatPar(varName, cha).c_str());
+      pad["MAIN"] = new TPad(("padMAIN_Tot"+label).c_str(), "", 0, 0, 1, 1 );
+    }
+    else if (drawMode>0) {
+      frame.at("MAIN")->GetYaxis()->SetTitleOffset(0.9);
+      frame.at("MAIN")->GetYaxis()->SetTitleSize(0.060*(1./0.8));
+      frame.at("MAIN")->GetYaxis()->SetLabelSize(0.033*(1./0.8));
+      frame.at("MAIN")->GetXaxis()->SetTitleOffset(3);
+      frame.at("MAIN")->GetXaxis()->SetLabelOffset(3);
+      frame.at("MAIN")->GetXaxis()->SetTitle("");
+      pad["MAIN"] = new TPad(("padMAIN_Tot"+label).c_str(), "", 0, 0.2, 1, 1 );
+      pad.at("MAIN")->SetFixedAspectRatio(kTRUE);
+      pad.at("MAIN")->SetBottomMargin(0.015);
+      if (drawPull==false && (plotStyle==1 || plotStyle==2 || plotStyle==3)) { pad.at("MAIN")->SetBottomMargin(0.0); }
+    }
+  }
+  // Edit the extra frame
   std::unique_ptr<TLine> pLine;
-  if (drawMode==0) {
-    //TGaxis::SetMaxDigits(4);
-    // Main Frame
-    frame.at("MAIN")->SetTitle("");
-    frame.at("MAIN")->SetMarkerSize(1.5);
-    frame.at("MAIN")->GetYaxis()->CenterTitle(kTRUE);
-    frame.at("MAIN")->GetXaxis()->CenterTitle(kTRUE);
-    frame.at("MAIN")->GetYaxis()->SetTitleOffset(1.5);
-    frame.at("MAIN")->GetYaxis()->SetTitleSize(0.036);
-    frame.at("MAIN")->GetYaxis()->SetLabelSize(0.033);
-    frame.at("MAIN")->GetXaxis()->SetTitleOffset(1.1);
-    frame.at("MAIN")->GetXaxis()->SetTitleSize(0.036);
-    frame.at("MAIN")->GetXaxis()->SetLabelSize(0.033);
-    frame.at("MAIN")->GetXaxis()->SetTitle("Mass (GeV/c^{2})");
-    pad["MAIN"] = new TPad( Form("padMAIN_Tot%s", tag.c_str()), "", 0, 0, 1, 1 );
-  }
-  else if (drawMode>0) {
-    //TGaxis::SetMaxDigits(4);
-    // Main Frame
-    frame.at("MAIN")->SetTitle("");
-    frame.at("MAIN")->SetMarkerSize(1.5);
-    frame.at("MAIN")->GetYaxis()->CenterTitle(kTRUE);
-    frame.at("MAIN")->GetXaxis()->CenterTitle(kTRUE);
-    frame.at("MAIN")->GetYaxis()->SetTitleOffset(0.9);
-    frame.at("MAIN")->GetYaxis()->SetTitleSize(0.060*(1./0.8));
-    frame.at("MAIN")->GetYaxis()->SetLabelSize(0.033*(1./0.8));
-    frame.at("MAIN")->GetXaxis()->SetTitleOffset(1.1);
-    frame.at("MAIN")->GetXaxis()->SetTitleSize(0.036);
-    frame.at("MAIN")->GetXaxis()->SetLabelSize(0.033);
-    frame.at("MAIN")->GetXaxis()->SetTitleOffset(3);
-    frame.at("MAIN")->GetXaxis()->SetLabelOffset(3);
-    frame.at("MAIN")->GetXaxis()->SetTitle("");
-    pad["MAIN"] = new TPad( Form("padMAIN_Tot%s", tag.c_str()), "", 0, 0.2, 1, 1 );
-    pad.at("MAIN")->SetFixedAspectRatio(kTRUE);
-    pad.at("MAIN")->SetBottomMargin(0.015);
-    if (drawPull==false && (plotStyle==1 || plotStyle==2 || plotStyle==3)) { pad.at("MAIN")->SetBottomMargin(0.0); }
-  }
-  if (drawMode==1) {
-    // Pull Frame
+  if (contain(frame, "EXTRA")) {
     frame.at("EXTRA")->SetTitle("");
     frame.at("EXTRA")->SetMarkerSize(1.5);
     frame.at("EXTRA")->GetYaxis()->CenterTitle(kTRUE);
@@ -232,11 +270,11 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
     frame.at("EXTRA")->GetXaxis()->SetTitleOffset(0.7);
     frame.at("EXTRA")->GetXaxis()->SetTitleSize(0.25);
     frame.at("EXTRA")->GetXaxis()->SetLabelSize(0.15);
-    frame.at("EXTRA")->GetXaxis()->SetTitle("Mass (GeV/c^{2})");
+    frame.at("EXTRA")->GetXaxis()->SetTitle(formatPar(varName, cha).c_str());
     if (drawPull) { frame.at("EXTRA")->GetYaxis()->SetRangeUser(-6.0, 6.0); }
     else if (plotStyle==1 || plotStyle==2 || plotStyle==3) { frame.at("EXTRA")->GetYaxis()->SetRangeUser(0., 2.5); }
     else { frame.at("EXTRA")->GetYaxis()->SetRangeUser(-0.01, 2.1); }
-    pad["EXTRA"] = new TPad( Form("padEXTRA_Tot%s", tag.c_str()), "", 0, 0, 1, 0.2 );
+    pad["EXTRA"] = new TPad(("padEXTRA_Tot"+label).c_str(), "", 0, 0, 1, 0.2 );
     pad.at("EXTRA")->SetFixedAspectRatio(kTRUE);
     pad.at("EXTRA")->SetTopMargin(0.02);
     if (drawPull==false && (plotStyle==1 || plotStyle==2 || plotStyle==3)) { pad.at("EXTRA")->SetTopMargin(0.0); }
@@ -247,187 +285,191 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
     pad.at("EXTRA")->Draw();
     pad.at("EXTRA")->cd();
     frame.at("EXTRA")->Draw();
-    if (doGoF) { printGoF(*pad.at("EXTRA"), ws, *frame.at("MAIN"), varName.c_str(), dsName, pdfName); }
+    if (doGoF) { printGoF(*pad.at("EXTRA"), ws, *frame.at("MAIN"), varName.c_str(), dsNameFit, pdfName); }
     if (drawPull) { pLine = std::unique_ptr<TLine>(new TLine(frame.at("EXTRA")->GetXaxis()->GetXmin(), 0.0, frame.at("EXTRA")->GetXaxis()->GetXmax(), 0.0)); }
     else          { pLine = std::unique_ptr<TLine>(new TLine(frame.at("EXTRA")->GetXaxis()->GetXmin(), 1.0, frame.at("EXTRA")->GetXaxis()->GetXmax(), 1.0)); }
     pLine->Draw("same");
     pad.at("EXTRA")->Update();
   }
   //
-  setPlotRange(*frame.at("MAIN"), ws, varName, dsName, setLogScale, ws.var(varName.c_str())->getBins("PlotWindow"));
+  setPlotRange(*frame.at("MAIN"), ws, varName, dsNameFit, setLogScale, fitVar->getBins("PlotWindow"));
   //
   cFig->cd();
   pad.at("MAIN")->Draw();
   pad.at("MAIN")->cd();
   frame.at("MAIN")->Draw();
   //
-  int lumiId = 213;
-  CMS_lumi(pad.at("MAIN"), lumiId, 33, "", false, 0.8, false);
+  // Set the CMS style and add text info
+  StringVector_d lumiLabels; getLumiLabels(lumiLabels, PD, col, isMC);
+  CMS_lumi(pad.at("MAIN"), 33, lumiLabels[0], lumiLabels[1], false, 0.8, false);
+  printCandidateTextInfo(*pad.at("MAIN"), ws, varName, drawMode, plotStyle);
   //
-  if (plotStyle==0) { printCandidateMassParameters(*pad.at("MAIN"), ws, pdfName, varName.c_str(), drawMode); }
-  std::vector< std::string > text = { process };
-  std::cout << "A 4" << std::endl;
+  // Draw the parameter results of the fit
+  if (plotStyle==0) { printCandidateParameters(*pad.at("MAIN"), ws, drawMode); }
   //
-  printCandidateMassBinning(*pad.at("MAIN"), ws, dsName, text, drawMode, plotStyle);
+  // Draw the legend
+  const auto& leg = printCandidateLegend(*pad.at("MAIN"), *frame.at("MAIN"), legInfo, plotStyle);
   //
-  double xmin = 0.49 , xmax = 0.66 , ymin = 0.58 , ymax = 0.89;
-  if (maxRng>0. && maxRng<120.) { ymax = 0.72; xmax = 0.40; ymin = 0.49; }
-  double legSize = 0.047 , dy = (ymax-ymin);
-  if (plotStyle==1 || plotStyle==2 || plotStyle==3) {
-    if (legInfo.size()>2) { xmin = 0.74; ymin = 0.25; xmax = 0.90; ymax = 0.71; legSize = 0.06; }
-    if (legInfo.size()<3) { xmin = 0.74; ymin = 0.35; xmax = 0.90; ymax = 0.71; legSize = 0.06; }
-  }
-  std::cout << "A 5" << std::endl;
-  auto leg = std::unique_ptr<TLegend>(new TLegend(xmin, ymin, xmax, ymax));
-  if (drawMode>0) { dy *= (1./0.8); }
-  printCandidateMassLegend(*pad.at("MAIN"), *leg, *frame.at("MAIN"), legInfo, legSize);
-  std::cout << "A 6" << std::endl;
-  //
+  // Set log scale if requested
   pad.at("MAIN")->SetLogy(setLogScale);
   pad.at("MAIN")->Update();
-  std::cout << "A 7" << std::endl;
-  //
+   //
   // Save the plot in different formats
-  gSystem->mkdir(Form("%splot/C/", outputDir.c_str()), kTRUE);
-  cFig->SaveAs(Form("%splot/C/%s.C", outputDir.c_str(), fileName.c_str()));
-  gSystem->mkdir(Form("%splot/pdf/", outputDir.c_str()), kTRUE);
-  cFig->SaveAs(Form("%splot/pdf/%s.pdf", outputDir.c_str(), fileName.c_str()));
-  gSystem->mkdir(Form("%splot/png/", outputDir.c_str()), kTRUE);
-  cFig->SaveAs(Form("%splot/png/%s.png", outputDir.c_str(), fileName.c_str()));
-  std::cout << "A 8" << std::endl;
-  //
+  StringVector_d formats = {"png", "pdf", "root", "C"};
+  for (const auto& f : formats) {
+    makeDir(outputDir+"plot/"+f+"/");
+    cFig->SaveAs((outputDir+"plot/"+f+"/"+fileName+"."+f).c_str());
+  }
+  // Close canvas
   cFig->Clear();
   cFig->Close();
   //
-  // Undo the changes
-  ws.var(varName.c_str())->setBins(oNBins); ws.var(varName.c_str())->setRange(oMinRange, oMaxRange);
+  // Return to fit values as default
+  setVarToTag(ws, varName, "FitWindow");
   //
   return true;
 };
 
 
-void printCandidateMassParameters(TPad& pad, const RooWorkspace& ws, const std::string& pdfName, const std::string& varName, const uint& drawMode)
+void printCandidateParameters(TPad& pad, const RooWorkspace& ws, const uint& drawMode)
 {
   pad.cd();
-  float xPos = 0.69, yPos = 0.74, dYPos = 0.050, dy = 0.025;
-  TLatex t = TLatex(); t.SetNDC(); t.SetTextSize(0.015);
-  if (drawMode>0) { dy = 0.065; dYPos *= (1./0.8); t.SetTextSize(0.030*(1./0.8)); }
-  std::vector<RooRealVar> vars; std::string label;
-  if (vars.size()==0) {
-    if (getVar(vars, ws, "N_", pdfName)) {
-      for (const auto& v : vars) { parseVarName(v.GetName(), label); if(label!="") { t.DrawLatex(xPos, yPos-dy, Form("%s = %.0f#pm%.0f", label.c_str(), v.getValV(), v.getError())); dy+=dYPos; } }
-    }
-  }
-  std::unique_ptr<TIterator> parIt;
-  if (ws.pdf(pdfName.c_str())) {
-    auto parList = std::unique_ptr<RooArgSet>(ws.pdf(pdfName.c_str())->getParameters(RooArgSet(*ws.var(varName.c_str()))));
-    parIt = std::unique_ptr<TIterator>(parList->selectByAttrib("Constant", kFALSE)->createIterator());
-  }
-  else { parIt = std::unique_ptr<TIterator>(ws.allVars().selectByAttrib("Constant", kFALSE)->createIterator()); }
-  for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next()) {
-    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
+  float xPos = 0.69, yPos = 0.76, dYPos = 0.042, dy = 0.025;
+  TLatex t = TLatex(); t.SetNDC(); t.SetTextSize(0.013);
+  if (drawMode>0) { dy = 0.065; dYPos *= (1./0.8); t.SetTextSize(0.027*(1./0.8)); }
+  // Get the parameters
+  const auto& vars = getModelVar(ws, "*");
+  // Print the parameters
+  for (const auto& v : vars) {
+    const std::string& s = v.GetName();
     // Parse the parameter's labels
-    std::string label="", s(it->GetName());
-    // Ignore dataset variables
-    if(s=="MET" || s=="Muon_Pt" || s=="Muon_Eta" || s=="Muon_Iso" || s=="Muon_MT" || s=="Event_Type" || s=="Centrality") continue;
-    if(s=="Cand_Mass" || s=="Cand_Pt" || s=="Cand_Rap" || s=="Cand_AbsRap" || s=="Cand_Ctau") continue;
-    if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)) continue;
-    if(s.rfind("N_",0)==0) continue;
-    parseVarName(it->GetName(), label); if (label=="") continue;
+    const auto& parLbl = parseVarName(s); if (parLbl=="") continue;
+    // Get number of decimals
+    const int& n = std::max(-std::floor(std::log10(v.getError()>0. ? v.getError() : 1.)), 0.);
     // Print the parameter's results
     std::string txtLbl;
-    txtLbl = Form("%s = %.3f#pm%.3f", label.c_str(), it->getValV(), it->getError());
-    if (isParAtLimit(*it)) { txtLbl += " (!)"; }
-    t.DrawLatex(xPos, yPos-dy, txtLbl.c_str()); dy+=dYPos;
+    if (s.rfind("N_",0)==0) { txtLbl = Form("%s = %.0f#pm%.0f", parLbl.c_str(), v.getValV(), v.getError()); }
+    else if (n==0) { txtLbl = Form("%s = %.0f#pm%.0f", parLbl.c_str(), v.getValV(), v.getError()); }
+    else if (n==1) { txtLbl = Form("%s = %.1f#pm%.1f", parLbl.c_str(), v.getValV(), v.getError()); }
+    else if (n==2) { txtLbl = Form("%s = %.2f#pm%.2f", parLbl.c_str(), v.getValV(), v.getError()); }
+    else           { txtLbl = Form("%s = %.3f#pm%.3f", parLbl.c_str(), v.getValV(), v.getError()); }
+    const bool& isAtLimit = isParAtLimit(v);
+    if (isAtLimit) { txtLbl += " (!)"; }
+    const bool printTxt = (isAtLimit || (s.rfind("N_",0)==0) || (s.find("Bkg")==std::string::npos));
+    if (printTxt) { t.DrawLatex(xPos, yPos-dy, txtLbl.c_str()); dy+=dYPos; }
   }
   pad.Update();
   return;
 };
 
 
-void printCandidateMassBinning(TPad& pad, const RooWorkspace& ws, const std::string& dsName, const std::vector< std::string >& text, const uint& drawMode, const int& plotStyle)
+void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string& fitVar, const uint& drawMode, const int& plotStyle)
 {
   pad.cd();
+  // Get information from workspace
+  const std::string& cha     = (ws.obj("channel")   ? dynamic_cast<RooStringVar*>(ws.obj("channel")  )->getVal() : "");
+  const std::string& col     = (ws.obj("fitSystem") ? dynamic_cast<RooStringVar*>(ws.obj("fitSystem"))->getVal() : "");
+  const std::string& chg     = (ws.obj("fitCharge") ? dynamic_cast<RooStringVar*>(ws.obj("fitCharge"))->getVal() : "");
+  const std::string& dsName  = (ws.obj("dsName" )   ? dynamic_cast<RooStringVar*>(ws.obj("dsName")   )->getVal() : "");
+  const std::string& modelN  = (ws.obj("modelName") ? dynamic_cast<RooStringVar*>(ws.obj("modelName"))->getVal() : "");
+  //
+  // Include the CMS labels
   TLatex t = TLatex(); t.SetNDC(); t.SetTextSize(0.030);
   double xPos = 0.20, yPos = 0.89, dYPos = 0.050, dy = 0.035;
   if (plotStyle==1 || plotStyle==2 || plotStyle==3) { xPos = 0.22; yPos = 0.87; dYPos = 0.055; dy = 0.035; }
   t.SetTextSize(0.058*1.25); t.SetTextFont(61); t.DrawLatex(0.78, 0.82, "CMS"); t.SetTextFont(62);
   if (plotStyle!=2) { t.SetTextSize(0.044*1.25); t.SetTextFont(52); t.DrawLatex(0.69, 0.75, "Preliminary"); t.SetTextFont(62); }
-  if (drawMode>0) { dy *= (1./0.8); dYPos *= (1./0.8); t.SetTextSize(0.040*(1./0.8)); }
-  if (plotStyle==1 || plotStyle==2 || plotStyle==3) {
-    t.SetTextSize(0.055*1.25); t.DrawLatex(xPos, 0.82, Form("%s", text[0].c_str())); dy+=dYPos;
-  }
-  else {
-    t.SetTextSize(0.040); t.DrawLatex(xPos, yPos-dy, Form("%s", text[0].c_str())); dy+=dYPos;
-  }
-  std::vector<std::string> varNameList;
-  if (ws.data(dsName.c_str())!=NULL) {
-    auto parIt = std::unique_ptr<TIterator>(dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()))->get()->createIterator());
-    for (auto it = parIt->Next(); it!=NULL; it = parIt->Next()) {
-      if (std::string(it->GetName())=="Cand_Mass") continue;
-      varNameList.push_back(it->GetName());
-    }
-  }
-  else { varNameList = std::vector<std::string>({ "Cand_Rap" , "Cand_AbsRap" , "Cand_Pt" , "Centrality"  }); }
-  for (const auto& varName : varNameList) {
-    double defaultMin = 0.0 , defaultMax = 100000.0;
-    if (varName=="Muon_Eta") { defaultMin = -2.5; defaultMax = 2.5; }
-    if (varName=="Muon_Iso") { defaultMin = 0.0; }
-    if (varName=="Cand_Rap") { defaultMin = -2.5; defaultMax = 2.5; }
-    if (varName=="Cand_AbsRap") { defaultMin = 0.0; defaultMax = 2.5; }
-    if (varName=="Cand_Ctau") { defaultMin = -100000.0; }
-    if (varName=="Centrality") { defaultMax = 100.0; }
-    if (ws.var(varName.c_str())) {
-      double minVal = ws.var(varName.c_str())->getMin();
-      double maxVal = ws.var(varName.c_str())->getMax();
-      string fVarName = "";//varLabel.at(varName);
-      //
-      if (minVal!=defaultMin && maxVal==defaultMax) {
-        t.DrawLatex(xPos, yPos-dy, Form("%g #leq %s", minVal, fVarName.c_str())); dy+=dYPos;
-      }
-      if (minVal==defaultMin && maxVal!=defaultMax) {
-        t.DrawLatex(xPos, yPos-dy, Form("%s < %g", fVarName.c_str(), maxVal)); dy+=dYPos;
-      }
-      if (minVal!=defaultMin && maxVal!=defaultMax) {
-        t.DrawLatex(xPos, yPos-dy, Form("%g #leq %s < %g", minVal, fVarName.c_str(), maxVal)); dy+=dYPos;
-      }
-    }
-  }
-  for (const auto& txt : text) { if (text[0]!=txt) { t.DrawLatex(xPos, yPos-dy, Form("%s", txt.c_str())); dy+=dYPos; } }
   //
-  if (ws.data(dsName.c_str())!=NULL) {
-    const double& outTot = ws.data(dsName.c_str())->sumEntries();
-    const double& outCut = ( (ws.data((dsName+"_FIT").c_str())!=NULL) ? ws.data((dsName+"_FIT").c_str())->sumEntries() : outTot );
+  // Include the process
+  std::set<std::string> objS;
+  for (const auto& p : PDFMAP_) {
+    if (p.first=="Bkg" || p.first.rfind("Swap")!=std::string::npos) continue;
+    if (modelN.find(p.first+"_")!=std::string::npos) { objS.insert(p.first); }
+  }
+  const auto& process = parseProcess(objS, cha);
+  if (drawMode>0) { dy *= (1./0.8); dYPos *= (1./0.8); t.SetTextSize(0.040*(1./0.8)); }
+  if (plotStyle==1 || plotStyle==2 || plotStyle==3) { t.SetTextSize(0.055*1.25); t.DrawLatex(xPos, 0.82, process.c_str()); dy+=dYPos; }
+  else { t.SetTextSize(0.040); t.DrawLatex(xPos, yPos-dy, process.c_str()); dy+=dYPos; }
+  //
+  // Extract the dataset variables
+  std::vector<RooRealVar> dsVar;
+  const auto& dsSet = const_cast<RooWorkspace*>(&ws)->set(("SET_"+dsName).c_str());
+  auto parIt = std::unique_ptr<TIterator>(dsSet->createIterator());
+  for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next()) {
+    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
+    const std::string& varN = it->GetName();
+    if (varN==fitVar) continue;
+    if (varN=="Centrality" && col.rfind("PbPb",0)!=0) continue;
+    auto absVarN = varN; if (absVarN.find("_")!=std::string::npos) { absVarN.insert(absVarN.find("_")+1, "Abs"); }
+    dsVar.push_back(ws.var(absVarN.c_str()) ? *ws.var(absVarN.c_str()) : *it);
+  }
+  // Draw the dataset binning
+  for (const auto& var : dsVar) {
+    // Get the default range
+    const auto& defaultMin = var.getMin("DEFAULT");
+    const auto& defaultMax = var.getMax("DEFAULT");
+    // Draw the binning
+    const auto& varName = var.GetName();
+    if (!contain(VARLABEL_, varName)) { std::cout << "[WARNING] Parameter " << varName << " is not in VARLABEL!" << std::endl; continue; }
+    if (ws.var(varName)) {
+      const auto& varMin = ws.var(varName)->getMin();
+      const auto& varMax = ws.var(varName)->getMax();
+      const auto& varLbl = VARLABEL_.at(varName);
+      std::string vUnit  = ws.var(varName)->getUnit(); if (vUnit!="") { vUnit = " "+vUnit; }
+      if (varMin!=defaultMin && varMax==defaultMax) { t.DrawLatex(xPos, yPos-dy, Form("%g%s #leq %s", varMin, vUnit.c_str(), varLbl.c_str())); dy+=dYPos; }
+      else if (varMin==defaultMin && varMax!=defaultMax) { t.DrawLatex(xPos, yPos-dy, Form("%s < %g%s", varLbl.c_str(), varMax, vUnit.c_str())); dy+=dYPos; }
+      else if (varMin!=defaultMin && varMax!=defaultMax) { t.DrawLatex(xPos, yPos-dy, Form("%g #leq %s < %g%s", varMin, varLbl.c_str(), varMax, vUnit.c_str())); dy+=dYPos; }
+    }
+  }
+  // Draw the extra information
+  const auto& cutDS = dynamic_cast<RooStringVar*>(ws.obj(("CutAndCount_Tot"+cha+chg+"_"+col).c_str()));
+  if (cutDS) { t.DrawLatex(xPos, yPos-dy, formatCut(cutDS->getVal()).c_str()); dy+=dYPos; }
+  //
+  // Display the number of events lost if the dataset was reduced before fitting
+  const auto& dsEntries = ws.var(("numEntries_"+dsName).c_str());
+  const auto& fitDSEntries = ws.var(("numEntries_"+dsName+"_FIT").c_str());
+  if (dsEntries && fitDSEntries) {
+    const double& outTot = dsEntries->getVal();
+    const double& outCut = fitDSEntries->getVal();
     if (outCut != outTot) { t.DrawLatex(xPos, yPos-dy, Form("Loss: (%.4f%%) %.0f evts", ((outTot-outCut)*100.0/outTot), (outTot-outCut))); }
   }
-  //
+  // Update pad and return
   pad.Update();
   return;
 };
 
 
-void printCandidateMassLegend(TPad& pad, TLegend& leg, const RooPlot& frame, const StringDiMap_d& legInfo, const double& size)
+TLegend printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_d& legInfo, const int& plotStyle)
 {
   pad.cd();
-  StringMap_d drawOption = { { "DATA" , "pe" } , { "PDF" , "l" } , { "TEMP" , "f" } };
-  const std::vector< std::string > pdfMapOrder = { "WToMu" , "QCD" , "DY" , "WToTau" , "DYToTau" , "TTbar" };
-  for (const auto& map : legInfo) {
-    if (map.first=="TEMP") {
-      for (const auto& pdfM : pdfMapOrder) {
-        std::pair< std::string , std::string > elem;
-        for (const auto& el : map.second) { if (el.first.find(pdfM)!=std::string::npos) { elem = std::make_pair( el.first , el.second ); break; } }
-        if (frame.findObject(elem.first.c_str())) { formatLegendEntry(*leg.AddEntry(frame.findObject(elem.first.c_str()), elem.second.c_str(), drawOption[map.first].c_str()), size); }
-      }
-    }
-    else {
-      for (const auto& elem : map.second) {
-        if (frame.findObject(elem.first.c_str())) { formatLegendEntry(*leg.AddEntry(frame.findObject(elem.first.c_str()), elem.second.c_str(), drawOption[map.first].c_str()), size); }
-      }
-    }
+  // Define the position and size of the legend
+  double xmin = 0.49 , xmax = 0.66 , ymin = 0.58 , ymax = 0.89 , legSize = 0.047;
+  if (plotStyle==1 || plotStyle==2 || plotStyle==3) {
+    xmin = 0.74; ymin = 0.25; xmax = 0.90; ymax = 0.71; legSize = 0.06;
+    if (legInfo.size()<=2) { ymin = 0.35; }
   }
+  TLegend leg(xmin, ymin, xmax, ymax);
+  // Define the legend order
+  auto objMap = PDFMAP_; objMap["DATA"].push_back(-2); objMap["_TotTo"].push_back(-1);
+  StringVector_d legOrder(objMap.size(), "");
+  for (const auto& p : objMap) {
+    for (const auto& l : legInfo) { if (l.first.find(p.first)!=std::string::npos) { legOrder[p.second[0]+2] = l.first; break; } }
+  }
+  // Fill the legend
+  for (const auto& plotN : legOrder) {
+    if (plotN=="") continue;
+    const auto& objFrame = frame.findObject(plotN.c_str()); if (!objFrame) continue;
+    // Find the draw option
+    const std::string& drawOpt = frame.getDrawOptions(plotN.c_str()).Data();
+    std::string legOpt = "pe"; if (drawOpt=="L") { legOpt = "l"; } else if (drawOpt=="F") { legOpt = "f"; }
+    // Add the legend
+    formatLegendEntry(*leg.AddEntry(objFrame, parseObject(legInfo.at(plotN)).c_str(), legOpt.c_str()), legSize);
+  }
+  // Draw the legend
   leg.Draw("same");
+  // Update pad and return
   pad.Update();
-  return;
+  return leg;
 };
 
 
