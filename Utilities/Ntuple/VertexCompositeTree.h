@@ -14,7 +14,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 // Header file for the classes stored in the TChain
 
@@ -219,7 +219,7 @@ public :
   Int_t     fCurrent_=-1;
   Long64_t  entry_;
   
-  std::set<std::string> activeBranches_;
+  std::unordered_map<std::string, bool> activeBranches_;
 
   static const UInt_t NEP   = 3;
   static const UInt_t NTRG  = 15;
@@ -460,17 +460,16 @@ Long64_t VertexCompositeTree::LoadTree(Long64_t entry)
 
 char VertexCompositeTree::GetBranchStatus(const std::string& n)
 {
-  if (activeBranches_.find(n)!=activeBranches_.end()) return 1;
-  if (!fChain_ || !(fChain_->GetBranch(n.c_str()))) return -1;
+  if (activeBranches_[n]) return 1;
   return fChain_->GetBranchStatus(n.c_str());
 };
 
 void VertexCompositeTree::SetBranch(const std::string& n)
 {
-  if (GetBranchStatus(n) == 0) {
-    fChain_->SetBranchStatus(n.c_str(), 1);
+  if (GetBranchStatus(n)==0 && b.at(n)) {
+    b.at(n)->SetStatus(1);
     b.at(n)->GetEntry(entry_); // Needed for the first entry
-    if (fChain_->GetBranchStatus(n.c_str())==1) activeBranches_.insert(n);
+    activeBranches_.at(n) = true;
   }
 };
 
