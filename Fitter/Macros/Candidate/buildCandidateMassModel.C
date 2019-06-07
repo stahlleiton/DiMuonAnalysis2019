@@ -131,7 +131,7 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
 void constrainQuarkoniumMassParameters(GlobalInfo& info, const std::string& chg)
 {
   std::cout << "[INFO] Constraining excited state mass parameters to reference state using PDF Mass Ratio!" << std::endl;
-  const StringVector_t varList = { "m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "Alpha2", "n", "n2", "f" };
+  const StringVector_t varList = { "N" , "m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "Alpha2", "n", "n2", "f" };
   const StringVectorMap_t excStates = { {"JPsi", {"Psi2S"}} , {"Ups1S", {"Ups2S", "Ups3S"}} };
   std::string cha = info.Par.at("channel");
   for (const auto& col : info.StrS.at("fitSystem")) {
@@ -148,6 +148,11 @@ void constrainQuarkoniumMassParameters(GlobalInfo& info, const std::string& chg)
                 info.Par[massRatioLabel] = Form("%s[%.6f]", massRatioLabel.c_str(), massRatioValue);
                 info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", (v+"_"+excLabel).c_str(), info.Par.at(massRatioLabel).c_str(), (v+"_"+refLabel).c_str());
               }
+	      else if (v=="N") {
+		const auto& rN = "R_"+excLabel;
+		info.Par[rN] = rN+"[0.3,0.0,1.0]";
+		info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", (v+"_"+excLabel).c_str(), info.Par.at(rN).c_str(), (v+"_"+refLabel).c_str());
+	      }
               else { info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+excLabel).c_str(), (v+"_"+refLabel).c_str()); }
             }
           }

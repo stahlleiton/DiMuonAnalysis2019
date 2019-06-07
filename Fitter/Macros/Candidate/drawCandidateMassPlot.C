@@ -5,9 +5,9 @@
 #include "../Utilities/drawUtils.h"
 
 
-void    printCandidateParameters  ( TPad& pad , const RooWorkspace& ws , const uint& drawMode );
-void    printCandidateTextInfo    ( TPad& pad , const RooWorkspace& ws , const std::string& varN , const uint& drawMode , const int& plotStyle );
-TLegend printCandidateLegend      ( TPad& pad , const RooPlot& frame   , const StringMap_d& legInfo , const int& plotStyle );
+void     printCandidateParameters  ( TPad& pad , const RooWorkspace& ws , const uint& drawMode );
+void     printCandidateTextInfo    ( TPad& pad , const RooWorkspace& ws , const std::string& varN , const uint& drawMode , const int& plotStyle );
+TLegend* printCandidateLegend      ( TPad& pad , const RooPlot& frame   , const StringMap_d& legInfo , const int& plotStyle );
 
 
 bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
@@ -147,7 +147,6 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
 	      ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"),
 						  RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
 						  RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("F"));
-	      std::cout << "INSIDE 1: "  <<  pName << "  " << obj << "   "  << PDFMAP_.at(obj)[1] << "  " << norm << "   " << pdfPlotName <<  std::endl;
 	    }
 	    norm -= yield->getVal();
 	    pdfList.remove(*pdf);
@@ -159,6 +158,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
 	  const std::string& pName = pdf->GetName();
 	  std::string obj = pName; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find("To"));
 	  // Plot the PDF
+	  std::cout << pName << std::endl;
 	  ws.pdf(pName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"),
 	  				RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
 	  				RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("F"));
@@ -207,6 +207,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
       auto pdfIt = std::unique_ptr<TIterator>(fitPDFList.createIterator());
       for (auto it = pdfIt->Next(); it!=NULL; it = pdfIt->Next()) {
 	const std::string& pName = it->GetName();
+	std::cout << "AAA:  " << pName << std::endl;
 	auto obj = pName; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
         legInfo["plot_"+pName] = formatCut(obj);
       }
@@ -308,7 +309,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   if (plotStyle==0) { printCandidateParameters(*pad.at("MAIN"), ws, drawMode); }
   //
   // Draw the legend
-  const auto& leg = printCandidateLegend(*pad.at("MAIN"), *frame.at("MAIN"), legInfo, plotStyle);
+  auto leg = std::unique_ptr<TLegend>(printCandidateLegend(*pad.at("MAIN"), *frame.at("MAIN"), legInfo, plotStyle));
   //
   // Set log scale if requested
   pad.at("MAIN")->SetLogy(setLogScale);
@@ -439,7 +440,7 @@ void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string
 };
 
 
-TLegend printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_d& legInfo, const int& plotStyle)
+TLegend* printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_d& legInfo, const int& plotStyle)
 {
   pad.cd();
   // Define the position and size of the legend
@@ -448,25 +449,26 @@ TLegend printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_d&
     xmin = 0.74; ymin = 0.25; xmax = 0.90; ymax = 0.71; legSize = 0.06;
     if (legInfo.size()<=2) { ymin = 0.35; }
   }
-  TLegend leg(xmin, ymin, xmax, ymax);
+  auto leg = new TLegend(xmin, ymin, xmax, ymax);
   // Define the legend order
   auto objMap = PDFMAP_; objMap["DATA"].push_back(-2); objMap["_TotTo"].push_back(-1);
-  StringVector_d legOrder(objMap.size(), "");
+  StringVector_d legOrder(objMap.size()+2, "");
   for (const auto& p : objMap) {
     for (const auto& l : legInfo) { if (l.first.find(p.first)!=std::string::npos) { legOrder[p.second[0]+2] = l.first; break; } }
   }
   // Fill the legend
   for (const auto& plotN : legOrder) {
     if (plotN=="") continue;
+    std::cout << plotN << std::endl;
     const auto& objFrame = frame.findObject(plotN.c_str()); if (!objFrame) continue;
     // Find the draw option
     const std::string& drawOpt = frame.getDrawOptions(plotN.c_str()).Data();
     std::string legOpt = "pe"; if (drawOpt=="L") { legOpt = "l"; } else if (drawOpt=="F") { legOpt = "f"; }
     // Add the legend
-    formatLegendEntry(*leg.AddEntry(objFrame, parseObject(legInfo.at(plotN)).c_str(), legOpt.c_str()), legSize);
+    formatLegendEntry(*leg->AddEntry(objFrame, parseObject(legInfo.at(plotN)).c_str(), legOpt.c_str()), legSize);
   }
   // Draw the legend
-  leg.Draw("same");
+  leg->Draw("same");
   // Update pad and return
   pad.Update();
   return leg;
