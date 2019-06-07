@@ -54,7 +54,7 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
 	if (!contain(info.Par, "N_"+objLabel) || info.Par.at("N_"+objLabel)=="") {
 	  if (!contain(info.Par, "N_"+objFoundLabel) || info.Par.at("N_"+objFoundLabel)=="") {
             const auto& numEntries = info.Var.at("numEntries").at(chg);
-            info.Par["N_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", ("N_"+objLabel).c_str(), numEntries, -0.001*numEntries, 2.0*numEntries);
+            info.Par["N_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", ("N_"+objLabel).c_str(), numEntries, -0.05*numEntries, 2.0*numEntries);
           }
 	  else {
 	    std::string content = info.Par.at("N_"+objFoundLabel); content = content.substr( content.find("[") );
@@ -82,12 +82,12 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
             if (!contain(info.Par, v+"_"+objFoundLabel) || info.Par.at(v+"_"+objFoundLabel)=="") {
 	      const auto& varV = ((var=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Val")   : ((info.Var.at(var).at("Max")+info.Var.at(var).at("Min"))/2.0));
 	      const auto& varR = ((var=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Width") : ((info.Var.at(var).at("Max")-info.Var.at(var).at("Min"))/6.0));
-	      if      (v=="Sigma1"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), varR, 0.05*varR, 3.0*varR); }
+	      if      (v=="Sigma1"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), varR, 0.01*varR, 10.0*varR); }
               else if (v=="rSigma21") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 1.000,  4.000); }
               else if (v=="Alpha"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500, 30.000); }
               else if (v=="n"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 1.800, 0.500, 10.000); }
               else if (v=="f"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 0.500, 0.000,  1.000); }
-              else if (v=="m"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.9f,%.9f,%.9f]", (v+"_"+objLabel).c_str(), varV, (varV - 3.0*varR), (varV + 3.0*varR)); }
+              else if (v=="m"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.9f,%.9f,%.9f]", (v+"_"+objLabel).c_str(), varV, (varV - 5.0*varR), (varV + 5.0*varR)); }
 	      if (v=="m" && var=="Cand_Mass" && !contain(MASS, obj) && (obj!="Bkg" || isSwap)) {
 		std::cout << "[WARNING] Initial value for " << (v+"_"+objLabel) << " was not found!" << std::endl;
 	      }
