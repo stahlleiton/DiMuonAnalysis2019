@@ -610,7 +610,7 @@ bool setModel(StringDiMap_t& model, GlobalInfo&  info, const std::string& type="
               if (info.Flag.at("fitMC") && ll!=obj && modelName=="TEMP") continue;
               if (modelName=="TEMP") { modelName = "Template";    }
               if (modelName=="MJET") { modelName = "MultiJetBkg"; }
-              if (ModelDictionary.at(modelName)==0) {
+              if (!contain(ModelDictionary, modelName) || ModelDictionary.at(modelName)==0) {
                 std::cout << "[ERROR] The " << (ll+cha+chg) << " " << type << " model: " << modelName << " is invalid" << std::endl; return false;
               }
               model[label][ll] = modelName;

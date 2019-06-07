@@ -96,10 +96,10 @@ void fitter(
   // Settings for Mass Resonance Analysis
   if (userInput.Par.at("analysis").rfind("CandTo",0)==0) {
     //
-    if (workDirName.find("NominalCM")!=std::string::npos) { saveAll = true; }
+    if (workDirName.find("Nominal")!=std::string::npos) { saveAll = true; }
     else if (workDirName.find("CutAndCount")!=std::string::npos) { }
     else if (workDirName.find("Test")!=std::string::npos) { saveAll = true; } // For testing
-    else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
+    //else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
     //
     userInput.Par["treeType"] = "VertexCompositeTree";
     //

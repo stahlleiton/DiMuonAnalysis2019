@@ -241,7 +241,7 @@ void defineFitParameterRange(GlobalInfo& info)
 	if (varMax < 4.0) { varMax = 4.0; }
       }
       if (contain(info.Flag, "incUps1S") && info.Flag.at("incUps1S")) {
-	if (varMin >  8.5) { varMin =  8.5; }
+	if (varMin >  8.0) { varMin =  8.0; }
 	if (varMax < 10.5) { varMax = 10.5; }
       }
       if (contain(info.Flag, "incUps2S") && info.Flag.at("incUps2S")) {
@@ -250,7 +250,7 @@ void defineFitParameterRange(GlobalInfo& info)
       }
       if (contain(info.Flag, "incUps3S") && info.Flag.at("incUps3S")) {
 	if (varMin >  9.5) { varMin =  9.5; }
-	if (varMax < 12.5) { varMax = 12.5; }
+	if (varMax < 13.5) { varMax = 14.0; }
       }
       if (contain(info.Flag, "incZ") && info.Flag.at("incZ")) {
 	if (varMin >  70.0) { varMin =  70.0; }
