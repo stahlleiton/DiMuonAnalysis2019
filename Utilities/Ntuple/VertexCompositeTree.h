@@ -466,9 +466,9 @@ char VertexCompositeTree::GetBranchStatus(const std::string& n)
 
 void VertexCompositeTree::SetBranch(const std::string& n)
 {
-  if (GetBranchStatus(n)==0 && b.at(n)) {
-    b.at(n)->SetStatus(1);
-    b.at(n)->GetEntry(entry_); // Needed for the first entry
+  if (GetBranchStatus(n)==0) {
+    fChain_->SetBranchStatus(n.c_str(), 1);
+    GetEntry(entry_);
     activeBranches_.at(n) = true;
   }
 };
