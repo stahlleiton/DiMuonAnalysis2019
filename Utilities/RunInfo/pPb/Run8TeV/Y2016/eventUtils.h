@@ -39,7 +39,7 @@ namespace pPb {
 	assert(Form("[ERROR] HLT path %s is invalid", path.c_str()));
 	return HLT_INVALID;
       };
-      static const std::map< std::string , std::vector<TRIGGERBIT> > PDTRIG =
+      static const std::map< std::string , std::vector<uint> > PDTRIG =
 	{
 	 { "MUON"      , { HLT_PAL3Mu12 } },
 	 { "DIMUON"    , { HLT_PAL1DoubleMuOpen } },
@@ -47,7 +47,7 @@ namespace pPb {
 	 { "HIGHMULT2" , { HLT_PAFullTracks_Multiplicity250 } },
 	 { "MINBIAS"   , { HLT_PAL1MinimumBiasHF_OR_SinglePixelTrack } },
 	};
-      std::vector<TRIGGERBIT> HLTBitsFromPD(const std::string& PD)
+      std::vector<uint> HLTBitsFromPD(const std::string& PD)
       {
 	if (PDTRIG.count(PD)) { return PDTRIG.at(PD); }
 	assert(Form("[ERROR] PD name %s is invalid", PD.c_str()));

@@ -54,7 +54,7 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
 	if (!contain(info.Par, "N_"+objLabel) || info.Par.at("N_"+objLabel)=="") {
 	  if (!contain(info.Par, "N_"+objFoundLabel) || info.Par.at("N_"+objFoundLabel)=="") {
             const auto& numEntries = info.Var.at("numEntries").at(chg);
-            info.Par["N_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", ("N_"+objLabel).c_str(), numEntries, -0.05*numEntries, 2.0*numEntries);
+            info.Par["N_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", ("N_"+objLabel).c_str(), numEntries, -200.0, 2.0*numEntries);
           }
 	  else {
 	    std::string content = info.Par.at("N_"+objFoundLabel); content = content.substr( content.find("[") );
@@ -82,19 +82,19 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
             if (!contain(info.Par, v+"_"+objFoundLabel) || info.Par.at(v+"_"+objFoundLabel)=="") {
 	      const auto& varV = ((var=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Val")   : ((info.Var.at(var).at("Max")+info.Var.at(var).at("Min"))/2.0));
 	      const auto& varR = ((var=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Width") : ((info.Var.at(var).at("Max")-info.Var.at(var).at("Min"))/6.0));
-	      if      (v=="Sigma1"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), varR, 0.01*varR, 10.0*varR); }
-              else if (v=="rSigma21") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 1.000,  4.000); }
+	      if      (v=="Sigma1"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), varR, 0.2*varR, 2.0*varR); }
+              else if (v=="rSigma21") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.800,  4.000); }
               else if (v=="Alpha"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500, 30.000); }
-              else if (v=="n"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 1.800, 0.500, 10.000); }
+              else if (v=="n"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 3.000, 0.500, 15.000); }
               else if (v=="f"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 0.500, 0.000,  1.000); }
-              else if (v=="m"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.9f,%.9f,%.9f]", (v+"_"+objLabel).c_str(), varV, (varV - 5.0*varR), (varV + 5.0*varR)); }
+              else if (v=="m"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.9f,%.9f,%.9f]", (v+"_"+objLabel).c_str(), varV, (varV - 2.0*varR), (varV + 2.0*varR)); }
 	      if (v=="m" && var=="Cand_Mass" && !contain(MASS, obj) && (obj!="Bkg" || isSwap)) {
 		std::cout << "[WARNING] Initial value for " << (v+"_"+objLabel) << " was not found!" << std::endl;
 	      }
               if (contain(info.Par, v+"_"+objLabel) || contain(info.Par, v+"_"+objFoundLabel)) {
-                if (v=="Sigma2") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), varV, (varV - 3.0*varR), (varV + 3.0*varR)); }
+                if (v=="Sigma2") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), varR, 0.3*varR, 3.0*varR); }
                 if (v=="Alpha2") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500, 30.000); }
-                if (v=="n2"    ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 1.800, 0.500, 10.000); }
+                if (v=="n2"    ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 1.800, 0.500, 50.000); }
               }
               else {
                 if (v=="Sigma2") { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", ("Sigma2_"+objLabel).c_str(), ("rSigma21_"+objLabel).c_str(), ("Sigma1_"+objLabel).c_str()); }
@@ -102,8 +102,8 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
                 if (v=="n2"    ) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("n_"+objLabel).c_str());     }
               }
               if (v=="Lambda") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(),  0.2, -2.00,  2.00); }
-              else if (v.rfind("Lambda",0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 0.0, -100.0, 100.0); }
-              else if (v=="Sigma") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(),  0.4,  0.01, 40.00); }
+              else if (v.rfind("Lambda",0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 0.0, -100.00, 100.00); }
+              else if (v=="Sigma") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(),  1.0,  0.01, 40.00); }
               else if (v=="xb"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 10.0,  0.00, 40.00); }
             }
             else {
@@ -131,7 +131,7 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
 void constrainQuarkoniumMassParameters(GlobalInfo& info, const std::string& chg)
 {
   std::cout << "[INFO] Constraining excited state mass parameters to reference state using PDF Mass Ratio!" << std::endl;
-  const StringVector_t varList = { "m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "Alpha2", "n", "n2", "f" };
+  const StringVector_t varList = { "N" , "m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "Alpha2", "n", "n2", "f" };
   const StringVectorMap_t excStates = { {"JPsi", {"Psi2S"}} , {"Ups1S", {"Ups2S", "Ups3S"}} };
   std::string cha = info.Par.at("channel");
   for (const auto& col : info.StrS.at("fitSystem")) {
@@ -148,6 +148,11 @@ void constrainQuarkoniumMassParameters(GlobalInfo& info, const std::string& chg)
                 info.Par[massRatioLabel] = Form("%s[%.6f]", massRatioLabel.c_str(), massRatioValue);
                 info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", (v+"_"+excLabel).c_str(), info.Par.at(massRatioLabel).c_str(), (v+"_"+refLabel).c_str());
               }
+	      else if (v=="N") {
+		const auto& rN = "R_"+excLabel;
+		info.Par[rN] = rN+"[0.4,-0.1,1.0]";
+		info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", (v+"_"+excLabel).c_str(), info.Par.at(rN).c_str(), (v+"_"+refLabel).c_str());
+	      }
               else { info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+excLabel).c_str(), (v+"_"+refLabel).c_str()); }
             }
           }

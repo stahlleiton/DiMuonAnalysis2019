@@ -57,7 +57,7 @@ void fitter(
             const std::bitset<1> fitVar   = 1,            // Fit Variable: (bit 0 (1)) Cand_Mass , (bit 1 (2)) Cand_Pt
             const std::string    analysis = "CandToMuMu", // Type of analysis: CandToXX (Mass Resonance)
             // Select the drawing options
-            const bool setLogScale  = false               // Draw plot with log scale
+            const bool setLogScale  = true                // Draw plot with log scale
             )
 {
   //
@@ -70,13 +70,14 @@ void fitter(
     |-> Output  |-> <WorkDir> : Contain Output Plots and Results for a given work directory (e.g. 20160201)
     |-> DataSet : Contain all the datasets (MC and Data)
   */
+  //
   // Suppress Messages for RooFit
   RooMsgService::instance().getStream(1).removeTopic(RooFit::Caching);
   RooMsgService::instance().getStream(1).removeTopic(RooFit::Plotting);
   RooMsgService::instance().getStream(1).removeTopic(RooFit::Integration);
   RooMsgService::instance().getStream(1).removeTopic(RooFit::NumIntegration);
   RooMsgService::instance().getStream(1).removeTopic(RooFit::Minimization);
-  RooMsgService::instance().setGlobalKillBelow(RooFit::WARNING);
+  RooMsgService::instance().setGlobalKillBelow(RooFit::ERROR);
   //
   const std::string& CWD = getcwd(NULL, 0);
   GlobalInfo userInput;
@@ -102,9 +103,6 @@ void fitter(
     //else { std::cout << "[ERROR] Workdirname has not been defined!" << std::endl; return; }
     //
     userInput.Par["treeType"] = "VertexCompositeTree";
-    //
-    userInput.Var["Cand_Mass"]["binWidth"] = 0.05;
-    userInput.Var["Cand_Pt"  ]["binWidth"] = 2.0;
   }
   //
   // Set all the Boolean Flags from the input settings
@@ -161,6 +159,15 @@ void fitter(
   for (const auto& obj : userInput.StrV.at("object") ) { if (userInput.Flag.at("fit"+obj)) { userInput.StrS["fitObject"].insert(obj); } }
   userInput.StrS["incObject"] = userInput.StrS.at("fitObject");
   userInput.StrS["template"].clear();
+  //  
+  if (userInput.Par.at("analysis").rfind("CandTo",0)==0) {
+    double massWidth = 0.1;
+    if (userInput.Flag.at("fitJPsi") || userInput.Flag.at("fitPsi2S")) { massWidth = 0.01; }
+    else if (userInput.Flag.at("fitUps1S") || userInput.Flag.at("fitUps2S") || userInput.Flag.at("fitUps3S")) { massWidth = 0.05; }
+    else if (userInput.Flag.at("fitZ")) { massWidth = 1.0; }
+    userInput.Var["Cand_Mass"]["binWidth"] = massWidth;
+    userInput.Var["Cand_Pt"  ]["binWidth"] = 2.0;
+  }
   //
   // Fit variable
   userInput.StrV["variable"] = {"Cand_Mass", "Cand_Pt"};
@@ -227,11 +234,11 @@ void fitter(
               std::string inputFile = "", name = (dir + "InitialParam_" + VAR.first + "_" + PAR.first);
               StringVector_t tryChannel = { userInput.Par.at("channel") , "" };
               StringVector_t trySystem  = { COL.first };
-              if (userInput.Flag.at("doPA8Y16")) { trySystem.push_back("PA8Y16"); }
+              if (userInput.Flag.at("doPA8Y16")) { trySystem.push_back("PA8Y16"); }; trySystem.push_back("");
               for (const auto& tryCha : tryChannel) {
                 bool trySuccess = false;
                 for (const auto& tryCol : trySystem) {
-                  if (ifstream(inputFile).good()==false) { inputFile = (name + tryCha + "_" + tryCol + ".csv"); } else { trySuccess = true; break; }
+                  if (ifstream(inputFile).good()==false) { inputFile = (name + tryCha + (tryCol!="" ? "_"+tryCol : "") + ".csv"); } else { trySuccess = true; break; }
                 }
                 if (trySuccess) break;
               }
@@ -309,7 +316,7 @@ void fitter(
       }
     }
   }
-  std::cout << "[INFO] All fits completed succesfully!" << std::endl;
+  std::cout << "[INFO] All fits done!" << std::endl;
 };
 
 

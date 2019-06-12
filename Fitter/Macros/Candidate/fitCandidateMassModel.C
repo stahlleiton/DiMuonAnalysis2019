@@ -178,6 +178,22 @@ bool fitCandidateMassModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspa
 								       RooFit::Range("FitWindow"), RooFit::NumCPU(numCores), RooFit::Save());
             fitResult.reset(tmp);
             fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+	    if (fitFailed) {
+	      std::cout << std::endl; std::cout << "[WARNING] Fit failed, trying again with Minuit2 and Minimizer" << std::endl; std::cout << std::endl;
+	      const auto& tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
+									 RooFit::Minimizer("Minuit2","minimize"), RooFit::Strategy(2),
+									 RooFit::Range("FitWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+	      fitResult.reset(tmp);
+	      fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+	    }
+	    if (fitFailed) {
+	      std::cout << std::endl; std::cout << "[WARNING] Fit failed, trying again with Minuit2 and Scan" << std::endl; std::cout << std::endl;
+	      const auto& tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
+									 RooFit::Minimizer("Minuit2","scan"), RooFit::Strategy(2),
+									 RooFit::Range("FitWindow"), RooFit::NumCPU(numCores), RooFit::Save());
+	      fitResult.reset(tmp);
+	      fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+	    }
           }
           if (fitResult) {
 	    fitResult->Print("v");
@@ -193,13 +209,14 @@ bool fitCandidateMassModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspa
 	    }
 	  }
         }
-        else if ( myws.at(chg).obj(("CutAndCount_"+label).c_str()) ) {
-          std::cout << Form("[INFO] Using the CutAndCount method with the following cut: %s", info.Par.at("Cut_"+label).c_str()) << std::endl;
-          auto ds = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(myws.at(chg).data(dsName.c_str())->reduce(RooFit::Cut(info.Par.at("Cut_"+label).c_str()), RooFit::Name(("CutAndCount_"+dsName).c_str()))));
-          myws.at(chg).var(("N_"+label).c_str())->setVal( ds->sumEntries() );
-          myws.at(chg).var(("N_"+label).c_str())->setError( std::sqrt(ds->sumEntries()) );
+        else if ( myws.at(chg).obj(pdfName.c_str()) ) {
+	  const auto& lbl = *info.StrS.at("fitObject").begin()+label;
+          std::cout << "[INFO] Using the CutAndCount method with the following cut: " << info.Par.at("Cut_"+lbl) << std::endl;
+          auto ds = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(myws.at(chg).data(dsName.c_str())->reduce(RooFit::Cut(info.Par.at("Cut_"+lbl).c_str()), RooFit::Name(("CutAndCount_"+dsName).c_str()))));
+          myws.at(chg).var(("N_"+lbl).c_str())->setVal( ds->sumEntries() );
+          myws.at(chg).var(("N_"+lbl).c_str())->setError( std::sqrt(ds->sumEntries()) );
           myws.at(chg).import(*ds);
-          cout << Form("[INFO] Number of events that passed the cut: %.1f", myws.at(chg).var( ("N_"+label).c_str() )->getValV() ) << std::endl;
+          cout << Form("[INFO] Number of events that passed the cut: %.1f", myws.at(chg).var( ("N_"+lbl).c_str() )->getValV() ) << std::endl;
         }
         else {
           std::cout << "[ERROR] The PDF " << pdfName << " was not found!" << std::endl; return false;
@@ -233,7 +250,7 @@ void defineFitParameterRange(GlobalInfo& info)
 	if (varMax < 2.00) { varMax = 2.00; }
       }
       if (contain(info.Flag, "incJPsi") && info.Flag.at("incJPsi")) {
-	if (varMin > 2.6) { varMin = 2.6; }
+	if (varMin > 2.7) { varMin = 2.7; }
 	if (varMax < 3.5) { varMax = 3.5; }
       }
       if (contain(info.Flag, "incPsi2S") && info.Flag.at("incPsi2S")) {

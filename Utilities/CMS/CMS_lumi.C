@@ -53,7 +53,7 @@ CMS_lumi( TPad* pad, int iPosX, TString lumiText, TString lumiText2, bool isPrel
   latex.SetTextSize(lumiTextSize*t);    
   latex.DrawLatex(1-r,1-t+lumiTextOffset*t,lumiText2);
   latex.SetTextAlign(11); 
-  latex.DrawLatex(l,1-t+lumiTextOffset*t,lumiText);
+  latex.DrawLatex(0.06+l,1-t+lumiTextOffset*t,lumiText);
 
   if( outOfFrame )
     {

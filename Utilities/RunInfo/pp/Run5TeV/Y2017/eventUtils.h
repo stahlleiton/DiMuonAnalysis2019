@@ -29,12 +29,12 @@ namespace pp {
 	assert(Form("[ERROR] HLT path %s is invalid", path.c_str()));
 	return HLT_INVALID;
       };
-      static const std::map< std::string , std::vector<TRIGGERBIT> > PDTRIG =
+      static const std::map< std::string , std::vector<uint> > PDTRIG =
 	{
 	 { "MUON"       , { HLT_HIL3Mu12} },
 	 { "DIMUON"     , { HLT_HIL1DoubleMu0 } },
 	};
-      std::vector<TRIGGERBIT> HLTBitsFromPD(const std::string& PD)
+      std::vector<uint> HLTBitsFromPD(const std::string& PD)
       {
 	if (PDTRIG.count(PD)) { return PDTRIG.at(PD); }
 	assert(Form("[ERROR] PD name %s is invalid", PD.c_str()));
