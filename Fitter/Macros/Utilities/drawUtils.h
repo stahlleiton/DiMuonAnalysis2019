@@ -127,7 +127,7 @@ void getLumiLabels(StringVector_d& labels, const std::string& PD, const std::str
   }
   if (isMC) { lumiLabel += " Simulation)"; }
   else if (col=="PbPb5Y18") { lumiLabel += Form(" %.0f #mub^{-1}", PbPb::R5TeV::Y2018::LumiFromPD(PD)); }
-  else if (col=="PP13Y17" ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R13TeV::Y2018::LumiFromPD(PD)); }
+  else if (col=="PP13Y18" ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R13TeV::Y2018::LumiFromPD(PD)); }
   else if (col=="PP5Y17"  ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R5TeV::Y2017::LumiFromPD(PD)); }
   else if (col.rfind("8Y16")!=std::string::npos) { lumiLabel += Form(" %.1f nb^{-1}", pPb::R8TeV::Y2016::LumiFromPD(PD, col)); }
   else if (col=="PbPb5Y15") { lumiLabel += Form(" %.0f #mub^{-1}", PbPb::R5TeV::Y2015::LumiFromPD(PD)); }
@@ -136,7 +136,7 @@ void getLumiLabels(StringVector_d& labels, const std::string& PD, const std::str
   std::string lumiLabel2="";
   if (colV.size()>1) {
     auto colE = colV[1];
-    if (colE=="5") { colE = "5.02 TeV"; } else if (colE=="8") { colE = "8.16 TeV"; } 
+    if (colE=="5") { colE = "5.02 TeV"; } else if (colE=="8") { colE = "8.16 TeV"; } else if (colE=="13") { colE = "13 TeV"; } 
     colE = ((colV[0]=="PP") ? "#sqrt{s} = " : "#sqrt{s_{NN}} = ") +colE;
     lumiLabel2 += colE;
   }
@@ -181,7 +181,7 @@ void getPoint(const RooHist& rH, const uint& i, double& x, double& y, double& ex
 };
 
 
-bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool& useAverage = true)
+bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool& useAverage = true, const int& sBinFit=1)
 {
   // Find curve object
   const auto& rFit = dynamic_cast<RooCurve*>(frame.findObject(0, RooCurve::Class()));
@@ -194,63 +194,61 @@ bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool& use
   rFit->GetPoint(0, xstart, yDummy);
   rFit->GetPoint((rFit->GetN()-1), xstop, yDummy);
   // Get Binning
-  std::vector<double> binV;
+  std::vector<double> binDataV, binFitV;
   for (int i = 0; i < rData->GetN(); i++) {
     double x, y; rData->GetPoint(i, x, y);
     // Only consider bins inside curve range
     if (x<xstart || x>xstop) continue;
     const double& binW = rData->getNominalBinWidth();
-    binV.push_back(x - (binW*0.5));
-    if (i==(rData->GetN()-1)) { binV.push_back(x + (binW*0.5)); }
+    for (int j = 0; j < sBinFit; j++) { binFitV.push_back(x - (binW*0.5) + j*(binW/sBinFit)); }
+    binDataV.push_back(x - (binW*0.5));
+    if (i==(rData->GetN()-1)) { binFitV.push_back(x + (binW*0.5)); }
+    if (i==(rData->GetN()-1)) { binDataV.push_back(x + (binW*0.5)); }
   }
-  const uint& nBin = (binV.size()-1);
-  double bin[nBin+1];
-  for (uint i = 0; i < binV.size(); i++) { bin[i] = binV[i]; }
+  const uint& nBinFit = (binFitV.size()-1), nBinData = (binDataV.size()-1);
+  double binFit[nBinFit+1], binData[nBinData+1];
+  for (uint i = 0; i < binFitV.size(); i++) { binFit[i] = binFitV[i]; }
+  for (uint i = 0; i < binDataV.size(); i++) { binData[i] = binDataV[i]; }
   //
-  hData.Reset(); hData = TH1D(Form("hData_%s", rData->GetName()), rData->GetTitle(), nBin, bin); hData.Sumw2();
-  hFit.Reset();  hFit  = TH1D(Form("hFit_%s" , rFit->GetName()) , rFit->GetTitle() , nBin, bin); hFit.Sumw2();
+  hData.Reset(); hData = TH1D(Form("hData_%s", rData->GetName()), rData->GetTitle(), nBinData, binData); hData.Sumw2();
+  hFit.Reset();  hFit  = TH1D(Form("hFit_%s" , rFit->GetName()) , rFit->GetTitle() , nBinFit,  binFit);  hFit.Sumw2();
   // Set Histogram entries
-  for (uint i = 0; i < nBin; i++) {
+  for (uint i = 0; i < nBinData; i++) {
     double x, dataVal, exl, exh, eyl, eyh;
     getPoint(*rData, i, x, dataVal, exl, exh, eyl, eyh);
-    double fitVal = 0.0;
-    if (useAverage) { fitVal = rFit->average(x-exl, x+exh); }
-    else            { fitVal = rFit->interpolate(x);        }
     hData.SetBinContent((i+1), dataVal);
     hData.SetBinError((i+1), std::sqrt((eyl*eyl + eyh*eyh)/2.0));
-    hFit.SetBinContent((i+1), fitVal);
-    hFit.SetBinError((i+1), 0.0);
+    for (int j = 0; j < sBinFit; j++) {
+      double fitVal = 0.0, binW = (exh+exl), x1 = x-exl+j*(binW/sBinFit), x2 = x-exl+(j+1)*(binW/sBinFit);
+      if (useAverage) { fitVal = rFit->average(x1, x2);         }
+      else            { fitVal = rFit->interpolate((x1+x2)/2.); }
+      hFit.SetBinContent((sBinFit*i+j+1), fitVal);
+      hFit.SetBinError((sBinFit*i+j+1), 0.0);
+    }
   }
   return true;
 };
 
 
-void setPlotRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName, const std::string& dsName, const bool& setLogScale, const int& nBins)
+void setPlotRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName, const std::string& dsName, const bool& setLogScale)
 {
   // Find maximum and minimum points of Plot to rescale Y axis
   TH1D hData, hFit;
-  if (ws.data(dsName.c_str())!=NULL) {
-    auto h = std::unique_ptr<TH1>(ws.data(dsName.c_str())->createHistogram("hist", *ws.var(varName.c_str()), RooFit::Binning(nBins, frame.GetXaxis()->GetXmin(), frame.GetXaxis()->GetXmax())));
-    const auto& h1D = static_cast<TH1D*>(h.get());
-    if (h1D) { hData = *h1D; }
-    else { std::cout << "[ERROR] setPlotRange: Histogram for " << dsName << " was not created!" << std::endl; return; }
-  }
-  else {
-    if (!rooPlotToTH1(hData, hFit, frame)) { std::cout << "[ERROR] Could not find the RooHist from the frame!" << std::endl; return; }
-  }
-  double YMax = hData.GetBinContent(hData.GetMaximumBin());
+  if (!rooPlotToTH1(hData, hFit, frame, true, 4)) { std::cout << "[ERROR] Could not find the RooHist from the frame!" << std::endl; return; }
+  double YMax = std::max(hData.GetBinContent(hData.GetMaximumBin()), hFit.GetBinContent(hFit.GetMaximumBin()));
   double YMin = 1e99;
   for (int i=1; i<=hData.GetNbinsX(); i++) if (hData.GetBinContent(i)>0) YMin = min(YMin, hData.GetBinContent(i));
-  double Yup(0.),Ydown(0.);
+  double Yup(0.), Ydown(0.), rDown=0.05, rUp=0.4;
   if(setLogScale)
   {
-    Yup = YMax*pow((YMax), 0.55);
-    Ydown = 1.0;
+    YMin = std::max(YMin, 0.1); YMax = std::max(YMax, 0.1);
+    Ydown = std::max(YMin/(std::pow(YMax/YMin, (rDown/(1.0-rUp-rDown)))), 0.1);
+    Yup = Ydown*std::pow(YMax/Ydown, (1.0/(1.0 - rUp)));
   }
   else
   {
-    Yup = YMax+(YMax-0.0)*0.55;
-    Ydown = 0.0;
+    Ydown = std::max(YMin - (rDown/(1.0-rUp-rDown))*(YMax-YMin), 0.0);
+    Yup = Ydown + (YMax - Ydown)/(1.0 - rUp);
   }
   frame.GetYaxis()->SetRangeUser(Ydown, Yup);
   std::cout << "[INFO] Setting plot y-axis range to: " << Ydown << " - " << Yup << std::endl;
@@ -454,7 +452,7 @@ bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string& histn
     // Compute the Residual
     double y = (dataVal - fitVal);
     // Get the Norm factor
-    const double& norm = ( (y>0) ? eyl : eyh );
+    const double norm = ( (y>0) ? eyl : eyh );
     // Set Values
     if (norm>0.0) {
       y   /= norm;
@@ -575,9 +573,10 @@ std::vector<RooRealVar> getModelVar(const RooWorkspace& ws, const std::string& n
   // Set yields at the beginning and order based on object
   std::vector<RooRealVar> varVec;
   for (const auto& v : varV) { if (std::string(v.GetName()).rfind("N_",0)==0) { varVec.push_back(v); } }
+  for (const auto& v : varV) { if (std::string(v.GetName()).rfind("R_",0)==0) { varVec.push_back(v); } }
   for (const auto& p : PDFMAP_) {
     if (p.first=="Bkg") continue;
-    for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.find(p.first)!=std::string::npos) { varVec.push_back(v); } }
+    for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.rfind("R_",0)!=0 && vv.find(p.first)!=std::string::npos) { varVec.push_back(v); } }
   }
   for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.find("Bkg")!=std::string::npos) { varVec.push_back(v); } }
   return varVec;

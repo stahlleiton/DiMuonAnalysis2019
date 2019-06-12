@@ -49,14 +49,14 @@ namespace PbPb {
 	assert(Form("[ERROR] HLT path %s is invalid", path.c_str()));
 	return HLT_INVALID;
       };
-      static const std::map< std::string , std::vector<TRIGGERBIT> > PDTRIG =
+      static const std::map< std::string , std::vector<uint> > PDTRIG =
 	{
 	 { "MUON"       , { HLT_HIL3Mu15 } },
 	 { "DIMUON"     , { HLT_HIL1DoubleMu0 , HLT_HIL1DoubleMu0_part } },
 	 { "DIMUONPERI" , { HLT_HIL1DoubleMu0_2HF_Cent30100 , HLT_HIL1DoubleMu0_2HF0_Cent30100 } },
 	 { "UPC"        , { HLT_HIUPCSingleMuNotHF2Pixel_SingleTrack } },
 	};
-      std::vector<TRIGGERBIT> HLTBitsFromPD(const std::string& PD)
+      std::vector<uint> HLTBitsFromPD(const std::string& PD)
       {
 	if (PDTRIG.count(PD)) { return PDTRIG.at(PD); }
 	assert(Form("[ERROR] PD name %s is invalid", PD.c_str()));

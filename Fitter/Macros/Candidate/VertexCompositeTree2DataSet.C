@@ -145,25 +145,11 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     //
     // Determine the trigger paths
     std::vector<uint> trigIdx;
-    if      (PD=="DIMUON"      && evtCol=="PP13Y18" ) { trigIdx.push_back(pp::R13TeV::Y2018::HLT_L1DoubleMu0); }
-    else if (PD=="HIGHMULT"    && evtCol=="PP13Y18" ) { trigIdx.push_back(pp::R13TeV::Y2018::HLT_FullTrack_Multiplicity100); }
-    else if (PD=="HIGHMULT2"   && evtCol=="PP13Y18" ) { trigIdx.push_back(pp::R13TeV::Y2018::HLT_FullTrack_Multiplicity155); }
-    else if (PD=="MINBIAS"     && evtCol=="PP13Y18" ) { trigIdx.push_back(pp::R13TeV::Y2018::HLT_L1MinimumBiasHF_OR); }
-    else if (PD=="MUON"        && evtCol=="PP5Y17"  ) { trigIdx.push_back(pp::R5TeV::Y2017::HLT_HIL3Mu12); }
-    else if (PD=="DIMUON"      && evtCol=="PP5Y17"  ) { trigIdx.push_back(pp::R5TeV::Y2017::HLT_HIL1DoubleMu0); }
-    else if (PD=="MUON"        && evtCol=="PbPb5Y18") { trigIdx.push_back(PbPb::R5TeV::Y2018::HLT_HIL3Mu12); }
-    else if (PD=="DIMUON"      && evtCol=="PbPb5Y18") { trigIdx.push_back(PbPb::R5TeV::Y2018::HLT_HIL3Mu2p5NHitQ10_L2Mu2_M7toinf); }
-    else if (PD=="DIMUONPERI"  && evtCol=="PbPb5Y18") { trigIdx.push_back(PbPb::R5TeV::Y2018::HLT_HIL1DoubleMuOpen_OS_Centrality_40_100); }
-    else if (PD=="UPC"         && evtCol=="PbPb5Y18") { trigIdx.push_back(PbPb::R5TeV::Y2018::HLT_HIUPC_SingleMuOpen_NotMBHF2AND); }
-    else if (PD=="MUON"        && evtCol=="PbPb5Y15") { trigIdx.push_back(PbPb::R5TeV::Y2015::HLT_HIL3Mu15); }
-    else if (PD=="DIMUON"      && evtCol=="PbPb5Y15") { trigIdx.push_back(PbPb::R5TeV::Y2015::HLT_HIL1DoubleMu0); trigIdx.push_back(PbPb::R5TeV::Y2015::HLT_HIL1DoubleMu0_part); }
-    else if (PD=="DIMUONPERI"  && evtCol=="PbPb5Y15") { trigIdx.push_back(PbPb::R5TeV::Y2015::HLT_HIL1DoubleMu0_2HF_Cent30100); trigIdx.push_back(PbPb::R5TeV::Y2015::HLT_HIL1DoubleMu0_2HF0_Cent30100); }
-    else if (PD=="UPC"         && evtCol=="PbPb5Y15") { trigIdx.push_back(PbPb::R5TeV::Y2015::HLT_HIUPCSingleMuNotHF2Pixel_SingleTrack); }
-    else if (PD=="MUON"        && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAL3Mu12); }
-    else if (PD=="DIMUON"      && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAL1DoubleMuOpen); }
-    else if (PD=="HIGHMULT"    && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAFullTracks_Multiplicity185); }
-    else if (PD=="HIGHMULT2"   && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAFullTracks_Multiplicity250); }
-    else if (PD=="MINBIAS"     && evtCol.rfind("8Y16")!=std::string::npos) { trigIdx.push_back(pPb::R8TeV::Y2016::HLT_PAL1MinimumBiasHF_OR_SinglePixelTrack); }
+    if      (evtCol=="PP13Y18" ) { trigIdx = pp::R13TeV::Y2018::HLTBitsFromPD(PD);  }
+    else if (evtCol=="PP5Y17"  ) { trigIdx = pp::R5TeV::Y2017::HLTBitsFromPD(PD);   }
+    else if (evtCol=="PbPb5Y18") { trigIdx = PbPb::R5TeV::Y2018::HLTBitsFromPD(PD); }
+    else if (evtCol=="PbPb5Y15") { trigIdx = PbPb::R5TeV::Y2015::HLTBitsFromPD(PD); }
+    else if (evtCol.rfind("8Y16")!=std::string::npos) { trigIdx = pPb::R8TeV::Y2016::HLTBitsFromPD(PD); }
     if (trigIdx.empty()) { std::cout << "[ERROR] Could not determine the trigger index for the sample" << std::endl; return false; }
     //
     ///// Iterate over the Input Ntuple

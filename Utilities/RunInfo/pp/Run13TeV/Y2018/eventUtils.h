@@ -37,14 +37,14 @@ namespace pp {
 	assert(Form("[ERROR] HLT path %s is invalid", path.c_str()));
 	return HLT_INVALID;
       };
-      static const std::map< std::string , std::vector<TRIGGERBIT> > PDTRIG =
+      static const std::map< std::string , std::vector<uint> > PDTRIG =
 	{
 	 { "DIMUON"    , { HLT_L1DoubleMu0 } },
 	 { "HIGHMULT"  , { HLT_FullTrack_Multiplicity100 } },
 	 { "HIGHMULT2" , { HLT_FullTrack_Multiplicity155 } },
 	 { "MINBIAS"   , { HLT_L1MinimumBiasHF_OR } },
 	};
-      std::vector<TRIGGERBIT> HLTBitsFromPD(const std::string& PD)
+      std::vector<uint> HLTBitsFromPD(const std::string& PD)
       {
 	if (PDTRIG.count(PD)) { return PDTRIG.at(PD); }
 	assert(Form("[ERROR] PD name %s is invalid", PD.c_str()));

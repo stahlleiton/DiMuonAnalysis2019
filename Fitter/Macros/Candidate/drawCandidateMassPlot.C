@@ -64,7 +64,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   const bool& isWeighted = (useDS ? ws.data(dsNameFit.c_str())->isWeighted() : false);
   //
   int drawMode = 0;
-  bool drawPull = false;  // false : Draw DATA/FIT , true : Draw the Pull
+  bool drawPull = true;  // false : Draw DATA/FIT , true : Draw the Pull
   //
   StringMap_d legInfo;
   RooPlotPtrMap_d frame;
@@ -158,7 +158,6 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
 	  const std::string& pName = pdf->GetName();
 	  std::string obj = pName; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find("To"));
 	  // Plot the PDF
-	  std::cout << pName << std::endl;
 	  ws.pdf(pName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"),
 	  				RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::Precision(1e-6),
 	  				RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("F"));
@@ -207,7 +206,6 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
       auto pdfIt = std::unique_ptr<TIterator>(fitPDFList.createIterator());
       for (auto it = pdfIt->Next(); it!=NULL; it = pdfIt->Next()) {
 	const std::string& pName = it->GetName();
-	std::cout << "AAA:  " << pName << std::endl;
 	auto obj = pName; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
         legInfo["plot_"+pName] = formatCut(obj);
       }
@@ -293,7 +291,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
     pad.at("EXTRA")->Update();
   }
   //
-  setPlotRange(*frame.at("MAIN"), ws, varName, dsNameFit, setLogScale, fitVar->getBins("PlotWindow"));
+  setPlotRange(*frame.at("MAIN"), ws, varName, dsNameFit, setLogScale);
   //
   cFig->cd();
   pad.at("MAIN")->Draw();
@@ -446,9 +444,9 @@ TLegend* printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_d
   // Define the position and size of the legend
   double xmin = 0.49 , xmax = 0.66 , ymin = 0.58 , ymax = 0.89 , legSize = 0.047;
   if (plotStyle==1 || plotStyle==2 || plotStyle==3) {
-    xmin = 0.74; ymin = 0.25; xmax = 0.90; ymax = 0.71; legSize = 0.06;
-    if (legInfo.size()<=2) { ymin = 0.35; }
+    xmin = 0.74; xmax = 0.90; ymin = 0.25; ymax = 0.71; legSize = 0.06;
   }
+  ymin = std::max(ymax-legInfo.size()*legSize*1.2, ymin);
   auto leg = new TLegend(xmin, ymin, xmax, ymax);
   // Define the legend order
   auto objMap = PDFMAP_; objMap["DATA"].push_back(-2); objMap["_TotTo"].push_back(-1);
@@ -459,7 +457,6 @@ TLegend* printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_d
   // Fill the legend
   for (const auto& plotN : legOrder) {
     if (plotN=="") continue;
-    std::cout << plotN << std::endl;
     const auto& objFrame = frame.findObject(plotN.c_str()); if (!objFrame) continue;
     // Find the draw option
     const std::string& drawOpt = frame.getDrawOptions(plotN.c_str()).Data();
