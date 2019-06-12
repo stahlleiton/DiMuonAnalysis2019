@@ -19,6 +19,7 @@
 #include "TSystem.h"
 #include "TDirectory.h"
 #include "TFile.h"
+#include "TMessageHandler.h"
 
 #include "RooWorkspace.h"
 #include "RooDataSet.h"
@@ -115,7 +116,10 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     //
     ///// Initiliaze RooDataSets
     dataOS.clear(); dataSS.clear();
+    std::vector< std::unique_ptr<TFile> > dbFiles;
     for (uint i=0; i<dsNames.size(); i++) {
+      dbFiles.push_back(std::unique_ptr<TFile>(new TFile(outputFileNames[i].c_str(), "RECREATE", "", 0)));
+      dbFiles[i]->cd();
       if (isMC) {
         cols.add(weight);
         dataOS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), "dOS", cols, RooFit::WeightVar(weight))) );
@@ -125,6 +129,9 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
         dataOS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), "dOS", cols)) );
         if (doSS) { dataSS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dSS_RAW_%s", dsNames[i].c_str()), "dSS", cols)) ); }
       }
+      // BUG FIX
+      dataOS[i]->convertToTreeStore();
+      if (doSS) { dataSS[i]->convertToTreeStore(); }
     }
     //
     // Determine the collision system of the sample
@@ -364,6 +371,10 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           nTrk.setVal    ( candSSTree->Ntrkoffline() );
           weight.setVal  ( 1.0 );
           isSwap.setLabel("None");
+	  if (isMC) {
+            weight.setVal( candSSTree->weight_gen() );
+            isSwap.setLabel( candSSTree->isSwap() ? "Yes" : "No" );
+          }
           //
           // Fill the RooDataSets
           for (uint i=0; i<dsNames.size(); i++) {
@@ -374,24 +385,27 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     }
     //// Save the RooDataSets
     for (uint i=0; i<dsNames.size(); i++) {
-      // Fix to large datasets
-      dataOS[i]->convertToTreeStore(); 
-      if (doSS) dataSS[i]->convertToTreeStore();
+      std::cout << "[INFO] Creating output file: " << outputFileNames[i] << std::endl;
       // Write the datasets
-      auto dbFile = std::unique_ptr<TFile>(TFile::Open(outputFileNames[i].c_str(),"RECREATE"));
-      dbFile->cd();
+      //auto dbFile = std::unique_ptr<TFile>(TFile::Open(outputFileNames[i].c_str(),"RECREATE"));
+      dbFiles[i]->cd();
+      std::cout << "[INFO] Saving datasets " << dsNames[i] << " in " << outputFileNames[i] << std::endl;
       dataOS[i]->Write(Form("dOS_RAW_%s", dsNames[i].c_str()));
-      if (doSS) { dataSS[i]->Write(Form("dSS_RAW_%s", dsNames[i].c_str())); }
-      dbFile->Write(); dbFile->Close();
+      if (doSS) {
+	//const bool failSave = (dataOS[i]->Write(Form("dSS_RAW_%s", dsNames[i].c_str()))<=0) || (((TMessageHandler*)gROOT->GetListOfMessageHandlers()->Last())->GetSize()>0);	
+        dataSS[i]->Write(Form("dSS_RAW_%s", dsNames[i].c_str()));
+      }
+      std::cout << "[INFO] Closing output file " << outputFileNames[i] << std::endl;
+      dbFiles[i]->Write(); dbFiles[i]->Close();
       // Return to VectorStore
-      dataOS[i]->convertToVectorStore(); 
+      dataOS[i]->convertToVectorStore();
       if (doSS) dataSS[i]->convertToVectorStore();
     }
   }
   // Import datasets to the workspaces
   for (uint i=0; i<dsNames.size(); i++) {
     if (!dataOS[i]) { std::cout << "[ERROR] " << dsNames[i] << " OS dataset was not found" << std::endl; return false; }
-    if (dataOS[i]->numEntries()==0) { std::cout << "[WARNING] " << dsNames[i] << " OS dataset is empty!" << std::endl; }
+    if (dataOS[i]->numEntries()==0) { std::cout << "[ERROR] " << dsNames[i] << " OS dataset is empty!" << std::endl; return false; }
     workspaces[dsNames[i]].import(*dataOS[i]);
     if (doSS) {
       if (!dataSS[i]) { std::cout << "[ERROR] " << dsNames[i] << " SS dataset was not found" << std::endl; return false; }
