@@ -91,8 +91,8 @@ void fitter(
   //
   // Store more information for fitting
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
-  userInput.Par["extDSDir_DATA"]   = "";
-  userInput.Par["extDSDir_MC"]     = "";
+  userInput.Par["extDSDir_DATA"]   = "/home/ags9/DiMuonAnalysis2019/Fitter/DataSet";
+  userInput.Par["extDSDir_MC"]     = "/home/ags9/DiMuonAnalysis2019/Fitter/DataSet";
   //
   // Settings for Mass Resonance Analysis
   if (userInput.Par.at("analysis").rfind("CandTo",0)==0) {
@@ -538,7 +538,7 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
         std::vector<double> v;
         const auto& value = col.second;
         if (!parseString(v, value)) { return false; }
-        if (v.size()!=1) { std::cout << "[ERROR] Initial parameter " << colName << " has incorrect number of values, it has: " << v.size() << std::endl; return false; }
+        if (v.size()!=1) { std::cout << "[ERROR] Expected one value for parameter " << colName << ", but it has: " << v.size() << ". Either it is wrong or it was not recognized by the fitter." << std::endl; return false; }
         if (!contain(userInfo.Var, colName) || !contain(userInfo.Var.at(colName), "Val")) { userInfo.Var[colName]["Val"] = v.at(0); }
         else if (std::abs(userInfo.Var.at(colName).at("Val")-v.at(0))>0.000001) {
           std::cout << "[ERROR] Value of " << colName << " ( " << v.at(0) << " ) is inconsistent between different files ( " << userInfo.Var.at(colName).at("Val") << " ) " << std::endl; return false;

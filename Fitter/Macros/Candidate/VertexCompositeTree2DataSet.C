@@ -83,12 +83,13 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     std::string dirName = "";
     findDirInFile(dirName, inputFileNames[0]);
     if (dirName=="") { std::cout << "[ERROR] Failed to find the directory in: " << inputFileNames[0] << std::endl; return false; }
+    const auto& dirNameSS = (dirName=="dimucontana_mc" ? "dimucontana_wrongsign_mc" : (dirName+"_wrongsign"));
     //
     auto candOSTree = std::unique_ptr<VertexCompositeTree>(new VertexCompositeTree());
     if (!candOSTree->GetTree(inputFileNames, dirName)) return false;
     const auto& nentries = candOSTree->GetEntries();
     auto candSSTree = std::unique_ptr<VertexCompositeTree>(new VertexCompositeTree());
-    doSS = candSSTree->GetTree(inputFileNames, dirName+"_wrongsign");
+    doSS = candSSTree->GetTree(inputFileNames, dirNameSS);
     if (doSS==false) { std::cout << "[INFO] Tree: " << dirName+"_wrongsign not found, will be ignored!" << std::endl; }
     if (doSS && candSSTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries in candTreeSS!" << std::endl; return false; }
     //
@@ -357,10 +358,6 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           nTrk.setVal    ( candSSTree->Ntrkoffline() );
           weight.setVal  ( 1.0 );
           isSwap.setLabel("None");
-	  if (isMC) {
-            weight.setVal( candSSTree->weight_gen() );
-            isSwap.setLabel( candSSTree->isSwap() ? "Yes" : "No" );
-          }
           //
           // Fill the RooDataSets
           for (uint i=0; i<dsNames.size(); i++) {

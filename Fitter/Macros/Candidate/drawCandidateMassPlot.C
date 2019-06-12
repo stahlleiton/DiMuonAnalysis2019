@@ -197,7 +197,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   }
   //
   // Create the extra frames and legend information
-  if (fitDS) { legInfo["plot_"+dsNameFit] = (isMC ? "Simulation" : "Data"); }
+  if (fitDS) { legInfo["plot_"+dsNameFit] = (isMC ? "MC" : "Data"); }
   if (fitPDF) {
     legInfo["plot_"+pdfName] = "Fit";
     const auto& fitPDFList = fitPDF->pdfList();
@@ -383,7 +383,7 @@ void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string
   std::set<std::string> objS;
   for (const auto& p : PDFMAP_) {
     if (p.first=="Bkg" || p.first.rfind("Swap")!=std::string::npos) continue;
-    if (modelN.find(p.first+"_")!=std::string::npos) { objS.insert(p.first); }
+    if (modelN.find(p.first)!=std::string::npos) { objS.insert(p.first); }
   }
   const auto& process = parseProcess(objS, cha);
   if (drawMode>0) { dy *= (1./0.8); dYPos *= (1./0.8); t.SetTextSize(0.040*(1./0.8)); }

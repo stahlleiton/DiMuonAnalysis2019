@@ -125,7 +125,7 @@ void getLumiLabels(StringVector_d& labels, const std::string& PD, const std::str
     if (colN=="PP") { colN = "pp"; } else if (colN=="PA") { colN = "pPb"; }
     lumiLabel += colN;
   }
-  if (isMC) { lumiLabel += " Simulation)"; }
+  if (isMC) { lumiLabel += " Simulation"; }
   else if (col=="PbPb5Y18") { lumiLabel += Form(" %.0f #mub^{-1}", PbPb::R5TeV::Y2018::LumiFromPD(PD)); }
   else if (col=="PP13Y18" ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R13TeV::Y2018::LumiFromPD(PD)); }
   else if (col=="PP5Y17"  ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R5TeV::Y2017::LumiFromPD(PD)); }
