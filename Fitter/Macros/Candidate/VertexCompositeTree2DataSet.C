@@ -192,7 +192,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
       //
       // Check Trigger Decisions
       std::map<uint, bool> trigMap;
-      for (const auto& idx : allTrig) { trigMap[idx.first] = candOSTree->evtSel()[idx.first]; }
+      for (const auto& idx : allTrig) { trigMap[idx.first] = candOSTree->trigHLT()[idx.first]; }
       uint evtTrig = 0;
       for (const auto& idx : trigMap) { if (idx.second) { evtTrig += std::pow(2.0, idx.first); } }
       if (evtTrig==0) continue;
@@ -289,8 +289,8 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           dau2Eta.setVal ( d2Eta );
           cent.setVal    ( centV );
           nTrk.setVal    ( candOSTree->Ntrkoffline() );
-          weight.setVal  ( 1.0 );
-          isSwap.setLabel("None");
+          weight.setVal  ( 1.0   );
+          isSwap.setLabel( "None");
           if (isMC) {
             weight.setVal( candOSTree->weight_gen() );
             isSwap.setLabel( candOSTree->isSwap() ? "Yes" : "No" );

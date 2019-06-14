@@ -20,7 +20,7 @@
 
 
 typedef std::vector< std::vector<UChar_t> > UCharVecVec;
-static const UInt_t NCAND = 500;
+static const UInt_t NCAND = 1000;
 static const UInt_t NGEN  = 10;
 
 
