@@ -32,12 +32,20 @@ namespace pPb {
 	if (TRIGNAME.count(bit)) { return TRIGNAME.at(bit); }
 	assert(Form("[ERROR] HLT bit %d is invalid", bit));
 	return "HLT_INVALID";
-      };
+      }; 
       TRIGGERBIT HLTBit(const std::string& path)
       {
 	for (const auto& trg : TRIGNAME) { if (trg.second==path) { return trg.first; } }
 	assert(Form("[ERROR] HLT path %s is invalid", path.c_str()));
 	return HLT_INVALID;
+      };
+      std::map<uint, std::string> HLTBits()
+      {
+        std::map<uint, std::string> trigBits;
+        for (const auto& t : TRIGNAME) { trigBits[t.first] = ""; }
+        trigBits.at(HLT_PAL1DoubleMuOpen) = "DiMuon";
+	trigBits.at(HLT_PAL3Mu12) = "Muon";
+        return trigBits;
       };
       static const std::map< std::string , std::vector<uint> > PDTRIG =
 	{

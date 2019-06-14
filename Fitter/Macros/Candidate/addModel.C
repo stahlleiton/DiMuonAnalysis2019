@@ -17,6 +17,7 @@
 #include "../Utilities/initClasses.h"
 #include "../Utilities/rooModelUtils.h"
 #include "../Utilities/Models/RooModCBShape.cxx"
+#include "../Utilities/Models/RooExtCBShape.cxx"
 
 
 bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, const std::string& chg, const std::string& varName)
@@ -349,7 +350,179 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 	      ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
 	      pdfList.add( *ws.pdf(pdfTotName.c_str()) );
               std::cout << "[INFO] " << tag << " Gaussian and Crystal Ball " << varName << " PDF in " << col << " added!" << std::endl; break;
-            }	    
+            }
+	  
+          case (int(Model::SingleExtCrystalBall)):
+            {
+              // check that all input parameters are defined
+              if (!( 
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "m_"+label) &&
+                    contain(info.Par, "Sigma1_"+label) &&
+                    contain(info.Par, "Alpha_"+label) &&
+                    contain(info.Par, "n_"+label) &&
+                    contain(info.Par, "AlphaR_"+label) &&
+                    contain(info.Par, "nR_"+label)
+                     )) {
+                std::cout << "[ERROR] Initial parameters where not found for " << tag << " Single Extended Crystal Ball Model in " << col << std::endl; return false;
+              }
+              // create the variables for this model
+              ws.factory( info.Par.at("N_"+label).c_str() );
+              RooArgList pdfConstrains;
+              StringVector_t varNames = {"m", "Sigma1", "Alpha", "n", "AlphaR", "nR"};
+              for (const auto& v : varNames) {
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+                // create the Gaussian PDFs for Constrain fits
+                if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
+                  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
+                  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
+                }
+              }
+              if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
+              //
+              // create the PDF
+	      auto pdf = std::unique_ptr<RooAbsPdf>(new RooExtCBShape(pdfName.c_str(), pdfName.c_str(), *ws.var(varName.c_str()),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma1_%s", label.c_str()))),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha_%s", label.c_str()))),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("n_%s", label.c_str()))),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("AlphaR_%s", label.c_str()))),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("nR_%s", label.c_str())))
+								      ));
+	      if (pdf) { ws.import(*pdf); }
+              ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
+                              pdfName.c_str(),
+                              Form("N_%s", label.c_str())
+                              ));
+	      ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+	      pdfList.add( *ws.pdf(pdfTotName.c_str()) );
+              std::cout << "[INFO] " << tag << " Single Extended Crystal Ball " << varName << " PDF in " << col << " included" << std::endl; break;
+            }
+          case (int(Model::DoubleExtCrystalBall)):
+            {
+              // check that all input parameters are defined
+              if (!(
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "m_"+label) &&
+                    contain(info.Par, "Sigma1_"+label) &&
+                    contain(info.Par, "Sigma2_"+label) &&
+                    contain(info.Par, "Alpha_"+label) &&
+                    contain(info.Par, "n_"+label) &&
+                    contain(info.Par, "AlphaR_"+label) &&
+                    contain(info.Par, "nR_"+label) &&
+                    contain(info.Par, "Alpha2_"+label) &&
+                    contain(info.Par, "n2_"+label) &&
+                    contain(info.Par, "AlphaR2_"+label) &&
+                    contain(info.Par, "nR2_"+label) &&
+                    contain(info.Par, "f_"+label)
+                    )) {
+                std::cout << "[ERROR] Initial parameters where not found for " << tag << " Double Extended Crystal Ball Model in " << col << std::endl; return false;
+              }
+              // create the variables for this model
+              ws.factory( info.Par.at("N_"+label).c_str() );
+              RooArgList pdfConstrains;
+              StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "nR", "Alpha2", "n2", "AlphaR2", "nR2", "f"};
+              for (const auto& v : varNames) {
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+                // create the Gaussian PDFs for Constrain fits
+                if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
+                  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
+                  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
+                }
+              }
+              if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
+              //
+              // create the two PDFs
+	      auto pdf1 = std::unique_ptr<RooAbsPdf>(new RooExtCBShape(pdf1Name.c_str(), pdf1Name.c_str(), *ws.var(varName.c_str()),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma1_%s", label.c_str()))),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha_%s", label.c_str()))),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("n_%s", label.c_str()))),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("AlphaR_%s", label.c_str()))),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("nR_%s", label.c_str())))
+								       ));
+	      if (pdf1) { ws.import(*pdf1); }
+	      auto pdf2 = std::unique_ptr<RooAbsPdf>(new RooExtCBShape(pdf2Name.c_str(), pdf2Name.c_str(), *ws.var(varName.c_str()),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma2_%s", label.c_str()))),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha2_%s", label.c_str()))),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("n2_%s", label.c_str()))),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("AlphaR2_%s", label.c_str()))),
+								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("nR2_%s", label.c_str())))
+								       ));
+	      if (pdf2) { ws.import(*pdf2); }
+              // Sum the PDFs to get the signal PDF
+              ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
+                              Form("f_%s", label.c_str()),
+                              pdf1Name.c_str(),
+                              pdf2Name.c_str()
+                              ));
+              ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
+                              pdfName.c_str(),
+                              Form("N_%s", label.c_str())
+                              ));
+	      ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+	      pdfList.add( *ws.pdf(pdfTotName.c_str()) );
+              std::cout << "[INFO] " << tag << " Double Extended Crystal Ball " << varName << " PDF in " << col << " added!" << std::endl; break;
+            }
+          case (int(Model::GaussianAndExtCrystalBall)):
+            {
+              // check that all input parameters are defined
+              if (!(
+		    contain(info.Par, "N_"+label) &&
+                    contain(info.Par, "m_"+label) &&
+                    contain(info.Par, "Sigma1_"+label) &&
+                    contain(info.Par, "Sigma2_"+label) &&
+                    contain(info.Par, "Alpha_"+label) &&
+                    contain(info.Par, "n_"+label) &&
+                    contain(info.Par, "AlphaR_"+label) &&
+                    contain(info.Par, "nR_"+label) &&
+                    contain(info.Par, "f_"+label)
+                    )) {
+                std::cout << "[ERROR] Initial parameters where not found for " << tag << " Gaussian and Extended Crystal Ball Model in " << col << std::endl; return false;
+              }
+              // create the variables for this model
+              ws.factory( info.Par.at("N_"+label).c_str() );
+              RooArgList pdfConstrains;
+              StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "nR", "f"};
+              for (const auto& v : varNames) {
+		if (contain(info.Par, v+"_"+label)) { ws.factory( info.Par.at(v+"_"+label).c_str() ); }
+                // create the Gaussian PDFs for Constrain fits
+                if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
+                  ws.factory(Form("Gaussian::Constr%s(%s,%s,%s)", (v+"_"+label).c_str(), (v+"_"+label).c_str(), info.Par.at("val"+v+"_"+label).c_str(), info.Par.at("sig"+v+"_"+label).c_str()));
+                  pdfConstrains.add( *ws.pdf(("Constr"+v+"_"+label).c_str()) );
+                }
+              }
+              if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
+              //
+              // create the two PDFs
+	      auto pdf = std::unique_ptr<RooAbsPdf>(new RooExtCBShape(pdf1Name.c_str(), pdf1Name.c_str(), *ws.var(varName.c_str()),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma1_%s", label.c_str()))),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha_%s", label.c_str()))),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("n_%s", label.c_str()))),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("AlphaR_%s", label.c_str()))),
+								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("nR_%s", label.c_str())))
+								      ));
+	      if (pdf) { ws.import(*pdf); }
+              ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
+                              Form("m_%s", label.c_str()), 
+                              Form("Sigma2_%s", label.c_str())
+                              ));
+              // Sum the PDFs to get the signal PDF 
+              ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
+                              Form("f_%s", label.c_str()),
+                              pdf1Name.c_str(),
+                              pdf2Name.c_str()
+                              ));
+              ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
+                              pdfName.c_str(),
+                              Form("N_%s", label.c_str())
+                              ));
+	      ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+	      pdfList.add( *ws.pdf(pdfTotName.c_str()) );
+              std::cout << "[INFO] " << tag << " Gaussian and Extended Crystal Ball " << varName << " PDF in " << col << " added!" << std::endl; break;
+            }
           case (int(Model::SingleModCrystalBall)):
             {
               // check that all input parameters are defined

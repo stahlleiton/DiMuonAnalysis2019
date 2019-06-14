@@ -41,6 +41,15 @@ namespace PbPb {
 	assert(Form("[ERROR] HLT path %s is invalid", path.c_str()));
 	return HLT_INVALID;
       };
+      std::map<uint, std::string> HLTBits()
+      {
+        std::map<uint, std::string> trigBits;
+	for (const auto& t : TRIGNAME) { trigBits[t.first] = "DiMuon"; }
+        trigBits.at(HLT_HIL1MuOpen_Centrality_80_100) = "Muon";
+        trigBits.at(HLT_HIL3Mu12) = "Muon";
+        trigBits.at(HLT_HIUPC_SingleMuOpen_NotMBHF2AND) = "Muon";
+	return trigBits;
+      };
       static const std::map< std::string , std::vector<uint> > PDTRIG =
 	{
 	 { "MUON"       , { HLT_HIL3Mu12 } },

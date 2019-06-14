@@ -75,7 +75,8 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
           }
         }
         // MASS MODEL PARAMETERS
-        const StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "Alpha2", "n", "n2", "f", "Lambda1", "Lambda2", "Lambda3", "Lambda4", "Lambda5", "Lambda6", "Lambda", "Sigma", "xb"};
+        const StringVector_t varNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "Alpha2", "AlphaR", "AlphaR2", "n", "n2", "nR", "nR2", "f",
+					 "Lambda1", "Lambda2", "Lambda3", "Lambda4", "Lambda5", "Lambda6", "Lambda", "Sigma", "xb"};
         for (const auto& v : varNames) {
           if (obj!="Bkg" && v.rfind("Lambda",0)==0) continue;
           if (!contain(info.Par, v+"_"+objLabel) || info.Par.at(v+"_"+objLabel)=="") {
@@ -83,23 +84,29 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
 	      const auto& varV = ((var=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Val")   : ((info.Var.at(var).at("Max")+info.Var.at(var).at("Min"))/2.0));
 	      const auto& varR = ((var=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Width") : ((info.Var.at(var).at("Max")-info.Var.at(var).at("Min"))/6.0));
 	      if      (v=="Sigma1"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), varR, 0.2*varR, 2.0*varR); }
-              else if (v=="rSigma21") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.800,  4.000); }
-              else if (v=="Alpha"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500, 30.000); }
-              else if (v=="n"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 3.000, 0.500, 15.000); }
+              else if (v=="rSigma21") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 1.000,  8.000); }
+              else if (v=="Alpha"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500,  8.000); }
+              else if (v=="AlphaR"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500,  8.000); }
+              else if (v=="n"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500, 10.000); }
+              else if (v=="nR"      ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 6.000, 1.000, 15.000); }
               else if (v=="f"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 0.500, 0.000,  1.000); }
               else if (v=="m"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.9f,%.9f,%.9f]", (v+"_"+objLabel).c_str(), varV, (varV - 2.0*varR), (varV + 2.0*varR)); }
 	      if (v=="m" && var=="Cand_Mass" && !contain(MASS, obj) && (obj!="Bkg" || isSwap)) {
 		std::cout << "[WARNING] Initial value for " << (v+"_"+objLabel) << " was not found!" << std::endl;
 	      }
               if (contain(info.Par, v+"_"+objLabel) || contain(info.Par, v+"_"+objFoundLabel)) {
-                if (v=="Sigma2") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), varR, 0.3*varR, 3.0*varR); }
-                if (v=="Alpha2") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500, 30.000); }
-                if (v=="n2"    ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 1.800, 0.500, 50.000); }
+                if      (v=="Sigma2" ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), varR, 0.3*varR, 3.0*varR); }
+                else if (v=="Alpha2" ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500, 30.000); }
+                else if (v=="AlphaR2") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500, 30.000); }
+                else if (v=="n2"     ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 1.800, 0.500, 50.000); }
+                else if (v=="nR2"    ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 1.800, 0.500, 50.000); }
               }
               else {
-                if (v=="Sigma2") { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", ("Sigma2_"+objLabel).c_str(), ("rSigma21_"+objLabel).c_str(), ("Sigma1_"+objLabel).c_str()); }
-                if (v=="Alpha2") { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("Alpha_"+objLabel).c_str()); }
-                if (v=="n2"    ) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("n_"+objLabel).c_str());     }
+                if      (v=="Sigma2" ) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", ("Sigma2_"+objLabel).c_str(), ("rSigma21_"+objLabel).c_str(), ("Sigma1_"+objLabel).c_str()); }
+                else if (v=="Alpha2" ) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("Alpha_"+objLabel).c_str());  }
+                else if (v=="AlphaR2") { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("AlphaR_"+objLabel).c_str()); }
+                else if (v=="n2"     ) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("n_"+objLabel).c_str());      }
+                else if (v=="nR2"    ) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("nR_"+objLabel).c_str());     }
               }
               if (v=="Lambda") { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(),  0.2, -2.00,  2.00); }
               else if (v.rfind("Lambda",0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 0.0, -100.00, 100.00); }
@@ -131,7 +138,7 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
 void constrainQuarkoniumMassParameters(GlobalInfo& info, const std::string& chg)
 {
   std::cout << "[INFO] Constraining excited state mass parameters to reference state using PDF Mass Ratio!" << std::endl;
-  const StringVector_t varList = { "N" , "m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "Alpha2", "n", "n2", "f" };
+  const StringVector_t varList = { "N" , "m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "Alpha2", "AlphaR", "AlphaR2", "n", "n2", "nR", "nR2", "f" };
   const StringVectorMap_t excStates = { {"JPsi", {"Psi2S"}} , {"Ups1S", {"Ups2S", "Ups3S"}} };
   std::string cha = info.Par.at("channel");
   for (const auto& col : info.StrS.at("fitSystem")) {

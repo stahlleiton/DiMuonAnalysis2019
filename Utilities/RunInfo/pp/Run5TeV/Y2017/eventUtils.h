@@ -29,6 +29,13 @@ namespace pp {
 	assert(Form("[ERROR] HLT path %s is invalid", path.c_str()));
 	return HLT_INVALID;
       };
+      std::map<uint, std::string> HLTBits()
+      {
+        std::map<uint, std::string> trigBits;
+        trigBits[HLT_HIL1DoubleMu0] = "DiMuon";
+	trigBits[HLT_HIL3Mu12] = "Muon";
+        return trigBits;
+      };
       static const std::map< std::string , std::vector<uint> > PDTRIG =
 	{
 	 { "MUON"       , { HLT_HIL3Mu12} },

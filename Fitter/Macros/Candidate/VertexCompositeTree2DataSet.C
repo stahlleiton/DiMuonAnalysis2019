@@ -106,21 +106,20 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     auto cent     = RooRealVar ( "Centrality" , "Centrality"      ,  -1.0 ,      1000.0 ,  ""          );
     auto nTrk     = RooRealVar ( "NTrack"     , "Number of Tracks",  -1.0 ,   1000000.0 ,  ""          );
     auto candQual = RooRealVar ( "Cand_Qual"  , "Candidate Quality", -1.0 ,        10.0 ,  ""          );
+    auto candTrig = RooRealVar ( "Cand_Trig"  , "Candidate Trigger", -1.0 ,      1000.0 ,  ""          );
+    auto candVtxP = RooRealVar ( "Cand_VtxP"  , "Cand. Vertex Prob." , -1.0 ,      10.0 ,  ""          );
     auto weight   = RooRealVar ( "Weight"     , "Weight"          ,  -1.0 , 100000000.0 ,  ""          );
     auto isSwap   = RooCategory( "Cand_IsSwap" , "Candidate IsSwap");
     isSwap.defineType("None", -1); isSwap.defineType("No", 0); isSwap.defineType("Yes", 1);
     //
     auto cols = RooArgSet(candMass, candPt, candRap, candLen, cent, nTrk);
     cols.add(dau1Pt); cols.add(dau1Eta); cols.add(dau2Pt); cols.add(dau2Eta);
-    cols.add(candAPhi); cols.add(candQual);
+    cols.add(candAPhi); cols.add(candQual); cols.add(candTrig); cols.add(candVtxP);
     if (isMC) { cols.add(isSwap); }
     //
     ///// Initiliaze RooDataSets
     dataOS.clear(); dataSS.clear();
-    std::vector< std::unique_ptr<TFile> > dbFiles;
     for (uint i=0; i<dsNames.size(); i++) {
-      dbFiles.push_back(std::unique_ptr<TFile>(new TFile(outputFileNames[i].c_str(), "RECREATE", "", 0)));
-      dbFiles[i]->cd();
       if (isMC) {
         cols.add(weight);
         dataOS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), "dOS", cols, RooFit::WeightVar(weight))) );
@@ -130,9 +129,6 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
         dataOS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), "dOS", cols)) );
         if (doSS) { dataSS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dSS_RAW_%s", dsNames[i].c_str()), "dSS", cols)) ); }
       }
-      // BUG FIX
-      dataOS[i]->convertToTreeStore();
-      if (doSS) { dataSS[i]->convertToTreeStore(); }
     }
     //
     // Determine the collision system of the sample
@@ -153,11 +149,12 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     //
     // Determine the trigger paths
     std::vector<uint> trigIdx;
-    if      (evtCol=="PP13Y18" ) { trigIdx = pp::R13TeV::Y2018::HLTBitsFromPD(PD);  }
-    else if (evtCol=="PP5Y17"  ) { trigIdx = pp::R5TeV::Y2017::HLTBitsFromPD(PD);   }
-    else if (evtCol=="PbPb5Y18") { trigIdx = PbPb::R5TeV::Y2018::HLTBitsFromPD(PD); }
-    else if (evtCol=="PbPb5Y15") { trigIdx = PbPb::R5TeV::Y2015::HLTBitsFromPD(PD); }
-    else if (evtCol.rfind("8Y16")!=std::string::npos) { trigIdx = pPb::R8TeV::Y2016::HLTBitsFromPD(PD); }
+    std::map<uint, std::string> allTrig;
+    if      (evtCol=="PP13Y18" ) { trigIdx = pp::R13TeV::Y2018::HLTBitsFromPD(PD);  allTrig = pp::R13TeV::Y2018::HLTBits();  }
+    else if (evtCol=="PP5Y17"  ) { trigIdx = pp::R5TeV::Y2017::HLTBitsFromPD(PD);   allTrig = pp::R5TeV::Y2017::HLTBits();   }
+    else if (evtCol=="PbPb5Y18") { trigIdx = PbPb::R5TeV::Y2018::HLTBitsFromPD(PD); allTrig = PbPb::R5TeV::Y2018::HLTBits(); }
+    else if (evtCol=="PbPb5Y15") { trigIdx = PbPb::R5TeV::Y2015::HLTBitsFromPD(PD); allTrig = PbPb::R5TeV::Y2015::HLTBits(); }
+    else if (evtCol.rfind("8Y16")!=std::string::npos) { trigIdx = pPb::R8TeV::Y2016::HLTBitsFromPD(PD); allTrig = pPb::R8TeV::Y2016::HLTBits(); }
     if (trigIdx.empty()) { std::cout << "[ERROR] Could not determine the trigger index for the sample" << std::endl; return false; }
     //
     ///// Iterate over the Input Ntuple
@@ -193,10 +190,17 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
       for (const auto& idx : evtSelIdx) { evtSel = (evtSel && candOSTree->evtSel()[idx]); }
       if (evtSel==false) continue;
       //
+      // Check Trigger Decisions
+      std::map<uint, bool> trigMap;
+      for (const auto& idx : allTrig) { trigMap[idx.first] = candOSTree->evtSel()[idx.first]; }
+      uint evtTrig = 0;
+      for (const auto& idx : trigMap) { if (idx.second) { evtTrig += std::pow(2.0, idx.first); } }
+      if (evtTrig==0) continue;
+      //
       // Apply Trigger Selection
       bool trigSel = false;
-      for (const auto& idx : trigIdx) { trigSel = (trigSel || candOSTree->trigHLT()[idx]); }
-      if (trigSel==false) continue;
+      for (const auto& idx : trigIdx) { trigSel = (trigSel || trigMap.at(idx)); }
+      if (isData && trigSel==false) continue;
       //
       // Candidate Based Information
       //
@@ -212,7 +216,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& d2Eta = candOSTree->EtaD2()[iC];
           const auto& d1P   = d1Pt*std::cosh(d1Eta);
           const auto& d2P   = d2Pt*std::cosh(d2Eta);
-          if ( (std::abs(d1Eta) >= 2.4 || d1P <= 3.5) || (std::abs(d2Eta) >= 2.4 || d2P <= 3.5) ) continue;
+          if ( (std::abs(d1Eta) > 2.4 || d1P < 3.0) || (std::abs(d2Eta) > 2.4 || d2P < 3.0) ) continue;
           //
           // Apply loose muon quality cuts
           const auto& centV = candOSTree->centrality();
@@ -221,28 +225,24 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& isSoftCand   = candOSTree->softCand(iC);
           int candQ = 0; if (isSoftCand) { candQ += 1; }; if (isHybridCand) { candQ += 2; }; if (isTightCand) { candQ += 4; }
           if (candQ==0) continue;
-          if (evtCol.rfind("PbPb", 0)==0 && centV<50 && candQ==1) continue;
+          if (isData  && evtCol.rfind("PbPb", 0)==0 && centV<50 && candQ==1) continue;
           //
           // Apply muon trigger matching
-          bool candTrig = false;
-          const bool& useMuonTrig = (PD=="UPC" || PD.find("MUON")!=std::string::npos);
-          if (useMuonTrig) {
-            for (const auto& idx : trigIdx) {
-              const bool& useOR = (PD=="MUON" || PD=="UPC");
-              candTrig = ( candTrig || candOSTree->trigCand(idx, iC, useOR) );
-            }
+          bool matchTrig = false;
+          for (const auto& idx : trigIdx) {
+	    bool isTrigMatch = false;
+	    if      (allTrig.at(idx)=="Muon"  ) { isTrigMatch = (trigMap.at(idx) && candOSTree->trigCand(idx, iC, true )); }
+            else if (allTrig.at(idx)=="DiMuon") { isTrigMatch = (trigMap.at(idx) && candOSTree->trigCand(idx, iC, false)); }
+	    else { matchTrig = true; break; }
+	    matchTrig = (matchTrig || isTrigMatch);
           }
-          else { candTrig = true; }
-          if (candTrig==false) continue;
+          if (isData && matchTrig==false) continue;
           //
           // Apply double muon acceptance
           const auto& pT   = candOSTree->pT()[iC];
           const auto& mass = candOSTree->mass()[iC];
-          const bool& massCut = ( (mass > 0.0 && mass < 1.6) || (mass > 2.0 && mass < 2.5) || (mass > 4.1 && mass < 6.0) || (mass > 15.0 && mass < 55.0) );
-          if (PD!="UPC" && pT>1.0 && massCut) continue;
-          //
-          // Apply double muon quality cuts
-          if (mass<20.0 && candOSTree->VtxProb()[iC]<=0.001) continue;
+          const bool& massCut = ( (mass > 0.0 && mass < 1.6) || (mass > 4.5 && mass < 6.0) || (mass > 15.0 && mass < 55.0) );
+          if (isData && PD!="UPC" && pT>1.0 && massCut) continue;
           //
           // Apply MC cuts
           if (isMC) {
@@ -255,6 +255,16 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
             if (!contain(MASS, par)) { std::cout << "[ERROR] MC particle "<<par<<" is not valid!" << std::endl; return false; }
             if (fabs(candOSTree->idmom_reco()[iC])!=int(MASS.at(par).at("PID"))) continue;
           }
+          //
+          // Store muon trigger matching info
+          uint trigM = 0;
+	  for (const auto& idx : allTrig) {
+            bool isTrigMatch = true;
+            if      (idx.second=="Muon"  ) { isTrigMatch = (trigMap.at(idx.first) && candOSTree->trigCand(idx.first, iC, true )); }
+            else if (idx.second=="DiMuon") { isTrigMatch = (trigMap.at(idx.first) && candOSTree->trigCand(idx.first, iC, false)); }
+            if (isTrigMatch) { trigM += std::pow(2.0, idx.first); }
+          }
+	  if (trigM==0) continue;
           //
           // Compute the pseudo-proper-decay length
           const auto& p    = pT*std::cosh(candOSTree->eta()[iC]);
@@ -271,6 +281,8 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           candLen.setVal ( dLen  );
           candAPhi.setVal( aPhi  );
           candQual.setVal( candQ );
+	  candTrig.setVal( trigM );
+          candVtxP.setVal( candOSTree->VtxProb()[iC] );
           dau1Pt.setVal  ( d1Pt  );
           dau2Pt.setVal  ( d2Pt  );
           dau1Eta.setVal ( d1Eta );
@@ -303,7 +315,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& d2Eta = candSSTree->EtaD2()[iC];
           const auto& d1P   = d1Pt*std::cosh(d1Eta);
           const auto& d2P   = d2Pt*std::cosh(d2Eta);
-          if ( (std::abs(d1Eta) >= 2.4 || d1P <= 3.5) || (std::abs(d2Eta) >= 2.4 || d2P <= 3.5) ) continue;
+          if ( (std::abs(d1Eta) > 2.4 || d1P < 3.0) || (std::abs(d2Eta) > 2.4 || d2P < 3.0) ) continue;
           //
           // Apply loose muon quality cuts
           const auto& centV = candSSTree->centrality();
@@ -312,28 +324,34 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& isSoftCand   = candSSTree->softCand(iC);
           int candQ = 0; if (isSoftCand) { candQ += 1; }; if (isHybridCand) { candQ += 2; }; if (isTightCand) { candQ += 4; }
           if (candQ==0) continue;
-          if (evtCol.rfind("PbPb", 0)==0 && centV<50 && candQ==1) continue;
+          if (isData && evtCol.rfind("PbPb", 0)==0 && centV<50 && candQ==1) continue;
           //
           // Apply muon trigger matching
-          bool candTrig = false;
-          const bool& useMuonTrig = (PD=="UPC" || PD.find("MUON")!=std::string::npos);
-          if (useMuonTrig) {
-            for (const auto& idx : trigIdx) {
-              const bool& useOR = (PD=="MUON" || PD=="UPC");
-              candTrig = ( candTrig || candSSTree->trigCand(idx, iC, useOR) );
-            }
+          bool matchTrig = false;
+          for (const auto& idx : trigIdx) {
+            bool isTrigMatch = false;
+            if      (allTrig.at(idx)=="Muon"  ) { isTrigMatch = (trigMap.at(idx) && candSSTree->trigCand(idx, iC, true )); }
+            else if (allTrig.at(idx)=="DiMuon") { isTrigMatch = (trigMap.at(idx) && candSSTree->trigCand(idx, iC, false)); }
+            else { matchTrig = true; break; }
+            matchTrig = (matchTrig || isTrigMatch);
           }
-          else { candTrig = true; }
-          if (candTrig==false) continue;
+          if (isData && matchTrig==false) continue;
           //
           // Apply double muon acceptance
           const auto& pT   = candSSTree->pT()[iC];
           const auto& mass = candSSTree->mass()[iC];
-          const bool& massCut = ( (mass > 0.0 && mass < 1.6) || (mass > 2.0 && mass < 2.5) || (mass > 4.1 && mass < 6.0) || (mass > 15.0 && mass < 55.0) );
-          if (PD!="UPC" && pT>1.0 && massCut) continue;
+          const bool& massCut = ( (mass > 0.0 && mass < 1.6) || (mass > 4.5 && mass < 6.0) || (mass > 15.0 && mass < 55.0) );
+          if (isData && PD!="UPC" && pT>1.0 && massCut) continue;
           //
-          // Apply double muon quality cuts
-          if (mass<20 && candSSTree->VtxProb()[iC]<=0.001) continue;
+          // Store muon trigger matching info
+          uint trigM = 0;
+          for (const auto& idx : allTrig) {
+            bool isTrigMatch = true;
+            if      (idx.second=="Muon"  ) { isTrigMatch = (trigMap.at(idx.first) && candSSTree->trigCand(idx.first, iC, true )); }
+            else if (idx.second=="DiMuon") { isTrigMatch = (trigMap.at(idx.first) && candSSTree->trigCand(idx.first, iC, false)); }
+            if (isTrigMatch) { trigM += std::pow(2.0, idx.first); }
+          }
+          if (trigM==0) continue;
           //
           // Compute the pseudo-proper-decay length
           const auto& p    = pT*std::cosh(candSSTree->eta()[iC]);
@@ -350,6 +368,8 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           candLen.setVal ( dLen  );
           candAPhi.setVal( aPhi  );
           candQual.setVal( candQ );
+	  candTrig.setVal( trigM );
+      	  candVtxP.setVal( candSSTree->VtxProb()[iC] );
           dau1Pt.setVal  ( d1Pt  );
           dau2Pt.setVal  ( d2Pt  );
           dau1Eta.setVal ( d1Eta );
@@ -370,19 +390,19 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     for (uint i=0; i<dsNames.size(); i++) {
       std::cout << "[INFO] Creating output file: " << outputFileNames[i] << std::endl;
       // Write the datasets
-      //auto dbFile = std::unique_ptr<TFile>(TFile::Open(outputFileNames[i].c_str(),"RECREATE"));
-      dbFiles[i]->cd();
+      auto dbFile = std::unique_ptr<TFile>(TFile::Open(outputFileNames[i].c_str(),"RECREATE"));
+      dbFile->cd();
+      std::cout << "[INFO] Converting datasets " << dsNames[i] << " to tree store" << std::endl;
+      dataOS[i]->convertToTreeStore();
+      if (doSS) { dataSS[i]->convertToTreeStore(); }
       std::cout << "[INFO] Saving datasets " << dsNames[i] << " in " << outputFileNames[i] << std::endl;
       dataOS[i]->Write(Form("dOS_RAW_%s", dsNames[i].c_str()));
-      if (doSS) {
-	//const bool failSave = (dataOS[i]->Write(Form("dSS_RAW_%s", dsNames[i].c_str()))<=0) || (((TMessageHandler*)gROOT->GetListOfMessageHandlers()->Last())->GetSize()>0);	
-        dataSS[i]->Write(Form("dSS_RAW_%s", dsNames[i].c_str()));
-      }
+      if (doSS) { dataSS[i]->Write(Form("dSS_RAW_%s", dsNames[i].c_str())); }
       std::cout << "[INFO] Closing output file " << outputFileNames[i] << std::endl;
-      dbFiles[i]->Write(); dbFiles[i]->Close();
-      // Return to VectorStore
+      dbFile->Write(); dbFile->Close();
+      std::cout << "[INFO] Converting datasets " << dsNames[i] << " back to vector store" << std::endl;
       dataOS[i]->convertToVectorStore();
-      if (doSS) dataSS[i]->convertToVectorStore();
+      if (doSS) { dataSS[i]->convertToVectorStore(); }
     }
   }
   // Import datasets to the workspaces
@@ -414,6 +434,8 @@ bool checkVertexCompositeDS(const RooDataSet& ds, const std::string& analysis)
         ( row->find("Cand_Len") !=0 ) &&
         ( row->find("Cand_APhi") !=0 ) &&
         ( row->find("Cand_Qual") !=0 ) &&
+	( row->find("Cand_Trig") !=0 ) &&
+	( row->find("Cand_VtxP") !=0 ) &&
         ( !isMC || row->find("Cand_IsSwap") !=0 ) &&
         ( row->find("Dau1_Pt") !=0 ) &&
         ( row->find("Dau1_Eta") !=0 ) &&

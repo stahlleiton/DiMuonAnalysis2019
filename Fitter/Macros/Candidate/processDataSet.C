@@ -73,8 +73,8 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   std::string PsiAcceptance_2018_Loose = "((abs(Dau1_Eta)<0.3 && Dau1_Pt>=3.4) || (0.3<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.1 && Dau1_Pt>=3.3) || (1.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.4 && Dau1_Pt>=7.7-4.0*abs(Dau1_Eta)) || (1.4<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.55 && Dau1_Pt>=2.1) || (1.55<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.2 && Dau1_Pt>=4.25-1.39*abs(Dau1_Eta)) || (2.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.2))";
   PsiAcceptance_2018_Loose += " && ((abs(Dau2_Eta)<0.3 && Dau2_Pt>=3.4) || (0.3<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.1 && Dau2_Pt>=3.3) || (1.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.4 && Dau2_Pt>=7.7-4.0*abs(Dau2_Eta)) || (1.4<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.55 && Dau2_Pt>=2.1) || (1.55<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.2 && Dau2_Pt>=4.25-1.39*abs(Dau2_Eta)) || (2.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.2))";
   //
+  const std::string PsiAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt*cosh(Dau1_Eta)>=3.5) && (abs(Dau2_Eta)<2.4 && Dau2_Pt*cosh(Dau2_Eta)>=3.5))";
   const std::string UpsAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=3.4) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=3.4))";
-  //
   const std::string ZAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=15.0) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=15.0))";
   //
   // Define the muon quality cuts
@@ -83,7 +83,7 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   const std::string useTightMuons = "(Cand_Qual & 4)";
   //
   // Variables to delete
-  const std::vector<std::string> delVarNames = {"Cand_Qual", "Dau1_Eta", "Dau1_Pt", "Dau2_Eta", "Dau2_Pt"}; 
+  const std::vector<std::string> delVarNames = {"Cand_Qual", "Cand_Trig", "Cand_VtxP", "Dau1_Eta", "Dau1_Pt", "Dau2_Eta", "Dau2_Pt"}; 
   //
   // Loop over the RooDataSets
   for (auto& ws : workspaces) {
@@ -93,8 +93,21 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
     if (ws.first.rfind("_")!=std::string::npos) { evtCol = ws.first.substr(ws.first.rfind("_")+1); }
     if (evtCol=="") { std::cout << "[ERROR] Could not determine the collision system in the sample" << std::endl; return false; }
     //
+    // Define the trigger selection
+    std::vector<uint> trigIdx;
+    const auto& PD = info.Par.at("PD");
+    if      (evtCol=="PP13Y18" ) { trigIdx = pp::R13TeV::Y2018::HLTBitsFromPD(PD); }
+    else if (evtCol=="PP5Y17"  ) { trigIdx = pp::R5TeV::Y2017::HLTBitsFromPD(PD); }
+    else if (evtCol=="PbPb5Y18") { trigIdx = PbPb::R5TeV::Y2018::HLTBitsFromPD(PD); }
+    else if (evtCol=="PbPb5Y15") { trigIdx = PbPb::R5TeV::Y2015::HLTBitsFromPD(PD); }
+    else if (evtCol.rfind("8Y16")!=std::string::npos) { trigIdx = pPb::R8TeV::Y2016::HLTBitsFromPD(PD); }
+    if (trigIdx.empty()) { std::cout << "[ERROR] Could not determine the trigger index for the sample" << std::endl; return false; }
+    std::string trigCut = "";
+    for (const auto& idx : trigIdx) { trigCut += Form("(Cand_Trig & %.0f) ||", std::pow(2.0, idx)); }
+    trigCut = trigCut.substr(0, trigCut.rfind(" ||")); if (trigIdx.size()>1) { trigCut = "("+trigCut+")"; }
+    //
     // Determine the cut string
-    std::string cutStr = massCut;
+    std::string cutStr = massCut+" && "+trigCut;
     if (minM > 30.) { cutStr += " && "+ZAcceptance+" && "+useTightMuons; }
     else if (minM > 5.0) {
       const bool isSoft = (info.Par.at("PD")=="UPC" || evtCol.find("5Y1")==std::string::npos);
@@ -103,7 +116,7 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
     else {
       const bool isSoft = (info.Par.at("PD")=="UPC" || evtCol.find("5Y1")==std::string::npos);
       const bool isAcc2018 = (evtCol.rfind("Y18")!=std::string::npos || evtCol.rfind("Y17")!=std::string::npos);
-      cutStr += " && "+(isAcc2018 ? PsiAcceptance_2018_Hybrid : (isSoft ? PsiAcceptance_2015_Soft : PsiAcceptance_2015_Hybrid));
+      cutStr += " && "+(isAcc2018 ? PsiAcceptance_2018_Hybrid : (isSoft ? PsiAcceptance : PsiAcceptance_2015_Hybrid));
       cutStr += " && "+(isSoft ? useSoftMuons : useHybridMuons);
     }
     //

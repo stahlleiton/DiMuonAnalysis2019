@@ -100,13 +100,14 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
 	std::string label = fitPDFList.at(0)->GetName(); label = label.substr(label.find("_")+1);
 	const auto& pdf = dynamic_cast<RooAddPdf*>(ws.pdf(("pdf"+varTag+"_"+label).c_str()));
 	if (pdf && pdf->pdfList().getSize()>1) {
-	  const auto& norm = dynamic_cast<RooAddPdf*>(pdf)->expectedEvents(fitSet);
+	  const auto& norm =fitPDF->expectedEvents(fitSet);
 	  const auto& pdfColor = std::vector<int>({kRed+1, kBlue+2, kGreen+3});
 	  auto pdfIt = std::unique_ptr<TIterator>(pdf->pdfList().createIterator()); int iPdf = 0;
 	  for (auto it = pdfIt->Next(); it!=NULL; it = pdfIt->Next(), iPdf++) {
-	    ws.pdf(it->GetName())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", it->GetName())), RooFit::Range("PlotWindow"),
-					  RooFit::NormRange("PlotWindow"), RooFit::Normalization(norm, RooAbsReal::NumEvent),
-					  RooFit::FillColor(pdfColor.at(iPdf)), RooFit::LineStyle(1), RooFit::Precision(1e-7));
+	    RooArgList pdfL; pdfL.add(*dynamic_cast<RooAbsPdf*>(it));
+	    ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", it->GetName())), RooFit::Components(pdfL),
+					    RooFit::Range("PlotWindow"), RooFit::NormRange("PlotWindow"), RooFit::Normalization(norm, RooAbsReal::NumEvent),
+					    RooFit::LineColor(pdfColor[iPdf]), RooFit::LineStyle(2));
 	  }
 	}
       }

@@ -53,7 +53,7 @@ void fitter(
                                                           //              (bit 3  (8)) Ups1S , (bit 4  (16)) Ups2S , (bit 5 (32)) Ups3S ,
                                                           //              (bit 6 (64)) Z     , (bit 7 (128)) D0
             // Select the fitting options
-            const unsigned int   numCores = 16,           // Number of cores used for fitting
+            const unsigned int   numCores = 24,           // Number of cores used for fitting
             const std::bitset<1> fitVar   = 1,            // Fit Variable: (bit 0 (1)) Cand_Mass , (bit 1 (2)) Cand_Pt
             const std::string    analysis = "CandToMuMu", // Type of analysis: CandToXX (Mass Resonance)
             // Select the drawing options

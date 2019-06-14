@@ -244,34 +244,44 @@ void defineFitParameterRange(GlobalInfo& info)
   for (const auto& var : info.StrS.at("fitVariable")) {
     double varMin = 100000000., varMax = -100000000.;
     if (var=="Cand_Mass") {
-      // Define the Candidate Mass range
-      if (contain(info.Flag, "incD0") && info.Flag.at("incD0")) {
-	if (varMin > 1.75) { varMin = 1.75; }
-	if (varMax < 2.00) { varMax = 2.00; }
+      if (info.Flag.at("fitMC")) {
+  	for (const auto& obj : info.StrS.at("incObject")) {
+    	  if (contain(MASS, obj)) {
+      	    if (varMin > MASS.at(obj).at("Min")) { varMin = MASS.at(obj).at("Min"); }
+      	    if (varMax < MASS.at(obj).at("Max")) { varMax = MASS.at(obj).at("Max"); }
+    	  }
+  	}
       }
-      if (contain(info.Flag, "incJPsi") && info.Flag.at("incJPsi")) {
-	if (varMin > 2.7) { varMin = 2.7; }
-	if (varMax < 3.5) { varMax = 3.5; }
-      }
-      if (contain(info.Flag, "incPsi2S") && info.Flag.at("incPsi2S")) {
-	if (varMin > 3.4) { varMin = 3.4; }
-	if (varMax < 4.0) { varMax = 4.0; }
-      }
-      if (contain(info.Flag, "incUps1S") && info.Flag.at("incUps1S")) {
-	if (varMin >  8.0) { varMin =  8.0; }
-	if (varMax < 10.5) { varMax = 10.5; }
-      }
-      if (contain(info.Flag, "incUps2S") && info.Flag.at("incUps2S")) {
-	if (varMin >  9.0) { varMin =  9.0; }
-	if (varMax < 11.0) { varMax = 11.0; }
-      }
-      if (contain(info.Flag, "incUps3S") && info.Flag.at("incUps3S")) {
-	if (varMin >  9.5) { varMin =  9.5; }
-	if (varMax < 13.5) { varMax = 14.0; }
-      }
-      if (contain(info.Flag, "incZ") && info.Flag.at("incZ")) {
-	if (varMin >  70.0) { varMin =  70.0; }
-	if (varMax < 110.0) { varMax = 110.0; }
+      else {
+        // Define the Candidate Mass range
+        if (contain(info.Flag, "incD0") && info.Flag.at("incD0")) {
+	  if (varMin > 1.75) { varMin = 1.75; }
+	  if (varMax < 2.00) { varMax = 2.00; }
+        }
+        if (contain(info.Flag, "incJPsi") && info.Flag.at("incJPsi")) {
+	  if (varMin > 2.7) { varMin = 2.7; }
+	  if (varMax < 3.5) { varMax = 3.5; }
+        }
+        if (contain(info.Flag, "incPsi2S") && info.Flag.at("incPsi2S")) {
+  	  if (varMin > 3.4) { varMin = 3.4; }
+  	  if (varMax < 4.0) { varMax = 4.0; }
+        }
+        if (contain(info.Flag, "incUps1S") && info.Flag.at("incUps1S")) {
+	  if (varMin >  8.0) { varMin =  8.0; }
+	  if (varMax < 10.5) { varMax = 10.5; }
+        }
+        if (contain(info.Flag, "incUps2S") && info.Flag.at("incUps2S")) {
+	  if (varMin >  9.0) { varMin =  9.0; }
+	  if (varMax < 11.0) { varMax = 11.0; }
+        }
+        if (contain(info.Flag, "incUps3S") && info.Flag.at("incUps3S")) {
+	  if (varMin >  9.5) { varMin =  9.5; }
+	  if (varMax < 13.5) { varMax = 14.0; }
+        }
+        if (contain(info.Flag, "incZ") && info.Flag.at("incZ")) {
+	  if (varMin >  70.0) { varMin =  70.0; }
+	  if (varMax < 110.0) { varMax = 110.0; }
+        }
       }
     }
     if (varMax > varMin) {

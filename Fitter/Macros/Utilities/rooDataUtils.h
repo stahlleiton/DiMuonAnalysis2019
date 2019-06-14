@@ -774,7 +774,7 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
   }
   // Set the range of each global parameter in the local workspace
   for (const auto& var : info.Var) {
-    const bool& isAbs = (var.first.find("Abs")!=std::string::npos);
+    const bool& isAbs = (var.first.find("Abs")!=std::string::npos && contain(info.StrS.at("cutPars"), var.first));
     auto varN = var.first; if (isAbs) { varN.erase(varN.find("Abs"), 3); }
     if (myws.var(varN.c_str()) && contain(var.second, "Min")) {
       myws.var(varN.c_str())->setMin(isAbs ? -var.second.at("Max") : var.second.at("Min"));
@@ -783,7 +783,7 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
     else if (!myws.var(var.first.c_str()) && contain(var.second, "Val")) {
       myws.factory(Form("%s[%.10f]", var.first.c_str(), var.second.at("Val")));
     }
-    if (isAbs && !myws.var(var.first.c_str()) && contain(var.second, "Min")) {
+    if (contain(info.StrS.at("cutPars"), var.first) && !myws.var(var.first.c_str()) && contain(var.second, "Min")) {
       myws.factory(Form("%s[%.10f,%.10f,%.10f]", var.first.c_str(), 0.0, var.second.at("Min"), var.second.at("Max")));
     }
   }
@@ -820,7 +820,7 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
 
 void setFileName(std::string& fileName, std::string& outputDir, const StringSet_t& fitV, const std::string& DSTAG, const std::string& plotLabel, const GlobalInfo& info)
 {
-  const auto& dsTag  = DSTAG.substr(0, DSTAG.rfind("_DIMUON"));
+  auto dsTag  = DSTAG.substr(0, DSTAG.rfind("_DIMUON")); if (info.Flag.at("fitMC")) { dsTag += "_"+info.Par.at("PD"); }
   const auto& colTag = DSTAG.substr(DSTAG.find_last_of("_")+1);
   const auto& objTag = *info.StrS.at("fitObject").begin();
   std::string fitVar = "";
