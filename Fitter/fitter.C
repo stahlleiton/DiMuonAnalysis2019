@@ -36,7 +36,7 @@ bool createDataSets    ( RooWorkspaceMap_t& Workspace , GlobalInfo& userInput , 
 
 void fitter(
             const std::string workDirName = "Test",       // Working directory
-            const std::bitset<1> useExt   = 0,            // Use external: (bit 0 (1)) Input DataSets
+            const std::bitset<1> useExt   = 1,            // Use external: (bit 0 (1)) Input DataSets
             // Select the type of datasets to fit
             const std::bitset<2> fitData  = 1,            // Fit Sample: (bit 0 (1)) Data , (bit 1 (2)) MC
             const std::bitset<7> fitColl  = 32,           // Fit System: (bit 0  (1)) PbPb5Y18 ,
@@ -91,8 +91,8 @@ void fitter(
   //
   // Store more information for fitting
   userInput.Par["extTreesFileDir"] = Form("%s/Input/", CWD.c_str());
-  userInput.Par["extDSDir_DATA"]   = "/home/ags9/DiMuonAnalysis2019/Fitter/DataSet";
-  userInput.Par["extDSDir_MC"]     = "/home/ags9/DiMuonAnalysis2019/Fitter/DataSet";
+  userInput.Par["extDSDir_DATA"]   = "/storage1/users/ags9/DataSet/";
+  userInput.Par["extDSDir_MC"]     = "/storage1/users/ags9/DataSet/";
   //
   // Settings for Mass Resonance Analysis
   if (userInput.Par.at("analysis").rfind("CandTo",0)==0) {
@@ -190,10 +190,10 @@ void fitter(
   if(!iniWorkEnv(DIR, workDirName)){ return; }
   /////////////////////
   StringMap_t inputFitDir;
-  for (const auto& var : userInput.StrV.at("variable")) { inputFitDir[var] = userInput.Par.at("extFitDir_"+var); }
+  for (const auto& var : userInput.StrV.at("variable")) { inputFitDir[var] = userInput.Par["extFitDir_"+var]; }
   StringDiMap_t inputInitialFilesDir;
   for (const auto& var : userInput.StrV.at("variable")) {
-    for (const auto& obj : userInput.StrV.at("object")) { inputInitialFilesDir[var][obj] = userInput.Par.at("extInitFileDir_"+var+"_"+obj); }
+    for (const auto& obj : userInput.StrV.at("object")) { inputInitialFilesDir[var][obj] = userInput.Par["extInitFileDir_"+var+"_"+obj]; }
   }
 
   // Initiliaze all the input Fit and Initial File Directories
@@ -351,7 +351,7 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
     if (FILETAG.rfind("DATA_"+userInput.Par.at("PD")+"_", 0)==0) {
       if (userInput.Flag.at("fitData")) {
         dir = userInput.Par.at("localDSDir");
-        if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_DATA")!="" && (existDir(userInput.Par.at("extDSDir_DATA"))==true)) { dir = userInput.Par.at("extDSDir_DATA"); }
+        if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_DATA")!="" && existDir(userInput.Par.at("extDSDir_DATA"))) { dir = userInput.Par.at("extDSDir_DATA"); }
         fitDS = true;
       }
     }
@@ -535,19 +535,6 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
     }
     if (found==false) {
       if (col.second != "") {
-        std::vector<double> v;
-        const auto& value = col.second;
-        if (!parseString(v, value)) { return false; }
-        if (v.size()!=1) { std::cout << "[ERROR] Expected one value for parameter " << colName << ", but it has: " << v.size() << ". Either it is wrong or it was not recognized by the fitter." << std::endl; return false; }
-        if (!contain(userInfo.Var, colName) || !contain(userInfo.Var.at(colName), "Val")) { userInfo.Var[colName]["Val"] = v.at(0); }
-        else if (std::abs(userInfo.Var.at(colName).at("Val")-v.at(0))>0.000001) {
-          std::cout << "[ERROR] Value of " << colName << " ( " << v.at(0) << " ) is inconsistent between different files ( " << userInfo.Var.at(colName).at("Val") << " ) " << std::endl; return false;
-        }
-        found = true;
-      }
-    }
-    if (found==false) {
-      if (col.second != "") {
         std::string value = col.second;
         // check that initial parameters format is correct: [ num, num, num ]
         if ((value.find("[")==std::string::npos)||(value.rfind("]")==std::string::npos)) {
@@ -585,6 +572,20 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
       else {
         info.Par[col.first] = "";
       }
+      found = true;
+    }
+    if (found==false) {
+      if (col.second != "") {
+        std::vector<double> v;
+        const auto& value = col.second;
+        if (!parseString(v, value)) { return false; }
+        if (v.size()!=1) { std::cout << "[ERROR] Expected one value for parameter " << colName << ", but it has: " << v.size() << ". Either it is wrong or it was not recognized by the fitter." << std::endl; return false; }
+        if (!contain(userInfo.Var, colName) || !contain(userInfo.Var.at(colName), "Val")) { userInfo.Var[colName]["Val"] = v.at(0); }
+        else if (std::abs(userInfo.Var.at(colName).at("Val")-v.at(0))>0.000001) {
+          std::cout << "[ERROR] Value of " << colName << " ( " << v.at(0) << " ) is inconsistent between different files ( " << userInfo.Var.at(colName).at("Val") << " ) " << std::endl; return false;
+        }
+        found = true;
+      }
     }
   }
   return true;
@@ -603,7 +604,7 @@ bool parseString(std::vector<double>& output, std::string input)
       output.push_back(d);
     }
     else {
-      std::cout << "[ERROR] The conversion from string to double failed!" << std::endl; return false;
+      std::cout << "[ERROR] The conversion from string " << input << " to double failed!" << std::endl; return false;
     }
     input = end;
     if (input!="") { input.erase(input.begin()); } // Delete the delimiter, should have length = 1
@@ -717,7 +718,7 @@ bool iniWorkEnv(StringVectorMap_t& DIR, const std::string& workDirName)
     subdir.replace(subdir.rfind("/Input/"), std::string("/Input/").length(), "/Output/");
     makeDir(subdir);
     DIR.at("output").push_back(subdir);
-  } 
+  }
   DIR["dataset"].push_back(DIR.at("main")[0] + "/DataSet/");
   makeDir(DIR.at("dataset")[0]);
   return true;
@@ -760,6 +761,17 @@ bool checkSettings(const GlobalInfo& userInput)
   const auto& analysis = userInput.Par.at("analysis");
   //
   if (analysis.rfind("CandTo", 0)==0) { /*NEED TO IMPLEMENT CHECK*/ }
+  //
+  // Check data to fit
+  bool foundSample = false;
+  for (const auto& s : userInput.StrV.at("sample")) { if (userInput.Flag.at("fit"+s)) { foundSample = true; break; } }
+  if (!foundSample) { std::cout << "[ERROR] Neither data or MC were selected!" << std::endl; return false; }
+  // Check dataset
+  if (userInput.Par.at("PD")=="") { std::cout << "[ERROR] No trigger dataset was selected!" << std::endl; return false; }
+  // Check collision system
+  bool foundSystem = false;
+  for (const auto& s : userInput.StrV.at("system")) { if (userInput.Flag.at("fit"+s)) { foundSystem = true; break; } }
+  if (!foundSystem) { std::cout << "[ERROR] No collision system was selected!" << std::endl; return false; }
   //
   std::cout << "[INFO] All user setting are correct " << std::endl;
   return true;

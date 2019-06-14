@@ -178,7 +178,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
       loadBar(jentry, nentries);
       //
       // For pPb, find out the run on data
-      if (isData && evtCol=="PA8Y16") {
+      if (isData && evtCol.rfind("8Y16")!=std::string::npos) {
         if      (candOSTree->RunNb() >= 285410 && candOSTree->RunNb() <= 285951) evtCol = "Pbp8Y16"; // for Pbp8Y16
         else if (candOSTree->RunNb() >= 285952 && candOSTree->RunNb() <= 286504) evtCol = "pPb8Y16"; // for pPb8Y16
       }
