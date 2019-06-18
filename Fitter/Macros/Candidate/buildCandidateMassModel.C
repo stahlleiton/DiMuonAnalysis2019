@@ -88,7 +88,7 @@ void setCandidateMassModelParameters(GlobalInfo& info, const std::string& chg, c
               else if (v=="Alpha"   ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500,  8.000); }
               else if (v=="AlphaR"  ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500,  8.000); }
               else if (v=="n"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 2.000, 0.500, 10.000); }
-              else if (v=="nR"      ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 6.000, 1.000, 15.000); }
+              else if (v=="nR"      ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 6.000, 0.500, 25.000); }
               else if (v=="f"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.4f,%.4f,%.4f]", (v+"_"+objLabel).c_str(), 0.500, 0.000,  1.000); }
               else if (v=="m"       ) { info.Par[v+"_"+objLabel] = Form("%s[%.9f,%.9f,%.9f]", (v+"_"+objLabel).c_str(), varV, (varV - 2.0*varR), (varV + 2.0*varR)); }
 	      if (v=="m" && var=="Cand_Mass" && !contain(MASS, obj) && (obj!="Bkg" || isSwap)) {
