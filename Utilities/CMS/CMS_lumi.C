@@ -38,8 +38,6 @@ CMS_lumi( TPad* pad, int iPosX, TString lumiText, TString lumiText2, bool isPrel
   //  float e = 0.025;
 
   pad->cd();
-   
-  cout << "[INFO] Using plot labels: " << lumiText << " , " << lumiText2 << endl;
 
   TLatex latex;
   latex.SetNDC();

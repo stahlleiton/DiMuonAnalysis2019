@@ -1,7 +1,6 @@
 #ifndef drawUtils_h
 #define drawUtils_h
 
-
 #include "TSystem.h"
 #include "TIterator.h"
 #include "TH1.h"
@@ -42,9 +41,7 @@
 #include <vector>
 
 
-typedef std::vector<std::string > StringVector_d;
-typedef std::map< std::string , std::string > StringMap_d;
-typedef std::map< std::string , StringMap_d > StringDiMap_d;
+typedef std::map< std::string , StringMap_t > StringDiMap_d;
 typedef std::map< std::string , TPad*       > PadPtrMap_d; // Unique Pointer does produce Segmentation Fault, so don't use it
 typedef std::map< std::string , std::unique_ptr<RooPlot> > RooPlotPtrMap_d;
 
@@ -113,34 +110,6 @@ bool addPdfToList(RooArgList& pdfs, RooArgList& yields, const RooWorkspace& ws, 
     yields.add(*yield);
   }
   return true;
-};
-
-
-void getLumiLabels(StringVector_d& labels, const std::string& PD, const std::string& col, const bool& isMC)
-{
-  std::string lumiLabel="";
-  const auto& colV = parseColStr(col);
-  if (!colV.empty()) {
-    auto colN = colV[0];
-    if (colN=="PP") { colN = "pp"; } else if (colN=="PA") { colN = "pPb"; }
-    lumiLabel += colN;
-  }
-  if (isMC) { lumiLabel += " Simulation"; }
-  else if (col=="PbPb5Y18") { lumiLabel += Form(" %.0f #mub^{-1}", PbPb::R5TeV::Y2018::LumiFromPD(PD)); }
-  else if (col=="PP13Y18" ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R13TeV::Y2018::LumiFromPD(PD)); }
-  else if (col=="PP5Y17"  ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R5TeV::Y2017::LumiFromPD(PD)); }
-  else if (col.rfind("8Y16")!=std::string::npos) { lumiLabel += Form(" %.1f nb^{-1}", pPb::R8TeV::Y2016::LumiFromPD(PD, col)); }
-  else if (col=="PbPb5Y15") { lumiLabel += Form(" %.0f #mub^{-1}", PbPb::R5TeV::Y2015::LumiFromPD(PD)); }
-  labels.push_back(lumiLabel);
-  //
-  std::string lumiLabel2="";
-  if (colV.size()>1) {
-    auto colE = colV[1];
-    if (colE=="5") { colE = "5.02 TeV"; } else if (colE=="8") { colE = "8.16 TeV"; } else if (colE=="13") { colE = "13 TeV"; } 
-    colE = ((colV[0]=="PP") ? "#sqrt{s} = " : "#sqrt{s_{NN}} = ") +colE;
-    lumiLabel2 += colE;
-  }
-  labels.push_back(lumiLabel2);
 };
 
 
@@ -237,7 +206,7 @@ void setPlotRange(RooPlot& frame, const RooWorkspace& ws, const std::string& var
   if (!rooPlotToTH1(hData, hFit, frame, true, 4)) { std::cout << "[ERROR] Could not find the RooHist from the frame!" << std::endl; return; }
   double YMax = std::max(hData.GetBinContent(hData.GetMaximumBin()), hFit.GetBinContent(hFit.GetMaximumBin()));
   double YMin = 1e99;
-  for (int i=1; i<=hData.GetNbinsX(); i++) if (hData.GetBinContent(i)>0) YMin = min(YMin, hData.GetBinContent(i));
+  for (int i=1; i<=hData.GetNbinsX(); i++) if (hData.GetBinContent(i)>0) YMin = std::min(YMin, hData.GetBinContent(i));
   double Yup(0.), Ydown(0.), rDown=0.05, rUp=0.4;
   if(setLogScale)
   {
@@ -531,7 +500,7 @@ bool isParAtLimit(const RooRealVar& var)
 };
 
 
-RooAbsCollection* skimSet(const RooArgSet& set, const std::string& varStr="*", const StringVector_d& excV={}, const std::string& state="Constant")
+RooAbsCollection* skimSet(const RooArgSet& set, const std::string& varStr="*", const StringVector_t& excV={}, const std::string& state="Constant")
 {
   // Select variables passing varStr
   auto vSet = std::unique_ptr<RooAbsCollection>(set.selectByName(varStr.c_str(), true));
@@ -553,7 +522,7 @@ std::vector<RooRealVar> getModelVar(const RooWorkspace& ws, const std::string& n
   const auto& label = (pdfName.find("_")!=std::string::npos ? pdfName.substr(pdfName.find(cha)) : "");
   const auto& varStr = name + "_*" + (label=="" ? "" : label);
   // Define the list of observables
-  StringVector_d obsV;
+  StringVector_t obsV;
   if (ws.data(dsName.c_str())) {
     const  auto& listObs = const_cast<RooWorkspace*>(&ws)->set(("SET_"+dsName).c_str());
     auto parIt = std::unique_ptr<TIterator>(listObs->createIterator());
@@ -589,12 +558,12 @@ std::string formatCut(const std::string& cut)
   std::string str = cut;
   str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
   // Format the variable string
-  const auto& varL = StringMap_d({{"Cand_Pt", "p_{T}"}, {"Cand_Mass", "M"}});
+  const auto& varL = StringMap_t({{"Cand_Pt", "p_{T}"}, {"Cand_Mass", "M"}});
   for (const auto& vL : varL) { stringReplace(str, vL.first, vL.second); }
   // Format the observables
   for (const auto& elem : VARLABEL_) { stringReplace(str, elem.first, elem.second); }
   // Format the object string
-  const auto& objL = StringMap_d({{"Pl", "^{+}+x"}, {"Mi", "^{#font[122]{\55}}+x"}, {"To", "#rightarrow"},
+  const auto& objL = StringMap_t({{"Pl", "^{+}+x"}, {"Mi", "^{#font[122]{\55}}+x"}, {"To", "#rightarrow"},
 				  {"El", "e"}, {"Mu", "#mu"}, {"Tau","#tau"},
 				  {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
 				  {"JPsi", "J/#psi"}, {"Psi(2S)", "#psi(2S)"},
@@ -609,7 +578,7 @@ std::string formatPar(const std::string& name, const std::string& cha)
 {
   std::string label = cha;
   if (label=="ToMuMu") { label = "#mu^{+}#mu^{#font[122]{\55}} "; }
-  const auto& parL = StringMap_d({{"Cand_Mass", "Mass GeV/c^{2}"}, {"Cand_Pt", "p_{T} GeV/c"}});
+  const auto& parL = StringMap_t({{"Cand_Mass", "Mass GeV/c^{2}"}, {"Cand_Pt", "p_{T} GeV/c"}});
   for (const auto& pL : parL) { if (name==pL.first) { label += pL.second; break; } }
   return label;
 };
@@ -622,11 +591,11 @@ std::string parseVarName(const std::string& name)
   stringstream ss(name); std::string s1, s2, s3;
   getline(ss, s1, '_'); getline(ss, s2, '_'); getline(ss, s3, '_');
   // Format model parameters
-  const auto& varL = StringMap_d({{"Alpha", "#alpha"}, {"Beta", "#beta"}, {"Lambda", "#lambda"}, {"Sigma", "#sigma"}, {"rSigma21","#sigma2/#sigma1"},
+  const auto& varL = StringMap_t({{"Alpha", "#alpha"}, {"Beta", "#beta"}, {"Lambda", "#lambda"}, {"Sigma", "#sigma"}, {"rSigma21","#sigma2/#sigma1"},
 				  {"XSection","#sigma"}, {"AccXEff","#alphax#epsilon"}});
   for (const auto& vL : varL) { if (s1.rfind(vL.first, 0)==0) { stringReplace(s1, vL.first, vL.second); break; } }
   // Format Object name
-  const auto& objL = StringMap_d({{"Bkg", "Bkg"}, {"Z", "Z"}, {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+  const auto& objL = StringMap_t({{"Bkg", "Bkg"}, {"Z", "Z"}, {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
 				  {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
 				  {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
   for (const auto& oL : objL) { if (s2.find(oL.first)!=std::string::npos) { s2 = oL.second; break; } }
@@ -641,7 +610,7 @@ std::string parseVarName(const std::string& name)
 std::string parseObject(const std::string& inObj)
 {
   // Format Object name
-  const auto& objL = StringMap_d({{"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+  const auto& objL = StringMap_t({{"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
 				  {"PsinS", "#psi(nS)"}, {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
 				  {"UpsnS", "#Upsilon(nS)"}, {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
   return (objL.find(inObj)!=objL.end() ? objL.at(inObj) : inObj);
@@ -653,14 +622,14 @@ std::string parseProcess(const std::string& obj, const std::string& cha)
   // Format Object name
   std::string proc = obj;
   if (proc=="") return proc;
-  const auto& objL = StringMap_d({{"To", " #rightarrow "}, {"El", "e"}, {"Mu", "#mu"}, {"Tau","#tau"},
+  const auto& objL = StringMap_t({{"To", " #rightarrow "}, {"El", "e"}, {"Mu", "#mu"}, {"Tau","#tau"},
 				  {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
 				  {"PsinS", "#psi(nS)"}, {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
 				  {"UpsnS", "#Upsilon(nS)"}, {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
   for (const auto& oL : objL) { stringReplace(proc, oL.first, oL.second); }
   // Format the channel
   proc += cha;
-  const auto& chaL = StringMap_d({{"ToMuMu", " #rightarrow #mu^{+} + #mu^{#font[122]{\55}}"}});
+  const auto& chaL = StringMap_t({{"ToMuMu", " #rightarrow #mu^{+} + #mu^{#font[122]{\55}}"}});
   for (const auto& cL : chaL) { stringReplace(proc, cL.first, cL.second); }
   proc = ("#font[62]{#scale[1.1]{"+proc+"}}");
   return proc;

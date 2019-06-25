@@ -14,14 +14,190 @@
 #include "TGraphAsymmErrors.h"
 
 // c++ headers
+#include <dirent.h>
 #include <string>
 #include <sys/stat.h>
 #include <iostream>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <chrono>
 #include <memory>
 #include <utility>
 #include <algorithm>
+
+// Auxiliary Headers
+#include "RunInfo/eventUtils.h"
+
+
+typedef std::unordered_set< std::string                  > StringSet_t;
+typedef std::unordered_map< std::string , StringSet_t    > StringSetMap_t;
+typedef std::vector<        std::string                  > StringVector_t;
+typedef std::unordered_map< std::string , StringVector_t > StringVectorMap_t;
+typedef std::unordered_map< std::string , double         > DoubleMap_t;
+typedef std::unordered_map< std::string , DoubleMap_t    > DoubleDiMap_t;
+typedef std::unordered_map< std::string , std::string    > StringMap_t;
+typedef std::unordered_map< std::string , std::string*   > StringPMap_t;
+typedef std::unordered_map< std::string , int            > IntMap_t;
+typedef std::unordered_map< std::string , bool           > BoolMap_t;
+
+
+// Global Info Structure (wrapper to carry information around)
+typedef struct GlobalInfo {
+  DoubleDiMap_t     Var;
+  StringMap_t       Par;
+  IntMap_t          Int;
+  StringVectorMap_t StrV;
+  StringSetMap_t    StrS;
+  StringPMap_t      StrP;
+  BoolMap_t         Flag;
+  void              Clear() { this->Var.clear(); this->Par.clear(); this->Int.clear(); this->StrV.clear(); this->StrS.clear(); this->StrP.clear(); this->Flag.clear(); }
+  GlobalInfo() {}
+  GlobalInfo(const GlobalInfo &ref, bool keep = false) {
+    this->Copy(ref, keep);
+  }
+  ~GlobalInfo() {
+    for (auto& p : this->StrP) { if (p.second) { delete p.second; } }
+    this->Clear();
+  }
+  void Copy(const DoubleDiMap_t &ref, bool keep = true) {
+    if (!keep) this->Var.clear();
+    for (const auto& var : ref) {
+      for (const auto& ele : var.second) {
+        this->Var[var.first][ele.first] = ele.second;
+      }
+    }
+  }
+  void Copy(const StringMap_t &ref, bool keep = true) {
+    if (!keep) this->Par.clear();
+    for (const auto& par : ref) {
+      this->Par[par.first] = par.second;
+    }
+  }
+  void Copy(const IntMap_t &ref, bool keep = true) {
+    if (!keep) this->Int.clear();
+    for (const auto& i : ref) {
+      this->Int[i.first] = i.second;
+    }
+  }
+  void Copy(const StringVectorMap_t &ref, bool keep = true) {
+    if (!keep) this->StrV.clear();
+    for (const auto& i : ref) {
+      this->StrV[i.first] = i.second;
+    }
+  }
+  void Copy(const StringSetMap_t &ref, bool keep = true) {
+    if (!keep) this->StrS.clear();
+    for (const auto& i : ref) {
+      this->StrS[i.first] = i.second;
+    }
+  }
+  void Copy(const BoolMap_t &ref, bool keep = true) {
+    if (!keep) this->Flag.clear();
+    for (const auto& flag : ref) {
+      this->Flag[flag.first] = flag.second;
+    }
+  }
+  void Copy(const GlobalInfo &ref, bool keep = true) {
+    this->Copy(ref.Var, keep);
+    this->Copy(ref.Par, keep);
+    this->Copy(ref.Int, keep);
+    this->Copy(ref.StrV, keep);
+    this->Copy(ref.StrS, keep);
+    this->Copy(ref.Flag, keep);
+  }
+  void Print(void) const
+  {
+    for (const auto& var : this->Var) {
+      for (const auto& ele : var.second) { std::cout << "VAR: " << var.first << " " << ele.first << " >> " << ele.second << std::endl; }
+    }
+    for (const auto& stV : this->StrV) {
+      std::string n = "{ "; for (const auto& ele : stV.second) { n += ele+", "; } n += "}";
+      std::cout << "STR: " << stV.first << " >> " << n << std::endl;
+    }
+    for (const auto& stS : this->StrS) {
+      std::string n = "{ "; for (const auto& ele : stS.second) { n += ele+", "; } n += "}";
+      std::cout << "STR: " << stS.first << " >> " << n << std::endl;
+    }
+    for (const auto& stP : this->StrP) {
+      if (stP.second) { std::cout << "STR: " << stP.first << " >> "<< *stP.second << std::endl; }
+    }
+    for (const auto& par : this->Par ) { std::cout << "PAR: "  << par.first << " >> " << par.second << std::endl; }
+    for (const auto& inT : this->Int ) { std::cout << "INT: "  << inT.first << " >> " << inT.second << std::endl; }
+    for (const auto& flg : this->Flag) { std::cout << "FLAG: " << flg.first << " >> " << flg.second << std::endl; }
+  }
+  bool operator == (const DoubleDiMap_t &ref) const
+  {
+    if (ref.size() != this->Var.size()) return false;
+    for (const auto& var : this->Var) {
+      if (ref.find(var.first)==ref.end() || ref.at(var.first).find("Min")==ref.at(var.first).end() || ref.at(var.first).find("Max")==ref.at(var.first).end()) return false;
+      if (var.second.at("Min") != ref.at(var.first).at("Min")) return false;
+      if (var.second.at("Max") != ref.at(var.first).at("Max")) return false;
+    }
+    return true;
+  }
+  bool operator == (const StringMap_t &ref) const
+  {
+    if (ref.size() != this->Par.size()) return false;
+    for (const auto& par : this->Par) {
+      if (ref.find(par.first)==ref.end()) return false;
+      if (par.second != ref.at(par.first)) return false;
+    }
+    return true;
+  }
+  bool operator == (const IntMap_t &ref) const
+  {
+    if (ref.size() != this->Int.size()) return false;
+    for (const auto& i : this->Int) {
+      if (ref.find(i.first)==ref.end()) return false;
+      if (i.second != ref.at(i.first)) return false;
+    }
+    return true;
+  }
+  bool operator == (const StringVectorMap_t &ref) const
+  {
+    if (ref.size() != this->StrV.size()) return false;
+    for (const auto& i : this->StrV) {
+      if (ref.find(i.first)==ref.end()) return false;
+      if (i.second != ref.at(i.first)) return false;
+    }
+    return true;
+  }
+  bool operator == (const StringSetMap_t &ref) const
+  {
+    if (ref.size() != this->StrS.size()) return false;
+    for (const auto& i : this->StrS) {
+      if (ref.find(i.first)==ref.end()) return false;
+      if (i.second != ref.at(i.first)) return false;
+    }
+    return true;
+  }
+  bool operator == (const BoolMap_t &ref) const
+  {
+    if (ref.size() != this->Flag.size()) return false;
+    for (const auto& flag : this->Flag) {
+      if (ref.find(flag.first)==ref.end()) return false;
+      if (flag.second != ref.at(flag.first)) return false;
+    }
+    return true;
+  }
+  bool operator != ( const DoubleDiMap_t      &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const StringMap_t        &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const IntMap_t           &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const StringVectorMap_t  &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const StringSetMap_t     &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator != ( const BoolMap_t          &ref ) const { if (*this == ref) { return false; } return true; }
+  bool operator == ( const GlobalInfo         &ref) const
+  {
+    if ( *this != ref.Var  ) return false;
+    if ( *this != ref.Par  ) return false;
+    if ( *this != ref.Int  ) return false;
+    if ( *this != ref.StrV ) return false;
+    if ( *this != ref.StrS ) return false;
+    if ( *this != ref.Flag ) return false;
+    return true;
+  }
+} GlobalInfo;
 
 
 // Utiliy Functions
@@ -40,6 +216,26 @@ template<class C, class T>
 auto contain(const C& c, const T& x)
 -> decltype(end(c), true)
 { return contain_impl(c, x, 0); }
+
+
+bool fileList(std::vector< std::string >& fileNames, const std::string& dirPath, const bool& verb=false)
+{
+  // Open the directory
+  DIR * dpdf = opendir(dirPath.c_str());
+  // Search for all the files inside the directory
+  if (dpdf != NULL){
+    struct dirent *epdf;
+    while ((epdf = readdir(dpdf))){
+      if (strcmp(epdf->d_name,".")!=0 && strcmp(epdf->d_name,"..")!=0 ) {
+        if (verb) { std::cout << "[INFO] Adding file: " << epdf->d_name << std::endl; }
+        fileNames.push_back(epdf->d_name);
+      }
+    }
+  } else {
+    std::cout << "[ERROR] Working directory ( " << dirPath << " ) was not found!" << endl; return false;
+  }
+  return true;
+};
 
 
 bool existDir(const std::string& dir)
@@ -123,8 +319,7 @@ void stringReplace(std::string& txt, const std::string& from, const std::string&
 };
 
 
-std::vector<std::string>
-parseColStr(const std::string& colStr)
+std::vector<std::string> parseColStr(const std::string& colStr)
 {
   std::vector<std::string> vecStr;
   if (colStr=="") return vecStr;
@@ -135,6 +330,35 @@ parseColStr(const std::string& colStr)
   if (posN!=std::string::npos) vecStr.push_back(cStr.substr(posN, posY-posN));
   if (posY!=std::string::npos) vecStr.push_back(cStr.substr(posY+1));
   return vecStr;
+};
+
+
+void getLumiLabels(StringVector_t& labels, const std::string& PD, const std::string& col, const bool& isMC)
+{
+  std::string lumiLabel="";
+  const auto& colV = parseColStr(col);
+  if (!colV.empty()) {
+    auto colN = colV[0];
+    if (colN=="PP") { colN = "pp"; } else if (colN=="PA") { colN = "pPb"; }
+    lumiLabel += colN;
+  }
+  if (isMC) { lumiLabel += " Simulation"; }
+  else if (PD=="") { lumiLabel += " Data"; }
+  else if (col=="PbPb5Y18") { lumiLabel += Form(" %.0f #mub^{-1}", PbPb::R5TeV::Y2018::LumiFromPD(PD)); }
+  else if (col=="PP13Y18" ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R13TeV::Y2018::LumiFromPD(PD)); }
+  else if (col=="PP5Y17"  ) { lumiLabel += Form(" %.1f pb^{-1}", pp::R5TeV::Y2017::LumiFromPD(PD)); }
+  else if (col.rfind("8Y16")!=std::string::npos) { lumiLabel += Form(" %.1f nb^{-1}", pPb::R8TeV::Y2016::LumiFromPD(PD, col)); }
+  else if (col=="PbPb5Y15") { lumiLabel += Form(" %.0f #mub^{-1}", PbPb::R5TeV::Y2015::LumiFromPD(PD)); }
+  labels.push_back(lumiLabel);
+  //
+  std::string lumiLabel2="";
+  if (colV.size()>1) {
+    auto colE = colV[1];
+    if (colE=="5") { colE = "5.02 TeV"; } else if (colE=="8") { colE = "8.16 TeV"; } else if (colE=="13") { colE = "13 TeV"; } 
+    colE = ((colV[0]=="PP") ? "#sqrt{s} = " : "#sqrt{s_{NN}} = ") +colE;
+    lumiLabel2 += colE;
+  }
+  labels.push_back(lumiLabel2);
 };
 
 
