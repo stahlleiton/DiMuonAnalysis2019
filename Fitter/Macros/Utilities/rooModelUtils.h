@@ -2,6 +2,7 @@
 #define rooModelUtils_h
 
 #include "TH1.h"
+#include "TInterpreter.h"
 
 #include "RooFit.h"
 #include "RooWorkspace.h"
@@ -13,8 +14,28 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <set>
 
 #include "initClasses.h"
+
+
+std::set<std::string> MODELCLASS_;
+
+
+bool importModelClass(RooWorkspace& ws, const std::string& className)
+{
+  const std::string& CWD = getcwd(NULL, 0);
+  const auto& classDir = CWD+"/Macros/Utilities/Models/";
+  TInterpreter::EErrorCode ecode;
+  if (MODELCLASS_.find(className)==MODELCLASS_.end()) {
+    gInterpreter->ProcessLineSynch(Form(".L %s%s.cxx+",classDir.c_str(), className.c_str()), &ecode);
+    if (ecode!=TInterpreter::kNoError) return false;
+    MODELCLASS_.insert(className);
+  }
+  auto classPdf = std::unique_ptr<RooAbsPdf>((RooAbsPdf*)gInterpreter->ProcessLineSynch(Form("new %s()", className.c_str()), &ecode));
+  if (ecode!=TInterpreter::kNoError) return false;
+  return ws.importClassCode(classPdf->IsA());
+}
 
 
 TH1* rebinhist(const TH1& hist, const double& xmin, const double& xmax, const std::string& type="Old")

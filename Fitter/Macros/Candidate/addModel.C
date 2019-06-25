@@ -16,8 +16,6 @@
 
 #include "../Utilities/initClasses.h"
 #include "../Utilities/rooModelUtils.h"
-#include "../Utilities/Models/RooModCBShape.cxx"
-#include "../Utilities/Models/RooExtCBShape.cxx"
 
 
 bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, const std::string& chg, const std::string& varName)
@@ -337,7 +335,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
                               Form("m_%s", label.c_str()), 
                               Form("Sigma2_%s", label.c_str())
                               ));
-              // Sum the PDFs to get the signal PDF 
+              // Sum the PDFs to get the signal PDF
               ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
                               Form("f_%s", label.c_str()),
                               pdf1Name.c_str(),
@@ -380,16 +378,17 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               }
               if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
               //
+	      // import the model class
+	      if (!importModelClass(ws, "RooExtCBShape")) { std::cout << "[ERROR] Could not import the class RooExtCBShape!" << std::endl; return false; }
               // create the PDF
-	      auto pdf = std::unique_ptr<RooAbsPdf>(new RooExtCBShape(pdfName.c_str(), pdfName.c_str(), *ws.var(varName.c_str()),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma1_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("n_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("AlphaR_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("nR_%s", label.c_str())))
-								      ));
-	      if (pdf) { ws.import(*pdf); }
+	      ws.factory(Form("RooExtCBShape::%s(%s, %s, %s, %s, %s, %s, %s)", pdfName.c_str(), varName.c_str(),
+			      Form("m_%s", label.c_str()),
+			      Form("Sigma1_%s", label.c_str()),
+			      Form("Alpha_%s", label.c_str()),
+			      Form("n_%s", label.c_str()),
+			      Form("AlphaR_%s", label.c_str()),
+			      Form("nR_%s", label.c_str())
+			      ));
               ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
                               pdfName.c_str(),
                               Form("N_%s", label.c_str())
@@ -432,26 +431,26 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               }
               if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
               //
+	      // import the model class
+	      if (!importModelClass(ws, "RooExtCBShape")) { std::cout << "[ERROR] Could not import the class RooExtCBShape!" << std::endl; return false; }
               // create the two PDFs
-	      auto pdf1 = std::unique_ptr<RooAbsPdf>(new RooExtCBShape(pdf1Name.c_str(), pdf1Name.c_str(), *ws.var(varName.c_str()),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma1_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("n_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("AlphaR_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("nR_%s", label.c_str())))
-								       ));
-	      if (pdf1) { ws.import(*pdf1); }
-	      auto pdf2 = std::unique_ptr<RooAbsPdf>(new RooExtCBShape(pdf2Name.c_str(), pdf2Name.c_str(), *ws.var(varName.c_str()),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma2_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha2_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("n2_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("AlphaR2_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("nR2_%s", label.c_str())))
-								       ));
-	      if (pdf2) { ws.import(*pdf2); }
-              // Sum the PDFs to get the signal PDF
+	      ws.factory(Form("RooExtCBShape::%s(%s, %s, %s, %s, %s, %s, %s)", pdf1Name.c_str(), varName.c_str(),
+			      Form("m_%s", label.c_str()),
+			      Form("Sigma1_%s", label.c_str()),
+			      Form("Alpha_%s", label.c_str()),
+			      Form("n_%s", label.c_str()),
+			      Form("AlphaR_%s", label.c_str()),
+			      Form("nR_%s", label.c_str())
+			      ));
+	      ws.factory(Form("RooExtCBShape::%s(%s, %s, %s, %s, %s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
+			      Form("m_%s", label.c_str()),
+			      Form("Sigma2_%s", label.c_str()),
+			      Form("Alpha2_%s", label.c_str()),
+			      Form("n2_%s", label.c_str()),
+			      Form("AlphaR2_%s", label.c_str()),
+			      Form("nR2_%s", label.c_str())
+			      ));
+              // sum the PDFs to get the signal PDF
               ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
                               Form("f_%s", label.c_str()),
                               pdf1Name.c_str(),
@@ -495,21 +494,22 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               }
               if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
               //
+	      // import the model class
+	      if (!importModelClass(ws, "RooExtCBShape")) { std::cout << "[ERROR] Could not import the class RooExtCBShape!" << std::endl; return false; }
               // create the two PDFs
-	      auto pdf = std::unique_ptr<RooAbsPdf>(new RooExtCBShape(pdf1Name.c_str(), pdf1Name.c_str(), *ws.var(varName.c_str()),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma1_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("n_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("AlphaR_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("nR_%s", label.c_str())))
-								      ));
-	      if (pdf) { ws.import(*pdf); }
+	      ws.factory(Form("RooExtCBShape::%s(%s, %s, %s, %s, %s, %s, %s)", pdf1Name.c_str(), varName.c_str(),
+			      Form("m_%s", label.c_str()),
+			      Form("Sigma1_%s", label.c_str()),
+			      Form("Alpha_%s", label.c_str()),
+			      Form("n_%s", label.c_str()),
+			      Form("AlphaR_%s", label.c_str()),
+			      Form("nR_%s", label.c_str())
+			      ));
               ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
                               Form("m_%s", label.c_str()), 
                               Form("Sigma2_%s", label.c_str())
                               ));
-              // Sum the PDFs to get the signal PDF 
+              // sum the PDFs to get the signal PDF
               ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
                               Form("f_%s", label.c_str()),
                               pdf1Name.c_str(),
@@ -548,13 +548,14 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               }
               if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
               //
+	      // import the model class
+	      if (!importModelClass(ws, "RooModCBShape")) { std::cout << "[ERROR] Could not import the class RooModCBShape!" << std::endl; return false; }
               // create the PDF
-	      auto pdf = std::unique_ptr<RooAbsPdf>(new RooModCBShape(pdfName.c_str(), pdfName.c_str(), *ws.var(varName.c_str()),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma1_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha_%s", label.c_str())))
-								      ));
-	      if (pdf) { ws.import(*pdf); }
+	      ws.factory(Form("RooModCBShape::%s(%s,%s,%s,%s)", pdfName.c_str(), varName.c_str(),
+			      Form("m_%s", label.c_str()),
+			      Form("Sigma1_%s", label.c_str()),
+			      Form("Alpha_%s", label.c_str())
+			      ));
               ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
                               pdfName.c_str(),
                               Form("N_%s", label.c_str())
@@ -591,20 +592,20 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               }
               if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
               //
+	      // import the model class
+	      if (!importModelClass(ws, "RooModCBShape")) { std::cout << "[ERROR] Could not import the class RooModCBShape!" << std::endl; return false; }
               // create the two PDFs
-	      auto pdf1 = std::unique_ptr<RooAbsPdf>(new RooModCBShape(pdf1Name.c_str(), pdf1Name.c_str(), *ws.var(varName.c_str()),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma1_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha_%s", label.c_str())))
-								       ));
-	      if (pdf1) { ws.import(*pdf1); }
-	      auto pdf2 = std::unique_ptr<RooAbsPdf>(new RooModCBShape(pdf2Name.c_str(), pdf2Name.c_str(), *ws.var(varName.c_str()),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma2_%s", label.c_str()))),
-								       *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha2_%s", label.c_str())))
-								       ));
-	      if (pdf2) { ws.import(*pdf2); }
-              // Sum the PDFs to get the signal PDF
+	      ws.factory(Form("RooModCBShape::%s(%s,%s,%s,%s)", pdf1Name.c_str(), varName.c_str(),
+			      Form("m_%s", label.c_str()),
+			      Form("Sigma1_%s", label.c_str()),
+			      Form("Alpha_%s", label.c_str())
+			      ));
+	      ws.factory(Form("RooModCBShape::%s(%s,%s,%s,%s)", pdf2Name.c_str(), varName.c_str(),
+			      Form("m_%s", label.c_str()),
+			      Form("Sigma2_%s", label.c_str()),
+			      Form("Alpha2_%s", label.c_str())
+			      ));
+              // sum the PDFs to get the signal PDF
               ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
                               Form("f_%s", label.c_str()),
                               pdf1Name.c_str(),
@@ -645,18 +646,19 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
               }
               if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
               //
+	      // import the model class
+	      if (!importModelClass(ws, "RooModCBShape")) { std::cout << "[ERROR] Could not import the class RooModCBShape!" << std::endl; return false; }
               // create the two PDFs
-	      auto pdf = std::unique_ptr<RooAbsPdf>(new RooModCBShape(pdf1Name.c_str(), pdf1Name.c_str(), *ws.var(varName.c_str()),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("m_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Sigma1_%s", label.c_str()))),
-								      *dynamic_cast<RooAbsReal*>(ws.arg(Form("Alpha_%s", label.c_str())))
-								      ));
-	      if (pdf) { ws.import(*pdf); }
+	      ws.factory(Form("RooModCBShape::%s(%s,%s,%s,%s)", pdf1Name.c_str(), varName.c_str(),
+			      Form("m_%s", label.c_str()),
+			      Form("Sigma1_%s", label.c_str()),
+			      Form("Alpha_%s", label.c_str())
+			      ));
               ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
                               Form("m_%s", label.c_str()), 
                               Form("Sigma2_%s", label.c_str())
                               ));
-              // Sum the PDFs to get the signal PDF 
+              // sum the PDFs to get the signal PDF
               ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
                               Form("f_%s", label.c_str()),
                               pdf1Name.c_str(),
@@ -747,7 +749,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
                               Form("Alpha_%s", label.c_str()),
                               Form("n_%s", label.c_str())
                               ));
-              // covolve the PDFs to get the signal PDF 
+              // covolve the PDFs to get the signal PDF
               ws.factory(Form("FCONV::%s(%s, %s, %s)", pdfName.c_str(), varName.c_str(),
                               pdf1Name.c_str(),
                               pdf2Name.c_str()
@@ -1377,7 +1379,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const StringDiMap_t& models, c
 		}
 	      }
 	      if (pdfConstrains.getSize()>0) { ws.import(pdfConstrains, Form("pdfConstr%s", mainLabel.c_str())); }
-              // create the PDF                 
+              // create the PDF
               ws.factory(Form("RooGenericPdf::%s('TMath::Exp(-@0*@1)*(1.0+TMath::Erf((@0-@2)/@3))', {%s, %s, %s, %s})", pdfName.c_str(), varName.c_str(),
                               Form("Lambda_%s", label.c_str()),
                               Form("xb_%s", label.c_str()),

@@ -9,13 +9,15 @@
     
      P.d.f implementing the Extended Crystal Ball line shape
  **/
-    
-#include "RooFit.h"
-#include "RooExtCBShape.h"
-#include "RooMath.h"
- 
-using namespace std;
 
+#include "Riostream.h"
+
+#include "RooExtCBShape.h"
+#include "RooAbsReal.h"
+#include "RooRealVar.h"
+#include "RooMath.h"
+
+ClassImp(RooExtCBShape);
 
 ////////////////////////////////////////////////////////////////////////////////
     
@@ -45,6 +47,18 @@ RooAbsPdf(name, title),
   alpha2("alpha2", "Alpha2", this, _alpha2),
   n2("n2", "Order2", this, _n2)
 {
+}
+
+RooExtCBShape::RooExtCBShape()
+{
+   RooRealVar mRV("mRV","x", 0.0, 1.0);
+   RooRealVar m0RV("m0RV", "m0", 0.0, 1.0);
+   RooRealVar sigmaRV("sigmaRV", "sigma", 0.0, 1.0);
+   RooRealVar alphaRV("alphaRV", "alpha", 0.0, 1.0);
+   RooRealVar nRV("nRV","n", 0.0, 1.0);
+   RooRealVar alpha2RV("alpha2RV", "alpha2", 0.0, 1.0);
+   RooRealVar n2RV("n2RV","n2", 0.0, 1.0);
+   RooExtCBShape("RooExtCBShape", "RooExtCBShape", mRV, m0RV, sigmaRV, alphaRV, nRV, alpha2RV, n2RV);
 }
     
 ////////////////////////////////////////////////////////////////////////////////
