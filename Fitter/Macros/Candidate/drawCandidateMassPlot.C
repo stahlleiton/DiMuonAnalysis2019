@@ -7,7 +7,7 @@
 
 void     printCandidateParameters  ( TPad& pad , const RooWorkspace& ws , const uint& drawMode );
 void     printCandidateTextInfo    ( TPad& pad , const RooWorkspace& ws , const std::string& varN , const uint& drawMode , const int& plotStyle );
-TLegend* printCandidateLegend      ( TPad& pad , const RooPlot& frame   , const StringMap_d& legInfo , const int& plotStyle );
+TLegend* printCandidateLegend      ( TPad& pad , const RooPlot& frame   , const StringMap_t& legInfo , const int& plotStyle );
 
 
 bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
@@ -66,7 +66,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   int drawMode = 0;
   bool drawPull = true;  // false : Draw DATA/FIT , true : Draw the Pull
   //
-  StringMap_d legInfo;
+  StringMap_t legInfo;
   RooPlotPtrMap_d frame;
   PadPtrMap_d pad; // Unique Pointer does produce Segmentation Fault, so don't use it
   //
@@ -300,7 +300,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   frame.at("MAIN")->Draw();
   //
   // Set the CMS style and add text info
-  StringVector_d lumiLabels; getLumiLabels(lumiLabels, PD, col, isMC);
+  StringVector_t lumiLabels; getLumiLabels(lumiLabels, PD, col, isMC);
   CMS_lumi(pad.at("MAIN"), 33, lumiLabels[0], lumiLabels[1], false, 0.8, false);
   printCandidateTextInfo(*pad.at("MAIN"), ws, varName, drawMode, plotStyle);
   //
@@ -315,7 +315,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   pad.at("MAIN")->Update();
    //
   // Save the plot in different formats
-  StringVector_d formats = {"png", "pdf", "root", "C"};
+  StringVector_t formats = {"png", "pdf", "root", "C"};
   for (const auto& f : formats) {
     makeDir(outputDir+"plot/"+f+"/");
     cFig->SaveAs((outputDir+"plot/"+f+"/"+fileName+"."+f).c_str());
@@ -439,7 +439,7 @@ void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string
 };
 
 
-TLegend* printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_d& legInfo, const int& plotStyle)
+TLegend* printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_t& legInfo, const int& plotStyle)
 {
   pad.cd();
   // Define the position and size of the legend
@@ -451,7 +451,7 @@ TLegend* printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_d
   auto leg = new TLegend(xmin, ymin, xmax, ymax);
   // Define the legend order
   auto objMap = PDFMAP_; objMap["DATA"].push_back(-2); objMap["_TotTo"].push_back(-1);
-  StringVector_d legOrder(objMap.size()+2, "");
+  StringVector_t legOrder(objMap.size()+2, "");
   for (const auto& p : objMap) {
     for (const auto& l : legInfo) { if (l.first.find(p.first)!=std::string::npos) { legOrder[p.second[0]+2] = l.first; break; } }
   }
