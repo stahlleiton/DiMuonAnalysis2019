@@ -84,7 +84,7 @@ bool storeWS2ResultsTree(
     //
     // Extract the Workspace
     const auto& ws = dynamic_cast<RooWorkspace*>(inputFile.Get("workspace"));
-    if (ws == NULL) { std::cout << "[ERROR] Workspace not found in " << inputFilePath << std::endl; inputFile.Close(); return false; }
+    if (!ws) { std::cout << "[ERROR] Workspace not found in " << inputFilePath << std::endl; inputFile.Close(); return false; }
     //
     // Initialize the tree
     if (isFirstFile) {
@@ -238,14 +238,19 @@ void iniResultsTreeInfo(GlobalInfo& info , const RooWorkspace& ws)
   const std::string& dsName = (dsStr ? dsStr->getVal() : "");
   // Find the observable names
   StringSet_t obsNames;
-  const auto& listObs = ws.data(dsName.c_str())->get();
-  auto obsIt = std::unique_ptr<TIterator>(listObs->createIterator());
-  for (auto it = obsIt->Next(); it!=NULL; it = obsIt->Next()) { obsNames.insert(it->GetName()); }
+  const auto& listObs = const_cast<RooWorkspace*>(&ws)->set(("SET_"+dsName).c_str());
+  if (listObs) {
+    auto obsIt = std::unique_ptr<TIterator>(listObs->createIterator());
+    for (auto it = obsIt->Next(); it!=NULL; it = obsIt->Next()) { obsNames.insert(it->GetName()); }
+  }
+  else { obsNames = StringSet_t({"Cand_Mass", "Cand_APhi", "Cand_Pt", "Cand_Rap", "Cand_Len", "Centrality", "NTrack"}); } // BUG FIX
   const auto& listVar = ws.allVars();
   auto varIt = std::unique_ptr<TIterator>(listVar.createIterator());
-  for (auto it = varIt->Next(); it!=NULL; it = varIt->Next()) {
-    std::string name = it->GetName(); if (name.find("Abs")!=std::string::npos) { name.erase(name.find("Abs"),3); }
-    if (contain(obsNames, name)) { obsNames.erase(obsNames.find(name)); obsNames.insert(it->GetName()); }
+  if (varIt) {
+    for (auto it = varIt->Next(); it!=NULL; it = varIt->Next()) {
+      std::string name = it->GetName(); if (name.find("Abs")!=std::string::npos) { name.erase(name.find("Abs"),3); }
+      if (contain(obsNames, name)) { obsNames.erase(obsNames.find(name)); obsNames.insert(it->GetName()); }
+    }
   }
   const StringSet_t obsType = { "Min" , "Max" , "DefaultMin" , "DefaultMax" , "Val" , "Err" };
   // Initialize the observables
@@ -254,11 +259,13 @@ void iniResultsTreeInfo(GlobalInfo& info , const RooWorkspace& ws)
   // Define the parameter names
   StringSet_t parNames;
   auto parIt = std::unique_ptr<TIterator>(ws.componentIterator());
-  for (auto it = parIt->Next(); it!=NULL; it = parIt->Next()) {
-    if (contain(obsNames, it->GetName())) continue;
-    if (dynamic_cast<RooRealVar*>(it) || dynamic_cast<RooFormulaVar*>(it)) { parNames.insert(it->GetName()); }
+  if (parIt) {
+    for (auto it = parIt->Next(); it!=NULL; it = parIt->Next()) {
+      if (contain(obsNames, it->GetName())) continue;
+      if (dynamic_cast<RooRealVar*>(it) || dynamic_cast<RooFormulaVar*>(it)) { parNames.insert(it->GetName()); }
+    }
   }
-  const StringSet_t parType = { "Min" , "Max" , "Val" , "Err" , "ErrLo" , "ErrHi" , "iniVal" , "iniErr" };
+  const StringSet_t parType = {"Min" , "Max" , "Val" , "Err" , "ErrLo" , "ErrHi" , "iniVal" , "iniErr"};
   // Initialize the parameters
   for (const auto& p : parNames) {
     const auto& par = dynamic_cast<RooRealVar*>(ws.arg(p.c_str()));
@@ -282,6 +289,7 @@ void iniResultsTreeInfo(GlobalInfo& info , const RooWorkspace& ws)
   info.Flag["useCand_RapCM"] = false;
   info.Flag["useCand_AbsRap"] = false;
   //
+
 };
 
 
