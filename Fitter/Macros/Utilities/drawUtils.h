@@ -555,10 +555,10 @@ std::vector<RooRealVar> getModelVar(const RooWorkspace& ws, const std::string& n
 std::string formatCut(const std::string& cut)
 {
   if (cut=="") return cut;
-  std::string str = cut;
+  auto str = cut;
   str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
   // Format the variable string
-  const auto& varL = StringMap_t({{"Cand_Pt", "p_{T}"}, {"Cand_Mass", "M"}});
+  const auto& varL = StringMap_t({{"Cand_DLen", "#font[12]{l}_{J/#psi}"}, {"Cand_DLenErr", "#sigma_{#font[12]{l}_{J/#psi}}"}, {"Cand_DLenGen", "#font[12]{l}^{gen}_{J/#psi}"}});
   for (const auto& vL : varL) { stringReplace(str, vL.first, vL.second); }
   // Format the observables
   for (const auto& elem : VARLABEL_) { stringReplace(str, elem.first, elem.second); }
@@ -576,11 +576,21 @@ std::string formatCut(const std::string& cut)
 
 std::string formatPar(const std::string& name, const std::string& cha)
 {
-  std::string label = cha;
+  auto label = cha;
   if (label=="ToMuMu") { label = "#mu^{+}#mu^{#font[122]{\55}} "; }
-  const auto& parL = StringMap_t({{"Cand_Mass", "Mass GeV/c^{2}"}, {"Cand_Pt", "p_{T} GeV/c"}});
+  const auto& parL = StringMap_t({{"Cand_Mass", "Mass GeV/c^{2}"}, {"Cand_Pt", "p_{T} GeV/c"}, {"Cand_DLen", "#font[12]{l}_{J/#psi} mm"},
+				  {"Cand_DLenErr", "#font[12]{l}_{J/#psi} Error mm"}, {"Cand_DLenGen", "GEN #font[12]{l}_{J/#psi} mm"}});
   for (const auto& pL : parL) { if (name==pL.first) { label += pL.second; break; } }
   return label;
+};
+
+
+std::string formatCutLbl(const std::string& cut)
+{
+  if (cut=="") return cut;
+  auto str = cut;
+  stringReplace(str, "Prompt", "Pr");
+  return str;
 };
 
 

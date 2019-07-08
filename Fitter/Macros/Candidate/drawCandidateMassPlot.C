@@ -370,8 +370,7 @@ void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string
   const std::string& cha     = (ws.obj("channel")   ? dynamic_cast<RooStringVar*>(ws.obj("channel")  )->getVal() : "");
   const std::string& col     = (ws.obj("fitSystem") ? dynamic_cast<RooStringVar*>(ws.obj("fitSystem"))->getVal() : "");
   const std::string& chg     = (ws.obj("fitCharge") ? dynamic_cast<RooStringVar*>(ws.obj("fitCharge"))->getVal() : "");
-  const std::string& dsName  = (ws.obj("dsName" )   ? dynamic_cast<RooStringVar*>(ws.obj("dsName")   )->getVal() : "");
-  const std::string& modelN  = (ws.obj("modelName") ? dynamic_cast<RooStringVar*>(ws.obj("modelName"))->getVal() : "");
+  const std::string& dsName  = (ws.obj("dsName")    ? dynamic_cast<RooStringVar*>(ws.obj("dsName")   )->getVal() : "");
   //
   // Include the CMS labels
   TLatex t = TLatex(); t.SetNDC(); t.SetTextSize(0.030);
@@ -384,7 +383,7 @@ void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string
   std::set<std::string> objS;
   for (const auto& p : PDFMAP_) {
     if (p.first=="Bkg" || p.first.rfind("Swap")!=std::string::npos) continue;
-    if (modelN.find(p.first)!=std::string::npos) { objS.insert(p.first); }
+    if (ws.arg(("N_"+p.first+cha+chg+"_"+col).c_str())) { objS.insert(p.first); }
   }
   const auto& process = parseProcess(objS, cha);
   if (drawMode>0) { dy *= (1./0.8); dYPos *= (1./0.8); t.SetTextSize(0.040*(1./0.8)); }
@@ -424,6 +423,8 @@ void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string
   // Draw the extra information
   const auto& cutDS = dynamic_cast<RooStringVar*>(ws.obj(("CutAndCount_Tot"+cha+chg+"_"+col).c_str()));
   if (cutDS) { t.DrawLatex(xPos, yPos-dy, formatCut(cutDS->getVal()).c_str()); dy+=dYPos; }
+  const std::string& cutSel = (ws.obj("cutSelStr") ? dynamic_cast<RooStringVar*>(ws.obj("cutSelStr"))->getVal() : "");
+  if (cutSel!="") { t.DrawLatex(xPos, yPos-dy, (formatCutLbl(cutSel)+" cut").c_str()); dy+=dYPos; }
   //
   // Display the number of events lost if the dataset was reduced before fitting
   const auto& dsEntries = ws.var(("numEntries_"+dsName).c_str());

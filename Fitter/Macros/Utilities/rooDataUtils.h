@@ -6,6 +6,7 @@
 #include "TObject.h"
 #include "TIterator.h"
 #include "TH1.h"
+#include "TKey.h"
 
 #include "RooFit.h"
 #include "RooMsgService.h"
@@ -30,7 +31,54 @@
 #include "../../../Utilities/dataUtils.h"
 
 
-void getRange(std::vector<double>& range, const TH1D& hist, const int& nMaxBins)
+void setFileName(std::string& fileName, std::string& outputDir, const std::string& label, const GlobalInfo& info, const StringSet_t& varV={})
+{
+  // Define plot label
+  auto varS = info.StrS.at("fitVariable"); if (!varV.empty()) { varS = varV; }
+  auto varT = info.StrS.at("fitVarName"); if (!varV.empty()) { varT.clear(); for (const auto& v : varV) { auto t = v; stringReplace(t, "_", ""); varT.insert(t); } }
+  std::string plotLabel = "";
+  for (const auto& var : varT) {
+    for (const auto& obj : info.StrS.at("fitObject")) {
+      std::string modelN = info.Par.at("Model"+var+"_"+obj+label);
+      modelN.erase(std::remove(modelN.begin(), modelN.end(), ' '), modelN.end());
+      stringReplace( modelN, "[", "" ); stringReplace( modelN, "]", "" ); stringReplace( modelN, "+", "_" ); stringReplace( modelN, ",", "" ); stringReplace( modelN, ";", "" );
+      plotLabel += obj + "Model"+var+"_" + modelN+"_";
+    }
+  }
+  // Set file name
+  const auto& DSTAG = info.Par.at("DSTAG");
+  auto dsTag = DSTAG.substr(0, DSTAG.rfind("_DIMUON")); if (info.Flag.at("fitMC")) { dsTag += "_"+info.Par.at("PD"); }
+  const auto& colTag = DSTAG.substr(DSTAG.find_last_of("_")+1);
+  std::string objTag = "";
+  for (const auto& o : info.StrS.at("fitObject")) { objTag += o+"_"; }; objTag = objTag.substr(0, objTag.rfind("_"));
+  std::string fitVar = "";
+  for (const auto& var : varT) { fitVar += var+"_"; }; fitVar = fitVar.substr(0, fitVar.rfind("_"));
+  outputDir = Form("%s%s/%s/%s/%s/", outputDir.c_str(), fitVar.c_str(), dsTag.c_str(), objTag.c_str(), colTag.c_str());
+  std::string varLbl = "";
+  for (const auto& var : info.StrS.at("cutPars")) {
+    bool incVar = true;
+    for (const auto& v : varS) { if (var==v) { incVar = false; break; } }
+    if (!incVar || !contain(info.Var, var) || !contain(info.Var.at(var), "Min")) continue;
+    if (info.Var.at(var).at("Min")==info.Var.at(var).at("Default_Min") && info.Var.at(var).at("Max")==info.Var.at(var).at("Default_Max")) continue;
+    if (var=="Centrality" && (DSTAG.rfind("PbPb")==std::string::npos || info.Par.at("PD")=="UPC")) continue;
+    auto varN = var; stringReplace(varN, "_", "");
+    auto varMin = info.Var.at(var).at("Min");
+    auto varMax = info.Var.at(var).at("Max");
+    if (contain(info.Flag, "use"+var+"CM") && info.Flag.at("use"+var+"CM")) {
+      varN += "CM";
+      const bool& ispPb = (info.Flag.at("fitpPb8Y16") || info.Flag.at("fitPA8Y16"));
+      varMin = pPb::EtaLABtoCM(varMin, ispPb);
+      varMax = pPb::EtaLABtoCM(varMax, ispPb);
+    }
+    if (varMin==varMax) { varLbl += Form("%s_%.0f_", varN.c_str(), varMax*100.); }
+    else { varLbl += Form("%s_%.0f_%.0f_", varN.c_str(), varMin*100., varMax*100.); }
+  }
+  varLbl = varLbl.substr(0, varLbl.rfind("_"));
+  fileName = Form("%s_%s_%s%s", fitVar.c_str(), dsTag.c_str(), plotLabel.c_str(), varLbl.c_str());
+};
+
+
+void getRange(std::vector<double>& range, const TH1D& hist, const int& nMaxBins, const double& minEntries=5.0)
 {
   // 1) Find the bin with the maximum Y value
   const auto& binMaximum = hist.GetMaximumBin();
@@ -39,7 +87,7 @@ void getRange(std::vector<double>& range, const TH1D& hist, const int& nMaxBins)
   int firstBin = 1;
   for (int i = binMaximum; i > 0; i--) {
     if (hist.GetBinContent(i) > 0.0) {
-      if ( (binWithContent > 0) && ((binWithContent-i) > nMaxBins) && (hist.GetBinContent(i) < 5.0) ) { firstBin = binWithContent; break; }
+      if ( (binWithContent > 0) && ((binWithContent-i) > nMaxBins) && (hist.GetBinContent(i) < minEntries) ) { firstBin = binWithContent; break; }
       else { binWithContent = i; }
     }
   }
@@ -48,7 +96,7 @@ void getRange(std::vector<double>& range, const TH1D& hist, const int& nMaxBins)
   int lastBin = hist.GetNbinsX();
   for (int i = binMaximum; i < hist.GetNbinsX(); i++) {
     if (hist.GetBinContent(i) > 0.0) {
-      if ( ( binWithContent > 0) && ((i - binWithContent) > nMaxBins) && (hist.GetBinContent(i) < 5.0) ) { lastBin = binWithContent+1; break; }
+      if ( ( binWithContent > 0) && ((i - binWithContent) > nMaxBins) && (hist.GetBinContent(i) < minEntries) ) { lastBin = binWithContent+1; break; }
       else { binWithContent = i; }
     }
   }
@@ -130,13 +178,33 @@ void setFixedVarsToContantVars(RooWorkspace& ws)
 };
 
 
+void defineSet(RooWorkspace& ws, const std::string& setName, const RooArgSet& set, const std::string& setGroup="SET")
+{
+  if (ws.defineSet(setName.c_str(), set, kTRUE)) { std::cout << "[ERROR] Failed to define set " << setName << std::endl; std::exit(0); }
+  if (!ws.arg(setName.c_str())) {
+    addString(ws, setName, setName, false);
+    if (ws.extendSet(setGroup.c_str(), setName.c_str())) { std::cout << "[ERROR] Failed to extend set " << setGroup << std::endl; std::exit(0); }
+  }
+  if (setGroup!="SET" && !ws.arg(setGroup.c_str())) {
+    addString(ws, setGroup.c_str(), setGroup.c_str(), false);
+    if (ws.extendSet("SET", setGroup.c_str())) { std::cout << "[ERROR] Failed to extend set SET" << std::endl; std::exit(0); }
+  }
+};
+
+
+void defineSet(RooWorkspace& ws, const std::string& setName, const StringSet_t& setStr, const std::string& setGroup="SET")
+{
+  RooArgSet set;
+  for (const auto& s : setStr) { if (ws.arg(s.c_str())) { set.add(*ws.arg(s.c_str())); } }
+  defineSet(ws, setName, set, setGroup);
+};
+
+
 void saveSnapshot(RooWorkspace& ws, const RooArgSet& set, const std::string& snapName)
 {
-  if (snapName=="") { std::cout << "[ERROR] Snapshot name is empty!" << std::endl; return; }
+  if (snapName=="") { std::cout << "[ERROR] Snapshot name is empty!" << std::endl; std::exit(0); }
   // Register the snapshot in WS
-  ws.defineSet(snapName.c_str(), set, kTRUE);
-  addString(ws, snapName, snapName, false);
-  ws.extendSet("snapshots", snapName.c_str());
+  defineSet(ws, snapName, set, "snapshots");
   // Save snapshot
   ws.saveSnapshot(snapName.c_str(), set, kTRUE);
 };
@@ -144,7 +212,7 @@ void saveSnapshot(RooWorkspace& ws, const RooArgSet& set, const std::string& sna
 
 void saveSnapshot(RooWorkspace& ws, const std::string& snapName, const std::string& dsName="")
 {
-  if (snapName=="") { std::cout << "[ERROR] Snapshot name is empty!" << std::endl; return; }
+  if (snapName=="") { std::cout << "[ERROR] Snapshot name is empty!" << std::endl; std::exit(0); }
   // Add the variables and categories
   RooArgSet set(ws.allVars(), snapName.c_str()); set.add(ws.allCats());
   // Remove those from the dataset
@@ -192,17 +260,24 @@ void clearWorkspace(RooWorkspace& inWS, const std::string& smp="All", const bool
   // Clear all Datasets
   if (inWS.allData().size()>0 && smp!="") {
     const auto& listData = inWS.allData();
-    for (const auto& it : listData) { if (smp=="All" || std::string(it->GetName()).find(smp)!=std::string::npos) { inWS.RecursiveRemove(it); if(it) delete it; } }
+    for (const auto& it : listData) { if (it && (smp=="All" || std::string(it->GetName()).find(smp)!=std::string::npos)) { inWS.RecursiveRemove(it); if(it) delete it; } }
   }
   // Clear all Embedded Datasets
   if (inWS.allEmbeddedData().size()>0 && smp!="") {
     const auto& listData = inWS.allEmbeddedData();
-    for (const auto& it : listData) { if (smp=="All" || std::string(it->GetName()).find(smp)!=std::string::npos) { inWS.RecursiveRemove(it); if(it) delete it; } }
+    for (const auto& it : listData) { if (it && (smp=="All" || std::string(it->GetName()).find(smp)!=std::string::npos)) { inWS.RecursiveRemove(it); if(it) delete it; } }
   }
   // Clear all Generic Objects
   if (inWS.allGenericObjects().size()>0) {
     const auto& listObj = inWS.allGenericObjects();
-    for (const auto& it : listObj) { inWS.RecursiveRemove(it); if(it) delete it; }
+    for (const auto& it : listObj) { if (it) { inWS.RecursiveRemove(it); } }
+  }
+  // Clear all sets
+  if (const_cast<RooWorkspace*>(&inWS)->set("SET")) {
+    const auto& listSet = const_cast<RooWorkspace*>(&inWS)->set("SET");
+    auto setIt = std::unique_ptr<TIterator>(listSet->createIterator());
+    for (auto it = setIt->Next(); it!=NULL; it = setIt->Next()) { inWS.removeSet(it->GetName()); inWS.RecursiveRemove(it); }
+    inWS.removeSet("SET");
   }
   // Clear RooStudyManager
   inWS.clearStudies();
@@ -270,10 +345,13 @@ void copyWorkspace(RooWorkspace& outWS, const RooWorkspace& inWS, const std::str
   if (const_cast<RooWorkspace*>(&inWS)->set("snapshots") && addSnap) {
     const auto& listSnap = const_cast<RooWorkspace*>(&inWS)->set("snapshots");
     auto snapIt = std::unique_ptr<TIterator>(listSnap->createIterator());
-    for (auto its = snapIt->Next(); its!=NULL; its = snapIt->Next()) {
-      const auto& it = dynamic_cast<RooStringVar*>(its);
-      if (it && !outWS.set(it->GetName())) { saveSnapshot(outWS, *inWS.getSnapshot(it->GetName()), it->GetName()); }
-    }
+    for (auto it = snapIt->Next(); it!=NULL; it = snapIt->Next()) { if (!outWS.set(it->GetName())) { saveSnapshot(outWS, *inWS.getSnapshot(it->GetName()), it->GetName()); } }
+  }
+  // Copy all sets
+  if (const_cast<RooWorkspace*>(&inWS)->set("SET")) {
+    const auto& listSet = const_cast<RooWorkspace*>(&inWS)->set("SET");
+    auto setIt = std::unique_ptr<TIterator>(listSet->createIterator());
+    for (auto it = setIt->Next(); it!=NULL; it = setIt->Next()) { if (!outWS.arg(it->GetName())) { addString(outWS, it->GetName(), it->GetName(), false); outWS.extendSet("SET", it->GetName()); } }
   }
   // Return the RooMessenger Level
   RooMsgService::instance().setGlobalKillBelow(level);
@@ -450,7 +528,7 @@ void updateParameterRange(RooWorkspace& ws, GlobalInfo&  info, const std::string
 };
 
 
-bool loadParameterRange(GlobalInfo&  info, const std::string& var, const std::string& fileName, const std::string& snap="fittedParameters")
+bool loadParameterRange(GlobalInfo& info, const std::string& var, const std::string& fileName, const std::string& snap="fittedParameters")
 {
   RooWorkspace ws; if (!getWorkSpace(ws, fileName, "", true)) { return false; }
   ws.loadSnapshot(snap.c_str());
@@ -511,6 +589,59 @@ bool loadSPlotDS(RooWorkspace& myws, const std::string& fileName, const std::str
 };
 
 
+bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::string& pdfName, const std::string& snapName="fittedParameters")
+{
+  // Extract the workspace
+  RooWorkspace inWS;
+  if (!ws.pdf(pdfName.c_str())) {
+    if (!getWorkSpace(inWS, fileName, "")) { return false; }
+    const auto& pdf = inWS.pdf(pdfName.c_str());
+    if (!pdf) { std::cout << "[INFO] PDF " << pdfName << " was not found in " << fileName << std::endl; return false; }
+    ws.import(*pdf);
+  }
+  else if (!getWorkSpace(inWS, fileName, "", true)) { return false; }
+  // Extract PDF
+  const auto& pdf = ws.pdf(pdfName.c_str());
+  if (!pdf) { std::cout << "[INFO] PDF " << pdfName << " was not found!" << std::endl; return false; }
+  // Extract the snapshot
+  const RooArgSet* snapPar = (inWS.set(snapName.c_str()) ? inWS.getSnapshot(snapName.c_str()) : NULL);
+  if (!snapPar) { std::cout << "[INFO] Snapshot " << snapName << " was not found!" << std::endl; return false; }
+  // Loop over PDF variables and load from snapshot
+  std::string res = ""; RooArgSet loadSet;
+  auto params = std::unique_ptr<RooArgSet>(pdf->getVariables());
+  auto parIt = std::unique_ptr<TIterator>(params->createIterator());
+  for (auto it = parIt->Next(); it!=NULL; it = parIt->Next()) {
+    const std::string& name = it->GetName();
+    if (!ws.var(name.c_str()) || name.rfind("N_",0)==0 || name.rfind("R_",0)==0) continue;
+    const auto& sPar = dynamic_cast<RooRealVar*>(snapPar->find(name.c_str()));
+    if (sPar) {
+      ws.var(name.c_str())->setVal(sPar->getVal());
+      ws.var(name.c_str())->setConstant(true);
+      res += Form("%s = %g, ", name.c_str(), sPar->getVal());
+      loadSet.add(*ws.var(name.c_str()));
+    }
+  }
+  saveSnapshot(ws, loadSet, (snapName+"_"+pdfName));
+  std::cout << "[INFO] Loaded " << pdfName << " parameters: " << res << std::endl;
+  return true;
+};
+
+
+RooAbsPdf* getTotalPDF(RooWorkspace& ws, const std::string& var, const std::string& label, const GlobalInfo& info)
+{
+  // Define input file name
+  std::string fileName = "";
+  auto dir = info.Par.at("outputDir");
+  setFileName(fileName, dir, label, info, {var});
+  const auto& inFileName = (dir+"result/FIT_"+fileName+".root");
+  // Extract the previous PDF
+  auto varT = var; stringReplace(varT, "_", "");
+  const auto& pdfName = ("pdf"+varT+"_Tot"+label);
+  if (!loadFitResult(ws, inFileName, pdfName)) { return NULL; }
+  return ws.pdf(pdfName.c_str());
+};
+
+
 bool createBinnedDataset(RooWorkspace& ws, const std::string& var="Cand_Mass")
 {
   //
@@ -554,78 +685,72 @@ bool createBinnedDataset(RooWorkspace& ws, const std::string& var="Cand_Mass")
 //
 
 
-std::string findLabel(const std::string& par, const std::string& obj, const std::string& chg,
-		      const std::string& col, const std::string& cha, const GlobalInfo& info)
-{
-  std::string tryLabel="";
-  const StringVector_t tryChannel = { cha , "" };
-  StringVector_t trySystem  = { col , "" };
-  if (info.Flag.at("doPA8Y16")) { trySystem.push_back("PA8Y16"); }
-  const StringVector_t tryCharge  = { chg , "" };
-  for (const auto& tryCha : tryChannel) {
-    bool trySuccess = false;
-    for (const auto& tryCol : trySystem) {
-      for (const auto& tryChg : tryCharge) {
-	tryLabel = obj + tryCha + tryChg + (tryCol!="" ? "_"+tryCol : "");
-	if (contain(info.Par, par+"_"+tryLabel)) { trySuccess = true; break; }
-      }
-      if (trySuccess) break;
-    }
-    if (trySuccess) break;
-  }
-  return tryLabel;
-};
-
-
-bool setModel(StringDiMap_t& model, GlobalInfo&  info, const std::string& type="Cand_Mass")
+bool setModel(GlobalInfo&  info)
 {
   const auto& cha = info.Par.at("channel");
   for (const auto& col : info.StrS.at("fitSystem")) {
     for (const auto& obj : info.StrS.at("fitObject")) {
       for (const auto& chg : info.StrS.at("fitCharge")) {
-        const std::string& label = Form("Model_%s_%s", (obj+cha+chg).c_str(), col.c_str());
-        info.StrS["tags"].insert(obj+cha+chg+"_"+col);
-	const std::string inputLabel = "Model_"+findLabel("Model", obj, chg, col, cha, info);
-        if (contain(info.Par, inputLabel)) {
-          const auto& value = info.Par.at(inputLabel);
-          info.Par[label] = value;
-          StringVector_t k;
-          if (value.find("+")!=std::string::npos) { splitString(k, value, "+"); }
-          else { k.push_back(value); }
-          for (auto& kk : k) {
-            std::string modelName = kk;
-            StringVector_t p;
-            if (kk.find("[")!=std::string::npos) { 
-              modelName = kk.substr(0, kk.find("["));
-              kk.erase(0, kk.find("[")+std::string("[").length());
-              if (kk.rfind("]")==std::string::npos) { std::cout << "[ERROR] Missing ']' in model: " << value << std::endl; return false; }
-              kk = kk.substr(0, kk.rfind("]"));
-              if (kk.find(";")!=std::string::npos) { splitString(p, kk, ";"); }
-              else if (kk.find(",")!=std::string::npos) { splitString(p, kk, ","); }
-              else { p.push_back(kk); }
-            }
-            else { p.push_back(obj); }
-            for (const auto& ll : p) {
-              std::string objectName  = Form("%s", (ll+cha+chg).c_str());;
-              if (info.Flag.at("fitMC") && ll!=obj && modelName=="TEMP") continue;
-              if (modelName=="TEMP") { modelName = "Template";    }
-              if (modelName=="MJET") { modelName = "MultiJetBkg"; }
-              if (!contain(ModelDictionary, modelName) || ModelDictionary.at(modelName)==0) {
-                std::cout << "[ERROR] The " << (ll+cha+chg) << " " << type << " model: " << modelName << " is invalid" << std::endl; return false;
-              }
-              model[label][ll] = modelName;
-              if (modelName == "Template") {
-                std::string dsTag = ( "MC_" + ll + "_" + info.Par.at("channelDS") + "_" + col );
-                info.StrS[Form("TEMPDS_%s_%s", (obj+cha+chg).c_str(), col.c_str())].insert(dsTag);
-              }
-              info.StrS["addObjectModel_"+(obj+cha+chg)+"_"+col].insert(ll);
-            }
-          }
-        } else {
-          std::cout << "[ERROR] " << (obj+cha+chg) << " " << type << " model for " << col << " was not found in the initial parameters!" << std::endl; return false;
-        }
+	for (const auto& var : info.StrS.at("fitVarName")) {
+	  const std::string& label = Form("Model%s_%s_%s", var.c_str(), (obj+cha+chg).c_str(), col.c_str());
+	  info.StrS["tags"].insert(obj+cha+chg+"_"+col);
+	  const std::string inputLabel = "Model"+findLabel("Model", var, obj, chg, col, cha, info);
+	  if (contain(info.Par, inputLabel)) {
+	    const auto& value = info.Par.at(inputLabel);
+	    info.Par[label] = value;
+	    StringVector_t k;
+	    if (value.find("+")!=std::string::npos) { splitString(k, value, "+"); }
+	    else { k.push_back(value); }
+	    for (auto& kk : k) {
+	      std::string modelName = kk;
+	      StringVector_t p;
+	      if (kk.find("[")!=std::string::npos) {
+		modelName = kk.substr(0, kk.find("["));
+		kk.erase(0, kk.find("[")+std::string("[").length());
+		if (kk.rfind("]")==std::string::npos) { std::cout << "[ERROR] Missing ']' in model: " << value << std::endl; return false; }
+		kk = kk.substr(0, kk.rfind("]"));
+		if (kk.find(";")!=std::string::npos) { splitString(p, kk, ";"); }
+		else if (kk.find(",")!=std::string::npos) { splitString(p, kk, ","); }
+		else { p.push_back(kk); }
+	      }
+	      else { p.push_back(obj); }
+	      for (const auto& ll : p) {
+		if (info.Flag.at("fitMC") && ll!=obj && modelName=="TEMP") continue;
+		if (modelName=="TEMP") { modelName = "Template";    }
+		if (modelName=="MJET") { modelName = "MultiJetBkg"; }
+		if (!contain(ModelDictionary, modelName) || ModelDictionary.at(modelName)==0) {
+		  std::cout << "[ERROR] The " << (ll+cha+chg) << " " << var << " model: " << modelName << " is invalid" << std::endl; return false;
+		}
+		info.Par[label+"_"+ll] = modelName;
+		if (modelName == "Template") {
+		  const auto& dsTag = ( "MC_" + ll + "_" + info.Par.at("channelDS") + "_" + col );
+		  info.StrS["TEMPDS_"+var+"_"+(obj+cha+chg)+"_"+col].insert(dsTag);
+		}
+		info.StrS["addObjectModel_"+var+"_"+(obj+cha+chg)+"_"+col].insert(ll);
+	      }
+	    }
+	  } else {
+	    std::cout << "[ERROR] " << (obj+cha+chg) << " " << var << " model for " << col << " was not found in the initial parameters!" << std::endl; return false;
+	  }
+	}
       }
     }
+  }
+  return true;
+};
+
+
+bool storeDSStat(RooWorkspace& ws, const std::string& dsName)
+{
+  const auto& ds = dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()));
+  if (!ds) { std::cout << "[ERROR] Dataset " << dsName << " was not found!" << std::endl; return false; }
+  auto varIt = std::unique_ptr<TIterator>(ds->get()->createIterator());
+  for (auto itp = varIt->Next(); itp!=NULL; itp = varIt->Next()) {
+    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
+    auto mean = std::unique_ptr<RooRealVar>(ds->meanVar(*it));
+    if (!ws.var(mean->GetName()) && ws.import(*mean)) { std::cout << "[ERROR] Failed to import " << mean->GetName() << std::endl; return false; }
+    auto rms = std::unique_ptr<RooRealVar>(ds->rmsVar(*it));
+    if (!ws.var(rms->GetName()) && ws.import(*rms)) { std::cout << "[ERROR] Failed to import " << rms->GetName() << std::endl; return false; }
   }
   return true;
 };
@@ -636,7 +761,7 @@ void setDSParamaterRange(RooWorkspace& ws, const std::string& dsName, const Glob
   const auto& ds = dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()));
   if (!ds) { std::cout << "[ERROR] Dataset " << dsName << " was not found!" << std::endl; return; }
   const auto& row = ds->get();
-  ws.defineSet(("SET_"+dsName).c_str(), *row);
+  defineSet(ws, "SET_"+dsName, *row);
   for (const auto& var : info.Var) {
     const bool& isAbs = (var.first.find("Abs")!=std::string::npos);
     auto varN = var.first; if (isAbs) { varN.erase(varN.find("Abs"), 3); }
@@ -707,6 +832,26 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
   }
   cutDS = cutDS.substr(0, cutDS.rfind(" && "));
   addString(myws, "cutDS", cutDS); // Save the cut expression for bookkeeping
+  //
+  // Add the decay length input selection
+  if (contain(info.Par, "Cut") && info.Par.at("Cut")!="") {
+    std::string cutSel = "";
+    const auto& cutLbl = info.Par.at("Cut");
+    if (cutLbl=="PromptDecay") {
+      cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen < (0.00419541 + 0.171485/pow(Cand_Pt, 0.721154))) || (abs(Cand_Rap) > 1.4 && Cand_DLen < (-0.0404945 + 0.181201/pow(Cand_Pt, 0.309656))))";
+      std::cout << "[INFO] Cutting on candidate decay length to select PROMPT decays" << std::endl;
+    }
+    else if (cutLbl=="NonPromptDecay") {
+      cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen > (0.00419541 + 0.171485/pow(Cand_Pt, 0.721154))) || (abs(Cand_Rap) > 1.4 && Cand_DLen > (-0.0404945 + 0.181201/pow(Cand_Pt, 0.309656))))";
+      std::cout << "[INFO] Cutting on candidate decay length to select NON-PROMPT decays" << std::endl;
+    }
+    if (cutSel!="") {
+      cutDS += " && "+cutSel;
+      addString(myws, "cutSelExp", cutSel); // Save the cut expression for bookkeeping
+      addString(myws, "cutSelStr", cutLbl); // Save the cut label for bookkeeping
+    }
+  }
+  //
   std::cout << "[INFO] Importing local RooDataSets with cuts: " << cutDS << std::endl;
   //
   // Reduce and import the datasets
@@ -815,39 +960,6 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
   binInfo = binInfo.substr(0, binInfo.rfind(" ,"));
   std::cout << binInfo << std::endl;
   return 1;
-};
-
-
-void setFileName(std::string& fileName, std::string& outputDir, const StringSet_t& fitV, const std::string& DSTAG, const std::string& plotLabel, const GlobalInfo& info)
-{
-  auto dsTag  = DSTAG.substr(0, DSTAG.rfind("_DIMUON")); if (info.Flag.at("fitMC")) { dsTag += "_"+info.Par.at("PD"); }
-  const auto& colTag = DSTAG.substr(DSTAG.find_last_of("_")+1);
-  const auto& objTag = *info.StrS.at("fitObject").begin();
-  std::string fitVar = "";
-  for (const auto& v : fitV) { auto s = v; stringReplace(s, "_", ""); fitVar += s+"_"; }
-  fitVar = fitVar.substr(0, fitVar.rfind("_"));
-  outputDir = Form("%s%s/%s/%s/%s/", outputDir.c_str(), fitVar.c_str(), dsTag.c_str(), objTag.c_str(), colTag.c_str());
-  std::string varLbl = "";
-  for (const auto& var : info.StrS.at("cutPars")) {
-    bool incVar = true;
-    for (const auto& v : fitV) { if (var==v) { incVar = false; break; } }
-    if (!incVar || !contain(info.Var, var) || !contain(info.Var.at(var), "Min")) continue;
-    if (info.Var.at(var).at("Min")==info.Var.at(var).at("Default_Min") && info.Var.at(var).at("Max")==info.Var.at(var).at("Default_Max")) continue;
-    if (var=="Centrality" && (DSTAG.rfind("PbPb")==std::string::npos || info.Par.at("PD")=="UPC")) continue;
-    auto varN = var; stringReplace(varN, "_", "");
-    auto varMin = info.Var.at(var).at("Min");
-    auto varMax = info.Var.at(var).at("Max");
-    if (contain(info.Flag, "use"+var+"CM") && info.Flag.at("use"+var+"CM")) {
-      varN += "CM";
-      const bool& ispPb = (info.Flag.at("fitpPb8Y16") || info.Flag.at("fitPA8Y16"));
-      varMin = pPb::EtaLABtoCM(varMin, ispPb);
-      varMax = pPb::EtaLABtoCM(varMax, ispPb);
-    }
-    if (varMin==varMax) { varLbl += Form("%s_%.0f_", varN.c_str(), varMax*100.); }
-    else { varLbl += Form("%s_%.0f_%.0f_", varN.c_str(), varMin*100., varMax*100.); }
-  }
-  varLbl = varLbl.substr(0, varLbl.rfind("_"));
-  fileName = Form("%s_%s_%s%s", fitVar.c_str(), dsTag.c_str(), plotLabel.c_str(), varLbl.c_str());
 };
  
 

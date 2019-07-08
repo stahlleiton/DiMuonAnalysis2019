@@ -263,7 +263,7 @@ void makeDir(const std::string& dir)
 };
 
 
-void findSubDir(std::vector<std::string>& dirList, const std::string& dirName)
+void findSubDir(std::vector<std::string>& dirList, const std::string dirName)
 {
   TSystemDirectory dir(dirName.c_str(), dirName.c_str());
   auto subdirs = std::unique_ptr<TList>(dir.GetListOfFiles());
@@ -272,8 +272,9 @@ void findSubDir(std::vector<std::string>& dirList, const std::string& dirName)
     TIter next(subdirs.get());
     while ( (subdir=dynamic_cast<TSystemFile*>(next())) ) {
       if (subdir->IsDirectory() && std::string(subdir->GetName())!="." && std::string(subdir->GetName())!="..") {
-        dirList.push_back(dirName + subdir->GetName() + "/");
-        std::cout << "[INFO] Input subdirectory: " << dirName + subdir->GetName() + "/" << " found!" << std::endl;
+	const auto& subDirName = dirName + subdir->GetName() + "/";
+        dirList.push_back(subDirName);
+        std::cout << "[INFO] Input subdirectory: " << subDirName << " found!" << std::endl;
       }
     }
   }
@@ -330,6 +331,29 @@ std::vector<std::string> parseColStr(const std::string& colStr)
   if (posN!=std::string::npos) vecStr.push_back(cStr.substr(posN, posY-posN));
   if (posY!=std::string::npos) vecStr.push_back(cStr.substr(posY+1));
   return vecStr;
+};
+
+
+std::string findLabel(const std::string& par, const std::string& var, const std::string& obj,
+		      const std::string& chg, const std::string& col, const std::string& cha, const GlobalInfo& info)
+{
+  std::string tryLabel="";
+  const StringVector_t tryChannel = { cha , "" };
+  StringVector_t trySystem  = { col , "" };
+  if (col.rfind("pPb",0)==0 || col.rfind("Pbp",0)==0) { auto t = col; stringReplace(t, col, "PA"); trySystem.push_back(t); }
+  const StringVector_t tryCharge  = { chg , "" };
+  const StringVector_t tryVariable = { var , "" };
+  for (const auto& tryCha : tryChannel) {
+    for (const auto& tryChg : tryCharge) {
+      for (const auto& tryCol : trySystem) {
+	for (const auto& tryVar : tryVariable) {
+	  tryLabel = tryVar +"_"+ obj + tryCha + tryChg + (tryCol!="" ? "_"+tryCol : "");
+	  if (contain(info.Par, par+tryLabel)) { return tryLabel; }
+	}
+      }
+    }
+  }
+  return "";
 };
 
 

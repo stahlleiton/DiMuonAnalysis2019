@@ -75,13 +75,13 @@ enum class Model
     ExpChebychev6,
     ExpError,
     // Candidate Decay Length Models
+    DeltaResolution,
     SingleGaussianResolution,
     DoubleGaussianResolution,
     TripleGaussianResolution,
     QuadrupleGaussianResolution,
     Delta,
     SingleSidedDecay,
-    DoubleSingleSidedDecay,
     TripleDecay,
     QuadrupleDecay,
     //
@@ -122,28 +122,31 @@ const IntMap_t ModelDictionary = {
   {"ExpChebychev6",               int(Model::ExpChebychev6)},
   {"ExpError",                    int(Model::ExpError)},
   // Candidate Decay Length Models
+  {"DeltaResolution",             int(Model::DeltaResolution)},
   {"SingleGaussianResolution",    int(Model::SingleGaussianResolution)},
   {"DoubleGaussianResolution",    int(Model::DoubleGaussianResolution)},
   {"TripleGaussianResolution",    int(Model::TripleGaussianResolution)},
   {"QuadrupleGaussianResolution", int(Model::QuadrupleGaussianResolution)},
   {"Delta",                       int(Model::Delta)},
   {"SingleSidedDecay",            int(Model::SingleSidedDecay)},
-  {"DoubleSingleSidedDecay",      int(Model::DoubleSingleSidedDecay)},
   {"TripleDecay",                 int(Model::TripleDecay)},
   {"QuadrupleDecay",              int(Model::QuadrupleDecay)}
 };
 
 
 const StringMap_t VARLABEL_ = {
-  { "Cand_Mass"   , "M"         },
-  { "Cand_Rap"    , "y"         },
-  { "Cand_RapCM"  , "y_{CM}"    },
-  { "Cand_AbsRap" , "|y|"       },
-  { "Cand_Pt"     , "p_{T}"     },
-  { "Cand_Len"    , "c#tau"     },
-  { "Cand_APhi"   , "#phi_{#mu}"},
-  { "Centrality"  , "Cent."     },
-  { "NTrack"      , "Ntrk"      },
+  { "Cand_Mass"    , "M"          },
+  { "Cand_Rap"     , "y"          },
+  { "Cand_RapCM"   , "y_{CM}"     },
+  { "Cand_AbsRap"  , "|y|"        },
+  { "Cand_Pt"      , "p_{T}"      },
+  { "Cand_DLen"    , "#font[12]{l}"},
+  { "Cand_DLenErr" , "#sigma_{#font[12]{l}}"},
+  { "Cand_DLenRes" , "#frac{#font[12]{l}}{#sigma_{#font[12]{l}}}"},
+  { "Cand_DLenGen" , "#font[12]{l}^{GEN}" },
+  { "Cand_APhi"    , "#phi_{#mu}" },
+  { "Centrality"   , "Cent."      },
+  { "NTrack"       , "Ntrk"       },
 };
 
 

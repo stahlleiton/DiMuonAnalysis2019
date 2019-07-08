@@ -61,7 +61,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
   // Create RooDataSets
   std::vector< std::unique_ptr<RooDataSet> > dataOS, dataSS;
   bool createDS = updateDS;
-  bool doSS = false;
+  bool doSS = true;
   // Check if RooDataSets exist and are not corrupt
   for (uint i=0; i<outputFileNames.size(); i++) {
     if ( !gSystem->AccessPathName(outputFileNames[i].c_str()) ) {
@@ -98,7 +98,9 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     auto candPt   = RooRealVar ( "Cand_Pt"    , "Candidate p_{T}" ,    -1.0 ,    1000.0 ,  "GeV/c"     );
     auto candRap  = RooRealVar ( "Cand_Rap"   , "Candidate y"     ,   -10.0 ,      10.0 ,  ""          );
     auto candAPhi = RooRealVar ( "Cand_APhi"  , "Candidate #phi_{#mu}" , -10.0 ,   10.0 ,  ""          );
-    auto candLen  = RooRealVar ( "Cand_Len"   , "Candidate c#tau" , -1000.0 ,    1000.0 ,  "cm"        );
+    auto candDLen = RooRealVar ( "Cand_DLen"  , "Candidate c#tau" , -1000.0 ,    1000.0 ,  "mm"        );
+    auto candDLenErr = RooRealVar ( "Cand_DLenErr" , "Candidate c#tau error" , -1.0 , 1000.0 , "mm"    );
+    auto candDLenGen = RooRealVar ( "Cand_DLenGen" , "GEN candidate c#tau" , -1000.0 , 1000.0 , "mm"   );
     auto dau1Pt   = RooRealVar ( "Dau1_Pt"    , "Daughter1 p_{T}" ,  -1.0 ,       100.0 ,  "GeV/c"     );
     auto dau2Pt   = RooRealVar ( "Dau2_Pt"    , "Daughter2 p_{T}" ,  -1.0 ,       100.0 ,  "GeV/c"     );
     auto dau1Eta  = RooRealVar ( "Dau1_Eta"   , "Daughter1 #eta"  , -10.0 ,        10.0 ,  ""          );
@@ -112,10 +114,10 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     auto isSwap   = RooCategory( "Cand_IsSwap" , "Candidate IsSwap");
     isSwap.defineType("None", -1); isSwap.defineType("No", 0); isSwap.defineType("Yes", 1);
     //
-    auto cols = RooArgSet(candMass, candPt, candRap, candLen, cent, nTrk);
+    auto cols = RooArgSet(candMass, candPt, candRap, candDLen, candDLenErr, cent, nTrk);
     cols.add(dau1Pt); cols.add(dau1Eta); cols.add(dau2Pt); cols.add(dau2Eta);
     cols.add(candAPhi); cols.add(candQual); cols.add(candTrig); cols.add(candVtxP);
-    if (isMC) { cols.add(isSwap); }
+    if (isMC) { cols.add(isSwap); cols.add(candDLenGen); }
     //
     ///// Initiliaze RooDataSets
     dataOS.clear(); dataSS.clear();
@@ -269,7 +271,9 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           // Compute the pseudo-proper-decay length
           const auto& p    = pT*std::cosh(candOSTree->eta()[iC]);
           const auto& rap  = candOSTree->y()[iC];
-          const auto& dLen = (candOSTree->V3DDecayLength()[iC] * candOSTree->V3DCosPointingAngle()[iC])*(mass/p);
+          const auto& massJPsi = MASS.at("JPsi").at("Val");
+          const auto& dLen = (candOSTree->V3DDecayLength()[iC] * candOSTree->V3DCosPointingAngle()[iC])*(massJPsi/p)*10.0;
+          const auto& dLenErr = (candOSTree->V3DDecayLengthError()[iC])*(massJPsi/p)*10.0;
           //
           // Compute the azimuthal asymmetry
           const auto& aPhi = candOSTree->phiAsym(iC);
@@ -278,7 +282,8 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           candMass.setVal( mass  );
           candPt.setVal  ( pT    );
           candRap.setVal ( rap   );
-          candLen.setVal ( dLen  );
+          candDLen.setVal( dLen  );
+          candDLenErr.setVal( dLenErr );
           candAPhi.setVal( aPhi  );
           candQual.setVal( candQ );
 	  candTrig.setVal( trigM );
@@ -291,9 +296,16 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           nTrk.setVal    ( candOSTree->Ntrkoffline() );
           weight.setVal  ( 1.0   );
           isSwap.setLabel( "None");
+	  candDLenGen.setVal( -1.0 );
           if (isMC) {
             weight.setVal( candOSTree->weight_gen() );
             isSwap.setLabel( candOSTree->isSwap() ? "Yes" : "No" );
+	    const auto& iGen = candOSTree->GenIdx(iC);
+	    if (iGen>=0) {
+	      const auto& pGen = candOSTree->pT_gen()[iGen]*std::cosh(candOSTree->eta_gen()[iGen]);
+	      const auto& dLenGen = (candOSTree->V3DDecayLength_gen()[iGen] * std::cos(candOSTree->V3DPointingAngle_gen()[iGen]))*(massJPsi/pGen)*10.0;
+	      candDLenGen.setVal( dLenGen );
+	    }
           }
           //
           // Fill the RooDataSets
@@ -356,7 +368,9 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           // Compute the pseudo-proper-decay length
           const auto& p    = pT*std::cosh(candSSTree->eta()[iC]);
           const auto& rap  = candSSTree->y()[iC];
-          const auto& dLen = (candSSTree->V3DDecayLength()[iC] * candSSTree->V3DCosPointingAngle()[iC])*(mass/p);
+          const auto& massJPsi = MASS.at("JPsi").at("Val");
+          const auto& dLen = (candSSTree->V3DDecayLength()[iC] * candSSTree->V3DCosPointingAngle()[iC])*(massJPsi/p)*10.0;
+          const auto& dLenErr = (candSSTree->V3DDecayLengthError()[iC])*(massJPsi/p)*10.0;
           //
           // Compute the azimuthal asymmetry  
           const auto& aPhi = candSSTree->phiAsym(iC);
@@ -365,7 +379,8 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           candMass.setVal( mass  );
           candPt.setVal  ( pT    );
           candRap.setVal ( rap   );
-          candLen.setVal ( dLen  );
+          candDLen.setVal ( dLen  );
+          candDLenErr.setVal( dLenErr );
           candAPhi.setVal( aPhi  );
           candQual.setVal( candQ );
 	  candTrig.setVal( trigM );
@@ -378,6 +393,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           nTrk.setVal    ( candSSTree->Ntrkoffline() );
           weight.setVal  ( 1.0 );
           isSwap.setLabel("None");
+	  candDLenGen.setVal( -1.0 );
           //
           // Fill the RooDataSets
           for (uint i=0; i<dsNames.size(); i++) {
@@ -428,18 +444,20 @@ bool checkVertexCompositeDS(const RooDataSet& ds, const std::string& analysis)
   const auto& row = ds.get();
   if (analysis.rfind("CandTo", 0)==0) {
     if (
-        ( row->find("Cand_Mass")!=0 ) &&
-        ( row->find("Cand_Pt")  !=0 ) &&
-        ( row->find("Cand_Rap") !=0 ) &&
-        ( row->find("Cand_Len") !=0 ) &&
+        ( row->find("Cand_Mass") !=0 ) &&
+        ( row->find("Cand_Pt") !=0   ) &&
+        ( row->find("Cand_Rap") !=0  ) &&
+        ( row->find("Cand_DLen") !=0 ) &&
+        ( row->find("Cand_DLenErr") !=0 ) &&
         ( row->find("Cand_APhi") !=0 ) &&
         ( row->find("Cand_Qual") !=0 ) &&
 	( row->find("Cand_Trig") !=0 ) &&
 	( row->find("Cand_VtxP") !=0 ) &&
-        ( !isMC || row->find("Cand_IsSwap") !=0 ) &&
-        ( row->find("Dau1_Pt") !=0 ) &&
+        ( !isMC || row->find("Cand_IsSwap") !=0  ) &&
+        ( !isMC || row->find("Cand_DLenGen") !=0 ) &&
+        ( row->find("Dau1_Pt") !=0  ) &&
         ( row->find("Dau1_Eta") !=0 ) &&
-        ( row->find("Dau2_Pt") !=0 ) &&
+        ( row->find("Dau2_Pt") !=0  ) &&
         ( row->find("Dau2_Eta") !=0 ) &&
         ( row->find("Centrality") !=0 ) &&
         ( row->find("NTrack") !=0 )

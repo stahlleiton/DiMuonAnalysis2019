@@ -25,8 +25,9 @@
 #include "../Utilities/initClasses.h"
 
 
-bool skimDataSet    ( RooWorkspaceMap_t& workspaces , const GlobalInfo& info );
-bool combineDataSet ( RooWorkspaceMap_t& workspaces , GlobalInfo& info , const std::string& run="8Y16" );
+bool skimDataSet        ( RooWorkspaceMap_t& workspaces , const GlobalInfo& info );
+bool combineDataSet     ( RooWorkspaceMap_t& workspaces , GlobalInfo& info , const std::string& run="8Y16" );
+bool processDecayLength ( RooWorkspaceMap_t& workspaces , const GlobalInfo& info );
 
 
 bool processDataSet(RooWorkspaceMap_t& workspaces, GlobalInfo& info)
@@ -43,6 +44,11 @@ bool processDataSet(RooWorkspaceMap_t& workspaces, GlobalInfo& info)
   //
   if (!combineDataSet(workspaces, info)) { return false; }
   //
+  // -------------------------------------------------------------------------------
+  // STEP 3: PROCESS THE CANDIDATE DECAY LENGTH INFORMATION
+  //
+  if (!processDecayLength(workspaces, info)) { return false; }
+  //
   return true;
 };
 
@@ -54,10 +60,14 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   //
   // Define the invariant mass range
   double minM = 999999., maxM = -999999.;
-  for (const auto& obj : info.StrS.at("incObject")) {
-    if (contain(MASS, obj)) {
-      if (minM > MASS.at(obj).at("Min")) { minM = MASS.at(obj).at("Min"); }
-      if (maxM < MASS.at(obj).at("Max")) { maxM = MASS.at(obj).at("Max"); }
+  for (const auto& v : info.StrS.at("fitVarName")) {
+    for (const auto& o : info.StrS.at("incObject_"+v)) {
+      if (o.rfind("Bkg",0)==0) continue;
+      auto obj = o; if (!contain(MASS, obj)) { for (const auto& m : MASS) { if (obj.rfind(m.first,0)==0) { obj = m.first; break; } } }
+      if (contain(MASS, obj)) {
+	if (minM > MASS.at(obj).at("Min")) { minM = MASS.at(obj).at("Min"); }
+	if (maxM < MASS.at(obj).at("Max")) { maxM = MASS.at(obj).at("Max"); }
+      }
     }
   }
   const std::string massCut = Form("(Cand_Mass > %g && Cand_Mass < %g)", minM, maxM);
@@ -83,7 +93,7 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   const std::string useTightMuons = "(Cand_Qual & 4)";
   //
   // Variables to delete
-  const std::vector<std::string> delVarNames = {"Cand_Qual", "Cand_Trig", "Cand_VtxP", "Dau1_Eta", "Dau1_Pt", "Dau2_Eta", "Dau2_Pt"}; 
+  const std::vector<std::string> delVarNames = {"Cand_APhi", "Cand_Qual", "Cand_Trig", "Cand_VtxP", "Dau1_Eta", "Dau1_Pt", "Dau2_Eta", "Dau2_Pt"};
   //
   // Loop over the RooDataSets
   for (auto& ws : workspaces) {
@@ -131,10 +141,10 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
       std::cout << "[INFO] Applying skim selection: " << cutStr << std::endl;
       auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ds->reduce(RooFit::Cut(cutStr.c_str()), RooFit::SelectVars(vars), RooFit::Name(ds->GetName()), RooFit::Title(ds->GetTitle()))));
       if (!data) { std::cout << "[ERROR] Skimmed dataset " << ds->GetName() << " is NULL!" << std::endl; return false; }
-      if (data->sumEntries()==0){ std::cout << "[WARNING] Skimmed dataset " <<  ds->GetName() << " is empty!" << std::endl; }
+      else if (data->sumEntries()==0){ std::cout << "[ERROR] Skimmed dataset " <<  ds->GetName() << " is empty!" << std::endl; return false; }
       std::cout << "[INFO] Reduced dataset " << ds->GetName() << " from " << ds->sumEntries() << " to " << data->sumEntries() << " entries" << std::endl;
       addString(tmpWS, "skimDS", cutStr); // Save the cut expression for bookkeeping
-      tmpWS.import(*data);
+      if (tmpWS.import(*data)) { std::cout << "[ERROR] skimDataSet: Failed to import " << data->GetName() << std::endl; return false; }
     }
     clearWorkspace(ws.second);
     copyWorkspace(ws.second, tmpWS);
@@ -233,13 +243,88 @@ bool combineDataSet(RooWorkspaceMap_t& workspaces, GlobalInfo& info, const std::
         std::cout << "[ERROR] Number of weighted entries for the combined " << dsTag_PA << " dataset ( " << ds_PA->sumEntries() << " , " << ds_pPb->sumEntries() << " , " << ds_Pbp->sumEntries() << " ) is inconsistent!" << std::endl; return false;
       }
       // Import the new PA dataset
-      ws_PA.import(*ds_PA);
-      if (ws_PA.data(dsTag_PA.c_str())==NULL) { std::cout << "[ERROR] RooDataSet " << dsTag_PA << " was not imported!" << std::endl; return false; }
+      if (ws_PA.import(*ds_PA)) { std::cout << "[ERROR] combineDataSet: Failed to import " << ds_PA->GetName() << std::endl; return false; }
       else { std::cout << "[INFO] RooDataSet " << dsTag_PA << " was created with " << ds_PA->numEntries() << " entries!" << std::endl; }
       if (contain(info.StrS.at("DSTAG"), sample_pPb)) { info.StrS.at("DSTAG").insert(sample_PA); }
     }
+    // Delete old datasets if not used
+    if (!info.Flag.at("fitpPb"+run)) { clearWorkspace(workspaces.at(sample_pPb)); workspaces.erase(sample_pPb); info.StrS.at("DSTAG").erase(sample_pPb); }
+    if (!info.Flag.at("fitPbp"+run)) { clearWorkspace(workspaces.at(sample_Pbp)); workspaces.erase(sample_Pbp); info.StrS.at("DSTAG").erase(sample_Pbp); }
   }
   //
+  return true;
+};
+
+
+bool processDecayLength(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
+{
+  //
+  // Check if user wants to fit the decay length information
+  if (!info.Flag.at("fitCand_DLen") && !info.Flag.at("fitCand_DLenRes") && !info.Flag.at("fitCand_DLenErr") && !info.Flag.at("fitCand_DLenGen")) return true;
+  //
+  // Find the mass reference
+  std::string ref = "";
+  double minM = 9999999.;
+  for (const auto& v : info.StrS.at("fitVarName")) {
+    for (const auto& o : info.StrS.at("incObject_"+v)) {
+      if (o.rfind("Bkg",0)==0) continue;
+      auto obj = o; if (!contain(MASS, obj)) { for (const auto& m : MASS) { if (obj.rfind(m.first,0)==0) { obj = m.first; break; } } }
+      if (contain(MASS, obj)) {
+	if (minM > MASS.at(obj).at("Min")) { ref = obj; minM = MASS.at(obj).at("Min"); }
+      }
+    }
+  }
+  // Keep mass reference of excited states to mass of 1S state in decay length
+  if (ref=="Psi2S") { ref = "JPsi"; } else if (ref=="Ups2S") { ref = "Ups1S"; } else if (ref=="Ups3S") { ref = "Ups1S"; }
+  //
+  // Return if reference is JPsi and we dont want to produce the decay length resolution
+  if (ref=="JPsi" && !info.Flag.at("fitCand_DLen") && !info.Flag.at("fitCand_DLenRes")) return true;
+  //
+  std::cout << "[INFO] Proceed to process the decay length information using " << ref << " mass" << std::endl;
+  //
+  const auto& massRef   = MASS.at(ref).at("Val");
+  const auto& massJPsi  = MASS.at("JPsi").at("Val");
+  const auto& massRatio = massRef/massJPsi;
+  //
+  // Loop over the RooWorkspaces
+  for (auto& ws : workspaces) {
+    //
+    // Loop over the datasets
+    const auto& listData = ws.second.allData();
+    for (const auto& ds : listData) {
+      //
+      // Define dataset variables
+      auto vars = *ds->get();
+      const auto& candDLen = dynamic_cast<RooRealVar*>(vars.find("Cand_DLen"));
+      const auto& candDLenErr = dynamic_cast<RooRealVar*>(vars.find("Cand_DLenErr"));
+      const auto& candDLenGen = dynamic_cast<RooRealVar*>(vars.find("Cand_DLenGen"));
+      if (!candDLen || !candDLenErr) continue;
+      auto candDLenRes = RooRealVar("Cand_DLenRes", "Candidate c#tau resolution", -1000.0, 1000.0, "mm");
+      vars.add(candDLenRes);
+      //
+      // Create temporary dataset
+      auto tmpDS = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ds->emptyClone(0, 0, &vars, "weight")));
+      //
+      // Loop over the entries//
+      for (int i = 0; i < ds->numEntries(); i++) {
+	//
+	// Process the decay length information
+	candDLen->setVal(candDLen->getVal()*massRatio);
+	candDLenErr->setVal(candDLenErr->getVal()*massRatio);
+	if (candDLenGen) { candDLenGen->setVal(candDLenGen->getVal()*massRatio); }
+	const auto& dLenDiff = candDLen->getVal() - (candDLenGen ? candDLenGen->getVal() : 0.0);
+	candDLenRes.setVal(dLenDiff/candDLenErr->getVal());
+	//
+	// Fill temporary dataset
+	tmpDS->addFast(vars);
+      }
+      // Import to RooWorkspace
+      ws.second.RecursiveRemove(ds); if(ds) delete ds;
+      if (ws.second.import(*tmpDS)) { std::cout << "[ERROR] processDecayLength: Failed to import " << tmpDS->GetName() << std::endl; return false; }
+      else { std::cout << "[INFO] Processed " << tmpDS->numEntries() << " entries in RooDataSet " << tmpDS->GetName() << std::endl; }
+    }
+    addString(ws.second, "dLenMassRef", ref); // Save the reference for bookkeeping
+  }
   return true;
 };
 

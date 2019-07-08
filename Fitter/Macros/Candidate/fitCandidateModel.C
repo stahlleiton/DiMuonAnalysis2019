@@ -1,5 +1,5 @@
-#ifndef Candidate_fitCandidateMassModel_C
-#define Candidate_fitCandidateMassModel_C
+#ifndef Candidate_fitCandidateModel_C
+#define Candidate_fitCandidateModel_C
 
 
 #include "RooFitResult.h"
@@ -7,27 +7,30 @@
 #include "../../../Utilities/RunInfo/eventUtils.h"
 #include "../Utilities/initClasses.h"
 #include "../Utilities/rooDataUtils.h"
-#include "buildCandidateMassModel.C"
+#include "buildCandidateModel.C"
 #include "drawCandidateMassPlot.C"
 
 
 void defineFitParameterRange ( GlobalInfo& info );
 
 
-bool fitCandidateMassModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace with all the input RooDatasets
-                            const GlobalInfo&  inputInfo,             // Contains information on initial Parameters, cut values, flags, ...
-                            const GlobalInfo&  userInput,             // Contains information on initial Parameters, cut values, flags, ...
-                            const std::string& outputDir,             // Path to output directory
-                            // Select the type of datasets to fit
-                            const std::string& DSTAG,                 // Specifies the name of the dataset to fit
-                            const bool& saveAll=true
-                            )
+bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace with all the input RooDatasets
+			const GlobalInfo&  inputInfo,             // Contains information on initial Parameters, cut values, flags, ...
+			const GlobalInfo&  userInput,             // Contains information on initial Parameters, cut values, flags, ...
+			const std::string& outputDir,             // Path to output directory
+			// Select the type of datasets to fit
+			const std::string& DSTAG,                 // Specifies the name of the dataset to fit
+			const bool& saveAll=true
+			)
 {
   //
   // Set up the local workspace and the input information
   RooWorkspaceMap_t myws;
   GlobalInfo info(userInput);
   info.Copy(inputInfo, true); // Copy the user input information (avoid duplicating information in fitter)
+  info.Par["DSTAG"] = DSTAG;
+  info.Par["outputDir"] = outputDir;
+  info.Flag["saveAll"] = saveAll;
 
   // Check the input settings
   // Check if is MC
@@ -55,10 +58,9 @@ bool fitCandidateMassModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspa
   defineFitParameterRange(info);
 
   // Set models based on input files
-  StringDiMap_t model;
-  if (!setModel(model, info)) { return false; }
+  if (!setModel(info)) { return false; }
 
-  // Import all the datasets needed for the fit
+  // Define all the datasets needed for the fit
   bool doFit = false;
   for (const auto& chg : info.StrS.at("fitCharge")) { info.Par["dsName"+chg] = ("d"+chg+"_"+DSTAG); }
   // Add the main dataset to the list
@@ -87,13 +89,15 @@ bool fitCandidateMassModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspa
 
   // Store the number of MC ontries passing analysis cuts
   for (const auto& col : info.StrS.at("fitSystem")) {
-    for (const auto& obj : info.StrS.at("template")) {
-      const auto& dsLabel = "MC_" + obj + "_" + info.Par.at("channelDS") + "_" + col;
-      for (const auto& chg : info.StrS.at("fitCharge")) {
-	const auto& dsName = "d"+chg+"_"+dsLabel;
-	if (myws.at(chg).data(dsName.c_str())) {
-	  const auto& label = obj + info.Par.at("channel") + chg + "_" + col;
-	  info.Var["recoMCEntries"][label] = myws.at(chg).data(dsName.c_str())->sumEntries();
+    for (const auto& var : info.StrS.at("fitVarName")) {
+      for (const auto& obj : info.StrS.at("template_"+var)) {
+	const auto& dsLabel = "MC_" + obj + "_" + info.Par.at("channelDS") + "_" + col;
+	for (const auto& chg : info.StrS.at("fitCharge")) {
+	  const auto& dsName = "d"+chg+"_"+dsLabel;
+	  if (myws.at(chg).data(dsName.c_str())) {
+	    const auto& label = obj + info.Par.at("channel") + chg + "_" + col;
+	    info.Var["recoMCEntries"][label] = myws.at(chg).data(dsName.c_str())->sumEntries();
+	  }
 	}
       }
     }
@@ -103,7 +107,7 @@ bool fitCandidateMassModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspa
   for (const auto& chg : info.StrS.at("fitCharge")) { if (!setFitParameterRange(myws.at(chg), info)) { return false; } }
 
   // Build the fit model
-  for (const auto& chg : info.StrS.at("fitCharge")) { if (!buildCandidateMassModel(myws.at(chg), model, info, chg))  { return false; } }
+  for (const auto& chg : info.StrS.at("fitCharge")) { if (!buildCandidateModel(myws.at(chg), info, chg))  { return false; } }
 
   // Proceed to Fit and Save the results
   std::string cha = info.Par.at("channel");
@@ -115,34 +119,26 @@ bool fitCandidateMassModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspa
       addString(myws.at(chg), "fitSystem", col);
       addString(myws.at(chg), "fitCharge", chg);
       addString(myws.at(chg), "PD", info.Par.at("PD"));
-      //
-      // Define plot name
-      std::string plotLabel = "";
-      for (const auto& obj : info.StrS.at("fitObject")) {
-        const auto& objLabel = obj + cha + chg + "_" + col;
-        std::string modelN = info.Par.at("Model_"+objLabel);
-        modelN.erase(std::remove(modelN.begin(), modelN.end(), ' '), modelN.end());
-        stringReplace( modelN, "[", "" ); stringReplace( modelN, "]", "" ); stringReplace( modelN, "+", "_" ); stringReplace( modelN, ",", "" ); stringReplace( modelN, ";", "" );
-	addString(myws.at(chg), "modelName", modelN);
-        plotLabel += obj + "Model_" + modelN+"_";
-      }
+      defineSet(myws.at(chg), "fitVariable", info.StrS.at("fitVariable"));
       //
       // Define output file name
       std::string fileName = "";
       std::string outDir = outputDir;
-      setFileName(fileName, outDir, info.StrS.at("fitVariable"), DSTAG, plotLabel, info);
+      const auto& label = cha + chg + "_" + col;
+      setFileName(fileName, outDir, label, info);
       //
       // Get dataset and PDF names
       const auto& dsName  = info.Par.at("dsName"+chg);
       const auto& pdfName = info.Par.at("pdfName"+chg);
-      const auto& label = cha + chg + "_" + col;
       addString(myws.at(chg), "dsName", dsName);
       addString(myws.at(chg), "pdfName", pdfName);
       //
       // Check if the user wants to do binned fits and proceed to bin the data
       if (contain(info.Flag, "doBinnedFit") && info.Flag.at("doBinnedFit")) { if (!createBinnedDataset(myws.at(chg))) { return false; } }
       // Set the name of the dataset to fit
-      const auto& dsNameFit = ( (myws.at(chg).data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName );
+      const auto& dsNameFit = ((myws.at(chg).data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName);
+      // Store the mean and RMS of each dataset variable
+      if (!storeDSStat(myws.at(chg), dsNameFit)) { return false; }
       //
       // Check if we have already done this fit. If yes, do nothing and return true.
       bool found =  true; bool skipFit = false;
@@ -164,7 +160,7 @@ bool fitCandidateMassModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspa
           bool isWeighted = myws.at(chg).data(dsNameFit.c_str())->isWeighted();
           if (dsName.find("_DATA_")!=std::string::npos) { isWeighted = false; } // BUG FIX
           const auto& numCores = info.Int.at("numCores");
-          const auto& pdfConstrains = dynamic_cast<RooArgList*>(myws.at(chg).genobj(Form("pdfConstr%s", label.c_str())));
+          const auto& pdfConstrains = dynamic_cast<RooArgList*>(myws.at(chg).genobj(("pdfConstr"+label).c_str()));
           if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
             std::cout << "[INFO] Using constrain PDFs to fit " << pdfName << " on " << dsNameFit << std::endl;
             const auto& tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Strategy(2),
@@ -234,6 +230,8 @@ bool fitCandidateMassModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspa
     }
   }
   //
+  std::cout << "[INFO] Fit done, go to next bin!" << std::endl;  
+  //
   return true;
   //
 };
@@ -294,4 +292,4 @@ void defineFitParameterRange(GlobalInfo& info)
 };
 
 
-#endif // #ifndef Candidate_fitCandidateMassModel_C
+#endif // #ifndef Candidate_fitCandidateModel_C

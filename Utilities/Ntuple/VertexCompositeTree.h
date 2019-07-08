@@ -80,6 +80,7 @@ public :
   Float_t*  V2DPointingAngle()            { SetBranch("2DPointingAngle");             return V2DPointingAngle_;           }
   Float_t*  V3DDecayLengthSignificance()  { SetBranch("3DDecayLengthSignificance");   return V3DDecayLengthSignificance_; }
   Float_t*  V3DDecayLength()              { SetBranch("3DDecayLength");               return V3DDecayLength_;             }
+  Float_t*  V3DDecayLengthError()         { SetBranch("3DDecayLengthError");          return V3DDecayLengthError_;        }
   Float_t*  V2DDecayLengthSignificance()  { SetBranch("2DDecayLengthSignificance");   return V2DDecayLengthSignificance_; }
   Float_t*  V2DDecayLength()              { SetBranch("2DDecayLength");               return V2DDecayLength_;             }
   Float_t*  zDCASignificanceDaugther1()   { SetBranch("zDCASignificanceDaugther1");   return zDCASignificanceDaugther1_;  }
@@ -178,6 +179,10 @@ public :
   Int_t*    PID_gen()                     { SetBranch("PID_gen");                     return PID_gen_;                    }
   Int_t*    MotherID_gen()                { SetBranch("MotherID_gen");                return MotherID_gen_;               }
   Short_t*  RecIdx_gen()                  { SetBranch("RecIdx_gen");                  return RecIdx_gen_;                 }
+  Short_t*  V3DPointingAngle_gen()        { SetBranch("3DPointingAngle_gen");         return V3DPointingAngle_gen_;       }
+  Short_t*  V2DPointingAngle_gen()        { SetBranch("2DPointingAngle_gen");         return V2DPointingAngle_gen_;       }
+  Short_t*  V3DDecayLength_gen()          { SetBranch("3DDecayLength_gen");           return V3DDecayLength_gen_;         }
+  Short_t*  V2DDecayLength_gen()          { SetBranch("2DDecayLength_gen");           return V2DDecayLength_gen_;         }
   Int_t*    PIDD1_gen()                   { SetBranch("PIDD1_gen");                   return PIDD1_gen_;                  }
   Short_t*  chargeD1_gen()                { SetBranch("chargeD1_gen");                return chargeD1_gen_;               }
   Float_t*  pTD1_gen()                    { SetBranch("pTD1_gen");                    return pTD1_gen_;                   }
@@ -201,6 +206,7 @@ public :
   Bool_t    softCand    (const UInt_t& iC, const std::string& type="") { return (softMuon1(iC, type) && softMuon2(iC, type));     }
   Bool_t    trigCand    (const UInt_t& iT, const UInt_t& iC, const bool& OR=false) { if (trigMuon1().size()<=iT) { std::cout << "[ERROR] Trigger index1: "<<iT<<">"<<trigMuon1().size() << std::endl; return false; }; return (OR ? (trigMuon1()[iT][iC] || trigMuon2()[iT][iC]) : (trigMuon1()[iT][iC] && trigMuon2()[iT][iC])); }
   Double_t  phiAsym     (const UInt_t& iC);
+  Int_t     GenIdx      (const Short_t& iC) { for (uint iGen=0; iGen<candSize_gen(); iGen++) { if (iC==RecIdx_gen()[iGen]) { return iGen; } }; return -1; }
 
 
  private:
@@ -267,6 +273,7 @@ public :
   Float_t           V2DPointingAngle_[NCAND]={0};   //[candSize]
   Float_t           V3DDecayLengthSignificance_[NCAND]={0};   //[candSize]
   Float_t           V3DDecayLength_[NCAND]={0};   //[candSize]
+  Float_t           V3DDecayLengthError_[NCAND]={0};   //[candSize]
   Float_t           V2DDecayLengthSignificance_[NCAND]={0};   //[candSize]
   Float_t           V2DDecayLength_[NCAND]={0};   //[candSize]
   Float_t           zDCASignificanceDaugther1_[NCAND]={0};   //[candSize]
@@ -365,6 +372,10 @@ public :
   Int_t             PID_gen_[NGEN]={0};   //[candSize_gen]
   Int_t             MotherID_gen_[NGEN]={0};   //[candSize_gen]
   Short_t           RecIdx_gen_[NGEN]={0};   //[candSize_gen]
+  Short_t           V3DPointingAngle_gen_[NGEN]={0};   //[candSize_gen]
+  Short_t           V2DPointingAngle_gen_[NGEN]={0};   //[candSize_gen]
+  Short_t           V3DDecayLength_gen_[NGEN]={0};   //[candSize_gen]
+  Short_t           V2DDecayLength_gen_[NGEN]={0};   //[candSize_gen]
   Int_t             PIDD1_gen_[NGEN]={0};   //[candSize_gen]
   Short_t           chargeD1_gen_[NGEN]={0};   //[candSize_gen]
   Float_t           pTD1_gen_[NGEN]={0};   //[candSize_gen]
@@ -527,6 +538,7 @@ void VertexCompositeTree::InitTree(void)
     if (fChain->GetBranch("2DPointingAngle"))             fChain->SetBranchAddress("2DPointingAngle",            V2DPointingAngle_,           &(b["2DPointingAngle"])           );
     if (fChain->GetBranch("3DDecayLengthSignificance"))   fChain->SetBranchAddress("3DDecayLengthSignificance",  V3DDecayLengthSignificance_, &(b["3DDecayLengthSignificance"]) );
     if (fChain->GetBranch("3DDecayLength"))               fChain->SetBranchAddress("3DDecayLength",              V3DDecayLength_,             &(b["3DDecayLength"])             );
+    if (fChain->GetBranch("3DDecayLengthError"))          fChain->SetBranchAddress("3DDecayLengthError",         V3DDecayLengthError_,        &(b["3DDecayLengthError"])        );
     if (fChain->GetBranch("2DDecayLengthSignificance"))   fChain->SetBranchAddress("2DDecayLengthSignificance",  V2DDecayLengthSignificance_, &(b["2DDecayLengthSignificance"]) );
     if (fChain->GetBranch("2DDecayLength"))               fChain->SetBranchAddress("2DDecayLength",              V2DDecayLength_,             &(b["2DDecayLength"])             );
     if (fChain->GetBranch("zDCASignificanceDaugther1"))   fChain->SetBranchAddress("zDCASignificanceDaugther1",  zDCASignificanceDaugther1_,  &(b["zDCASignificanceDaugther1"]) );
@@ -605,6 +617,10 @@ void VertexCompositeTree::InitTree(void)
     if (fChain->GetBranch("PID_gen"))                     fChain->SetBranchAddress("PID_gen",                    PID_gen_,                    &(b["PID_gen"])                   );
     if (fChain->GetBranch("MotherID_gen"))                fChain->SetBranchAddress("MotherID_gen",               MotherID_gen_,               &(b["MotherID_gen"])              );
     if (fChain->GetBranch("RecIdx_gen"))                  fChain->SetBranchAddress("RecIdx_gen",                 RecIdx_gen_,                 &(b["RecIdx_gen"])                );
+    if (fChain->GetBranch("3DPointingAngle_gen"))         fChain->SetBranchAddress("3DPointingAngle_gen",        V3DPointingAngle_gen_,       &(b["3DPointingAngle_gen"])       );
+    if (fChain->GetBranch("2DPointingAngle_gen"))         fChain->SetBranchAddress("2DPointingAngle_gen",        V2DPointingAngle_gen_,       &(b["2DPointingAngle_gen"])       );
+    if (fChain->GetBranch("3DDecayLength_gen"))           fChain->SetBranchAddress("3DDecayLength_gen",          V3DDecayLength_gen_,         &(b["3DDecayLength_gen"])         );
+    if (fChain->GetBranch("2DDecayLength_gen"))           fChain->SetBranchAddress("2DDecayLength_gen",          V2DDecayLength_gen_,         &(b["2DDecayLength_gen"])         );
     if (fChain->GetBranch("PIDD1_gen"))                   fChain->SetBranchAddress("PIDD1_gen",                  PIDD1_gen_,                  &(b["PIDD1_gen"])                 );
     if (fChain->GetBranch("chargeD1_gen"))                fChain->SetBranchAddress("chargeD1_gen",               chargeD1_gen_,               &(b["chargeD1_gen"])              );
     if (fChain->GetBranch("pTD1_gen"))                    fChain->SetBranchAddress("pTD1_gen",                   pTD1_gen_,                   &(b["pTD1_gen"])                  );
@@ -665,6 +681,7 @@ void VertexCompositeTree::Clear(void)
   if (GetBranchStatus("2DPointingAngle")==1)            std::fill_n(V2DPointingAngle_, nCand, -9.);
   if (GetBranchStatus("3DDecayLengthSignificance")==1)  std::fill_n(V3DDecayLengthSignificance_, nCand, -1.);
   if (GetBranchStatus("3DDecayLength")==1)              std::fill_n(V3DDecayLength_, nCand, -1.);
+  if (GetBranchStatus("3DDecayLengthError")==1)         std::fill_n(V3DDecayLengthError_, nCand, -1.);
   if (GetBranchStatus("2DDecayLengthSignificance")==1)  std::fill_n(V2DDecayLengthSignificance_, nCand, -1.);
   if (GetBranchStatus("2DDecayLength")==1)              std::fill_n(V2DDecayLength_, nCand, -1.);
   if (GetBranchStatus("zDCASignificanceDaugther1")==1)  std::fill_n(zDCASignificanceDaugther1_, nCand, -1.);
@@ -762,6 +779,10 @@ void VertexCompositeTree::Clear(void)
   if (GetBranchStatus("PID_gen")==1)      std::fill_n(PID_gen_, nGen, -999);
   if (GetBranchStatus("MotherID_gen")==1) std::fill_n(MotherID_gen_, nGen, -999);
   if (GetBranchStatus("RecIdx_gen")==1)   std::fill_n(RecIdx_gen_, nGen, -1);
+  if (GetBranchStatus("3DPointingAngle_gen")==1) std::fill_n(V3DPointingAngle_gen_, nGen, -1);
+  if (GetBranchStatus("2DPointingAngle_gen")==1) std::fill_n(V2DPointingAngle_gen_, nGen, -1);
+  if (GetBranchStatus("3DDecayLength_gen")==1) std::fill_n(V3DDecayLength_gen_, nGen, -1);
+  if (GetBranchStatus("2DDecayLength_gen")==1) std::fill_n(V2DDecayLength_gen_, nGen, -1);
   if (GetBranchStatus("PIDD1_gen")==1)    std::fill_n(PIDD1_gen_, nGen, -999);
   if (GetBranchStatus("chargeD1_gen")==1) std::fill_n(chargeD1_gen_, nGen, -9);
   if (GetBranchStatus("pTD1_gen")==1)     std::fill_n(pTD1_gen_, nGen, -1.);
