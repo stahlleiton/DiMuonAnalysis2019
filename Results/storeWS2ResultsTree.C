@@ -125,12 +125,12 @@ bool storeWS2ResultsTree(
       const auto& mean = ((var && inDS) ? dynamic_cast<RooRealVar*>(ds->meanVar(*var)) : NULL);
       const auto& rms  = ((var && inDS) ? dynamic_cast<RooRealVar*>(ds->rmsVar(*var))  : NULL);
       //
-      if (contain(v.second, "Min")) { v.second.at("Min") = var  ? var->getMin()   : -1.0; }
-      if (contain(v.second, "Max")) { v.second.at("Max") = var  ? var->getMax()   : -1.0; }
-      if (contain(v.second, "Val")) { v.second.at("Val") = mean ? mean->getVal()  : -1.0; }
-      if (contain(v.second, "Err")) { v.second.at("Err") = rms  ? rms->getError() : -1.0; }
-      if (contain(v.second, "Min")) { v.second.at("DefaultMin") = var ? var->getMin("DEFAULT") : -1.0; }
-      if (contain(v.second, "Max")) { v.second.at("DefaultMax") = var ? var->getMax("DEFAULT") : -1.0; }
+      if (contain(v.second, "Min")) { v.second.at("Min") = var  ? var->getMin()   : -99.0; }
+      if (contain(v.second, "Max")) { v.second.at("Max") = var  ? var->getMax()   : -99.0; }
+      if (contain(v.second, "Val")) { v.second.at("Val") = mean ? mean->getVal()  : -99.0; }
+      if (contain(v.second, "Err")) { v.second.at("Err") = rms  ? rms->getVal() : -99.0; }
+      if (contain(v.second, "Min")) { v.second.at("DefaultMin") = var ? var->getMin("DEFAULT") : -99.0; }
+      if (contain(v.second, "Max")) { v.second.at("DefaultMax") = var ? var->getMax("DEFAULT") : -99.0; }
     }
     //
     // Get the snapshots
@@ -149,26 +149,26 @@ bool storeWS2ResultsTree(
       if (ws->var(parName.c_str())) {
         const auto& par = dynamic_cast<RooRealVar*>(ws->var(parName.c_str()));
         const auto& par_Ini = (parIni ? dynamic_cast<RooRealVar*>(parIni->find(parName.c_str())) : NULL);
-        if (contain(p.second, "Min")  ) { p.second.at("Min")   = par ? par->getMin()    : -1.0; }
-        if (contain(p.second, "Max")  ) { p.second.at("Max")   = par ? par->getMax()    : -1.0; }
-        if (contain(p.second, "Val")  ) { p.second.at("Val")   = par ? par->getVal()    : -1.0; }
-        if (contain(p.second, "ErrLo")) { p.second.at("Err")   = par ? getErrorFromWS(*par) : -1.0; }
-        if (contain(p.second, "ErrLo")) { p.second.at("ErrLo") = par ? getErrorFromWS(*par, "Lo") : -1.0; }
-        if (contain(p.second, "ErrHi")) { p.second.at("ErrHi") = par ? getErrorFromWS(*par, "Hi") : -1.0; }
-        if (contain(p.second, "iniVal")) { p.second.at("iniVal") = par_Ini ? par_Ini->getVal()   : -1.0; }
-        if (contain(p.second, "iniErr")) { p.second.at("iniErr") = par_Ini ? par_Ini->getError() : -1.0; }
+        if (contain(p.second, "Min")  ) { p.second.at("Min")   = par ? par->getMin()    : -99.0; }
+        if (contain(p.second, "Max")  ) { p.second.at("Max")   = par ? par->getMax()    : -99.0; }
+        if (contain(p.second, "Val")  ) { p.second.at("Val")   = par ? par->getVal()    : -99.0; }
+        if (contain(p.second, "ErrLo")) { p.second.at("Err")   = par ? getErrorFromWS(*par) : -99.0; }
+        if (contain(p.second, "ErrLo")) { p.second.at("ErrLo") = par ? getErrorFromWS(*par, "Lo") : -99.0; }
+        if (contain(p.second, "ErrHi")) { p.second.at("ErrHi") = par ? getErrorFromWS(*par, "Hi") : -99.0; }
+        if (contain(p.second, "iniVal")) { p.second.at("iniVal") = par_Ini ? par_Ini->getVal()   : -99.0; }
+        if (contain(p.second, "iniErr")) { p.second.at("iniErr") = par_Ini ? par_Ini->getError() : -99.0; }
       }
       else if (ws->function(parName.c_str())) {
         const auto& par = dynamic_cast<RooFormulaVar*>(ws->function(parName.c_str()));
-        const double error = ((par && fitResult) ? par->getPropagatedError(*fitResult) : -1.0);
-        if (contain(p.second, "Min")  ) { p.second.at("Min")   = -1.0; }
-        if (contain(p.second, "Max")  ) { p.second.at("Max")   = -1.0; }
-        if (contain(p.second, "Val")  ) { p.second.at("Val")   = par ? par->getVal() : -1.0; }
+        const double error = ((par && fitResult) ? par->getPropagatedError(*fitResult) : -99.0);
+        if (contain(p.second, "Min")  ) { p.second.at("Min")   = -99.0; }
+        if (contain(p.second, "Max")  ) { p.second.at("Max")   = -99.0; }
+        if (contain(p.second, "Val")  ) { p.second.at("Val")   = par ? par->getVal() : -99.0; }
         if (contain(p.second, "ErrLo")) { p.second.at("Err")   = error; }
         if (contain(p.second, "ErrLo")) { p.second.at("ErrLo") = error; }
         if (contain(p.second, "ErrHi")) { p.second.at("ErrHi") = error; }
-        if (contain(p.second, "iniVal")) { p.second.at("iniVal") = (par && parIni) ? par->getValV(parIni) : -1.0; }
-        if (contain(p.second, "iniErr")) { p.second.at("iniErr") = -1.0; }
+        if (contain(p.second, "iniVal")) { p.second.at("iniVal") = (par && parIni) ? par->getValV(parIni) : -99.0; }
+        if (contain(p.second, "iniErr")) { p.second.at("iniErr") = -99.0; }
       }
     }
     //
@@ -179,16 +179,16 @@ bool storeWS2ResultsTree(
       }
       else if (v.first=="N_DS_Entries") {
 	const auto& varName = "numEntries_"+info.Par.at("dsName");
-        v.second.at("Val") = (ds ? ds->sumEntries() : (contain(info.Var, varName) ? info.Var.at(varName).at("Val") : -1.0));
+        v.second.at("Val") = (ds ? ds->sumEntries() : (contain(info.Var, varName) ? info.Var.at(varName).at("Val") : -99.0));
       }
       else if (v.first=="N_FIT_Entries") {
         const auto& pdf = dynamic_cast<RooAddPdf*>(ws->pdf(info.Par.at("pdfName").c_str()));
-        v.second.at("Val") = (pdf ? pdf->expectedEvents(pdf->coefList()) : -1.0);
+        v.second.at("Val") = (pdf ? pdf->expectedEvents(pdf->coefList()) : -99.0);
       }
       else if (v.first=="TEST_FIT") {
-        v.second.at("Val")  = (contain(info.Var, "PAR_pvalue_BCChi2_"+varTag  ) ? info.Var.at("PAR_pvalue_BCChi2_"+varTag).at("Val")  : -1.0);
-        v.second.at("Chi2") = (contain(info.Var, "PAR_testStat_BCChi2_"+varTag) ? info.Var.at("PAR_testStat_BCChi2_"+varTag).at("Val") : -1.0);
-        v.second.at("NDoF") = (contain(info.Var, "PAR_ndofc_BCChi2_"+varTag   ) ? info.Var.at("PAR_ndofc_BCChi2_"+varTag).at("Val")   : -1.0);
+        v.second.at("Val")  = (contain(info.Var, "PAR_pvalue_BCChi2_"+varTag  ) ? info.Var.at("PAR_pvalue_BCChi2_"+varTag).at("Val")  : -99.0);
+        v.second.at("Chi2") = (contain(info.Var, "PAR_testStat_BCChi2_"+varTag) ? info.Var.at("PAR_testStat_BCChi2_"+varTag).at("Val") : -99.0);
+        v.second.at("NDoF") = (contain(info.Var, "PAR_ndofc_BCChi2_"+varTag   ) ? info.Var.at("PAR_ndofc_BCChi2_"+varTag).at("Val")   : -99.0);
       }
     }
     //
@@ -274,12 +274,12 @@ void iniResultsTreeInfo(GlobalInfo& info , const RooWorkspace& ws)
   }
   //
   // Define the names of the remaining variables
-  info.Var["Luminosity"]["Val"] = -1.0;
-  info.Var["N_DS_Entries"]["Val"] = -1.0;
-  info.Var["N_FIT_Entries"]["Val"] = -1.0;
-  info.Var["TEST_FIT"]["Val"] = -1.0;
-  info.Var["TEST_FIT"]["Chi2"] = -1.0;
-  info.Var["TEST_FIT"]["NDoF"] = -1.0;
+  info.Var["Luminosity"]["Val"] = -99.0;
+  info.Var["N_DS_Entries"]["Val"] = -99.0;
+  info.Var["N_FIT_Entries"]["Val"] = -99.0;
+  info.Var["TEST_FIT"]["Val"] = -99.0;
+  info.Var["TEST_FIT"]["Chi2"] = -99.0;
+  info.Var["TEST_FIT"]["NDoF"] = -99.0;
   //
   // Initialize the information strings
   const auto& listObj = ws.allGenericObjects();
@@ -318,7 +318,7 @@ void setBranches(TTree& tree , GlobalInfo& info)
 
 double getLumiFromPD(const std::string& PD, const std::string& col)
 {
-  double lumi = -1.0;
+  double lumi = -99.0;
   if      (col=="PbPb5Y18") { lumi = PbPb::R5TeV::Y2018::LumiFromPD(PD); }
   else if (col=="PP13Y18" ) { lumi = pp::R13TeV::Y2018::LumiFromPD(PD);  }
   else if (col=="PP5Y17"  ) { lumi = pp::R5TeV::Y2017::LumiFromPD(PD);   }

@@ -140,8 +140,8 @@ void iniResultsGraph(GraphSextaMap_t& graphMap, const BinCont_t& binMap, const B
 	      auto& graph = graphMap[o.first][c.first][p.first][pp.first][v.first][t];
 	      graph.Set(pp.second.size());
 	      // Set Graph Name
-	      std::string ppLbl = "_"; if (pp.first.first.size()>0) { ppLbl += "_"; for (const auto& ppN : pp.first.first) { ppLbl += ppN.name()+"_"; } }
-	      const auto& name = ("gr_"+o.first+"_"+c.first+"_"+p.first+ppLbl+v.first+"_"+t);
+	      std::string ppLbl = "_"; if (pp.first.first.size()>0) { ppLbl += "_"; for (const auto& ppN : pp.first.first) { ppLbl += Form("%s_%.0f_%.0f_", ppN.name().c_str(), ppN.low()*100., ppN.high()*100.); } }
+	      const auto& name = ("gr_"+o.first+"_"+c.first+"_"+v.first+"_"+p.first+ppLbl+t);
 	      graph.SetName(name.c_str());
 	    }
 	  }
@@ -175,17 +175,16 @@ void fillResultsGraph(GraphSextaMap_t& graphMap, const BinCont_t& binMap, const 
 		//
 		// X Value
 		const auto& binX = b.getbin(p.first);
-		const auto& X = (binX.high() + binX.low())/2.0; // Mean value of bin
+		const auto& X = binX.mean(); // Mean value of bin
 		// X Error
-		const auto& Err_X = (binX.high() - binX.low())/2.0; ; // Width of eta bin
+		const auto& Err_X = binX.width(); ; // Width of bin
 		const auto& Err_X_High = Err_X;
 		const auto& Err_X_Low  = Err_X;
 		//
 		double norm = 1.0;
 		if (v.first=="Cross_Section") {
 		  norm *= (binX.high()-binX.low());
-		  for (const auto& ppN : pp.first.first) { norm *= (ppN.high()-ppN.low()); }
-		  if (pp.first.first.getbin("Centrality").name()!="") { norm *= 0.01; }
+		  if (binX.name()=="Centrality") { norm *= 0.01; }
 		}
 		//
 		for (const auto& pd : iVar.at(o.first).at(c.first)) {
@@ -280,7 +279,9 @@ std::string formatObjName(const std::string& obj)
 {
   const auto& objL = StringMap_t({{"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"}, {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
 				  {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
-  return (contain(objL, obj) ? objL.at(obj) : obj);
+  auto ob = obj;
+  for (const auto& o : objL) { stringReplace(ob, o.first, o.second); }
+  return ob;
 };
 
 
@@ -385,10 +386,14 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const 
   graph.GetXaxis()->SetLabelSize(0.035);
   double xMin = graph.GetXaxis()->GetXmin()-0.1;
   double xMax = graph.GetXaxis()->GetXmax()+0.1;
-  if      (var=="Cand_Pt"    ) { xMin = -0.1; }
-  else if (var=="Cand_Rap"   ) { xMin = -2.5; xMax = 2.5; }
-  else if (var=="Cand_AbsRap") { xMin = -0.1; xMax = 2.5; }
+  if      (par=="Cand_Pt"    ) { xMin = -0.1; xMax = 20.0; }
+  else if (par=="Cand_Rap"   ) { xMin = -2.5; xMax = 2.5; }
+  else if (par=="Cand_AbsRap") { xMin = -0.1; xMax = 2.5; }
+  else if (par=="NTrack") { xMin = 0.0; xMax = 260.0; }
+  graph.GetXaxis()->SetRangeUser(xMin, xMax);
   graph.GetXaxis()->SetLimits(xMin, xMax);
+  if (par=="NTrack") graph.GetXaxis()->SetNdivisions(510);
+  else graph.GetXaxis()->SetNdivisions(505);
   // Y-axis
   graph.GetYaxis()->CenterTitle(kTRUE);
   graph.GetYaxis()->SetTitleOffset(1.05);
@@ -410,10 +415,7 @@ void drawResultsGraph(GraphSextaMap_t& graphMap, const std::string& outDir, cons
   for (auto& o : graphMap) {
     for (auto& c : o.second) {
       for (auto& p : c.second) {
-	std::set<StringVector_t> ppStrSet;
 	for (auto& pp : p.second) {
-	  StringVector_t tmp; for (const auto& ppN : pp.first.first) { tmp.push_back(ppN.name()); }
-	  if (contain(ppStrSet, tmp)) { continue; } else { ppStrSet.insert(tmp); }
 	  for (auto& v : pp.second) {
 	    //
 	    const std::string& obj = o.first;
@@ -428,54 +430,53 @@ void drawResultsGraph(GraphSextaMap_t& graphMap, const std::string& outDir, cons
 	    TLatex tex; tex.SetNDC(); tex.SetTextSize(0.035); float dy = 0;
 	    std::vector< std::string > textToPrint;
 	    std::string sampleLabel = formatObjName(obj);
-	    if (var=="R") { sampleLabel = (obj.rfind("Ups",0)==0 ? "#Upsilon(nS)" : (obj.rfind("Psi",0)==0 ? "#psi(nS)" : sampleLabel)); }
-	    sampleLabel += "#rightarrow#mu^{+}+#mu^{#font[122]{\55}}";
+	    if (var=="R" || var=="RatioTo1S") { sampleLabel = (obj.rfind("Ups",0)==0 ? "#Upsilon(nS)" : (obj.rfind("Psi",0)==0 ? "#psi(nS)" : sampleLabel)); }
+	    sampleLabel += " #rightarrow #mu^{+} + #mu^{#font[122]{\55}}";
 	    textToPrint.push_back(sampleLabel);
+	    for (const auto& ppN : pp.first.first) { textToPrint.push_back(formatObsRange(ppN)); }
 	    for (const auto& ppN : pp.first.second) { textToPrint.push_back(formatObsRange(ppN)); }
 	    //
 	    // Declare the graph vector (for drawing with markers)
-	    bool first=true; uint iGr=0;
+	    uint iGr=0;
 	    std::vector<std::string> legLblV;
 	    std::vector< std::vector<TGraphAsymmErrors> > grDiVec;
-	    for (auto& pp : p.second) {
-	      bool skip=false; for (const auto& ppN : pp.first.first) { if (!contain(tmp, ppN.name())) { skip=true; break; } }
-	      if (skip) continue;
-	      auto& graph = pp.second.at(var);
-	      // Draw graph
-	      std::vector<TGraphAsymmErrors> grV;
-	      grV.push_back(graph.at("Err_Stat"));
-	      if (contain(graph, "Err_Syst")) {
-		grV.push_back(graph.at("Err_Tot"));
-		grV.push_back(graph.at("Err_Tot"));
-	      }
-	      grDiVec.push_back(grV);
-	      auto& grVec = grDiVec.back();
-	      if (contain(graph, "Err_Syst")) {
-		for (int i=0; i<grVec[0].GetN(); i++) { double x, y; grVec[0].GetPoint(i, x, y); grVec[2].SetPoint(i, x, y+grVec[2].GetErrorYhigh(i)); grVec[3].SetPoint(i, x, y-grVec[3].GetErrorYlow(i)); }
-	      }
-	      for (auto& gr : grVec) { formatResultsGraph(gr, var, par, obj, col, COLOR[iGr]); }; iGr++;
-	      if (contain(graph, "Err_Syst")) {
-		for (uint j=1; j<grVec.size(); j++) {
-		  grVec[j].SetMarkerSize(0);
-		  for (int i=0; i<grVec[j].GetN(); i++) { grVec[j].SetPointEYhigh(i, 0.0); grVec[j].SetPointEYlow(i, 0.0); }
-		  for (int i=0; i<grVec[j].GetN(); i++) { grVec[j].SetPointEXhigh(i, 0.5*grVec[j].GetErrorXhigh(i)); grVec[j].SetPointEXlow(i, 0.5*grVec[j].GetErrorXlow(i)); }
-		}
-	      }
-	      for (int i=0; i<grVec[0].GetN(); i++) { grVec[0].SetPointEXhigh(i, 0.0); grVec[0].SetPointEXlow(i, 0.0); }
-	      // Draw the graphs
-	      if (first) { grVec[0].Draw("ap"); first=false; } else { grVec[0].Draw("samep"); }
-	      if (contain(graph, "Err_Syst")) {grVec[1].Draw("samep"); grVec[2].Draw("samep"); }
-	      grVec[0].Draw("samep");
-	      // Add legend text
-	      std::string legLbl = ""; for (const auto& ppN : pp.first.first) { legLbl += formatObsRange(ppN)+" , "; };
-	      if (legLbl.find(" , ")!=std::string::npos) { legLbl.erase(legLbl.find(" , "), 3); }
-	      legLblV.push_back(legLbl);
+	    //
+	    auto& graph = pp.second.at(var);
+	    // Draw graph
+	    std::vector<TGraphAsymmErrors> grV;
+	    grV.push_back(graph.at("Err_Stat"));
+	    if (contain(graph, "Err_Syst")) {
+	      grV.push_back(graph.at("Err_Tot"));
+	      grV.push_back(graph.at("Err_Tot"));
 	    }
+	    grDiVec.push_back(grV);
+	    auto& grVec = grDiVec.back();
+	    if (contain(graph, "Err_Syst")) {
+	      for (int i=0; i<grVec[0].GetN(); i++) { double x, y; grVec[0].GetPoint(i, x, y); grVec[2].SetPoint(i, x, y+grVec[2].GetErrorYhigh(i)); grVec[3].SetPoint(i, x, y-grVec[3].GetErrorYlow(i)); }
+	    }
+	    for (auto& gr : grVec) { formatResultsGraph(gr, var, par, obj, col, COLOR[iGr]); }; iGr++;
+	    if (contain(graph, "Err_Syst")) {
+	      for (uint j=1; j<grVec.size(); j++) {
+		grVec[j].SetMarkerSize(0);
+		for (int i=0; i<grVec[j].GetN(); i++) { grVec[j].SetPointEYhigh(i, 0.0); grVec[j].SetPointEYlow(i, 0.0); }
+		for (int i=0; i<grVec[j].GetN(); i++) { grVec[j].SetPointEXhigh(i, 0.5*grVec[j].GetErrorXhigh(i)); grVec[j].SetPointEXlow(i, 0.5*grVec[j].GetErrorXlow(i)); }
+	      }
+	    }
+	    //for (int i=0; i<grVec[0].GetN(); i++) { grVec[0].SetPointEXhigh(i, 0.0); grVec[0].SetPointEXlow(i, 0.0); }
+	    // Draw the graphs
+	    grVec[0].Draw("ap");
+	    if (contain(graph, "Err_Syst")) {grVec[1].Draw("samep"); grVec[2].Draw("samep"); }
+	    grVec[0].Draw("samep");
+	    // Add legend text
+	    std::string legLbl = ""; for (const auto& ppN : pp.first.first) { legLbl += formatObsRange(ppN)+" , "; };
+	    if (legLbl.find(" , ")!=std::string::npos) { legLbl.erase(legLbl.find(" , "), 3); }
+	    legLblV.push_back(legLbl);
+	    //
 	    // Initialize the Legend
 	    std::unique_ptr<TLegend> leg;
 	    if (legLblV.size()>1) {
 	      // Define the position and size of the legend
-	      double xmin = 0.49 , xmax = 0.66 , ymin = 0.58 , ymax = 0.89 , legSize = 0.047;
+	      double xmin = 0.49 , xmax = 0.66 , ymin = 0.58 , ymax = 0.69 , legSize = 0.047;
 	      ymin = std::max(ymax-legLblV.size()*legSize*1.2, ymin);
 	      leg.reset(new TLegend(xmin, ymin, xmax, ymax));
 	      for (uint i=0; i<legLblV.size(); i++) { formatLegendEntry(*leg->AddEntry(&grDiVec[i][0], legLblV[i].c_str(), "p"), legSize); }
@@ -488,14 +489,14 @@ void drawResultsGraph(GraphSextaMap_t& graphMap, const std::string& outDir, cons
 	    tex.SetTextSize(0.055); tex.DrawLatex(0.22, 0.84, textToPrint[0].c_str());
 	    tex.SetTextSize(0.060); tex.SetTextFont(61); tex.DrawLatex(0.78, 0.84, "CMS"); tex.SetTextFont(62);
 	    tex.SetTextSize(0.046); tex.SetTextFont(52); tex.DrawLatex(0.69, 0.79, "Preliminary"); tex.SetTextFont(62);
-	    for (uint i=1; i<textToPrint.size(); i++) { tex.SetTextSize(0.045); tex.DrawLatex(0.22, 0.76-dy, textToPrint[i].c_str()); dy+=0.05; }
+	    for (uint i=1; i<textToPrint.size(); i++) { tex.SetTextSize(0.045); tex.DrawLatex(0.22, 0.76-dy, textToPrint[i].c_str()); dy+=0.060; }
 	    if (var=="Cross_Section") { tex.SetTextSize(0.030); tex.DrawLatex(0.25, 0.17, "Lumi. uncertainty not shown"); }
 	    // Update
 	    c.Modified(); c.Update(); // Pure paranoia
 	    //
 	    // set the CMS style
 	    StringVector_t lumiLabels; getLumiLabels(lumiLabels, "", col, isMC);
-	    CMS_lumi(&c, 33, lumiLabels[0], lumiLabels[1], false, 0.65, false);
+	    CMS_lumi(&c, 33, (" "+lumiLabels[0]), lumiLabels[1], false, 0.65, false);
 	    // Update
 	    c.Modified(); c.Update(); // Pure paranoia
 	    //

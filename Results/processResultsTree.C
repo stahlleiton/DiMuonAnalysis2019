@@ -4,13 +4,14 @@
 // Auxiliary Files
 #include "extractResultsTree.C"
 // ROOT headers
+#include "TEfficiency.h"
 // c++ headers
 #include <iostream>
 #include <string>
 
 
-void iniAcceptanceAndEfficiency ( BinSextaMap_t& eff , const VarBinTriMap_t& inputVar );
-bool correctRawYields           ( VarBinTriMap_t& inputVar , const BinSextaMap_t& effMap , const std::string& accType = "" , const std::string& effType = "" );
+bool getAcceptanceAndEfficiency ( BinSextaMap_t& eff , const VarBinTriMap_t& inputVar );
+bool correctRawYields           ( VarBinTriMap_t& inputVar , const BinSextaMap_t& effMap);
 bool computeRatioTo1S           ( BinSextaMap_t& var , const VarBinTriMap_t& inputVar );
 bool computeCrossSection        ( BinSextaMap_t& var , const VarBinTriMap_t& inputVar );
 
@@ -18,33 +19,24 @@ bool computeCrossSection        ( BinSextaMap_t& var , const VarBinTriMap_t& inp
 
 bool processResults(
 		    BinSextaMap_t& var,
-		    VarBinTriMap_t& inputVar,
-		    const std::string& effType = "",
-		    const std::string& accType = ""
+		    VarBinTriMap_t& inputVar
 		    )
 {
   //
-  // --------------------------------------------------------------------------------- //
+  // Extract the Acceptance and Efficiency container
+  BinSextaMap_t eff;
+  if (!getAcceptanceAndEfficiency(eff, inputVar)) { return false; }
   //
-  if (effType!="" || accType!="") {
-    //
-    // Initialize the Acceptance and Efficiency container
-    BinSextaMap_t eff;
-    iniAcceptanceAndEfficiency(eff, inputVar);
-    //
-    // Proceed to correct the Raw Yields
-    //
-    if (!correctRawYields(inputVar, eff, accType, effType)) { return false; }
-    //
-  }
+  // Proceed to correct the Raw Yields
+  if (!correctRawYields(inputVar, eff)) { return false; }
   //
   // Compute the Ratio
   std::cout << "[INFO] Computing ratios to 1S" << std::endl;
   if (!computeRatioTo1S(var, inputVar)) { return false; }
   //
   // Compute the Cross-Section
-  std::cout << "[INFO] Computing cross sections" << std::endl;
-  if (!computeCrossSection(var, inputVar)) { return false; }
+  //std::cout << "[INFO] Computing cross sections" << std::endl;
+  //if (!computeCrossSection(var, inputVar)) { return false; }
   //
   // return
   return true;
@@ -78,26 +70,57 @@ void addParameters(
 };
 
 
-void iniAcceptanceAndEfficiency(BinSextaMap_t& eff, const VarBinTriMap_t& inputVar)
+bool getAcceptanceAndEfficiency(BinSextaMap_t& eff, const VarBinTriMap_t& inputVar)
 {
   //
   const StringVector_t lbl = {"Val", "Err_Stat_High", "Err_Stat_Low", "Err_Syst_High", "Err_Syst_Low", "Err_Tot_High", "Err_Tot_Low"};
-  const StringVector_t obj = {"JPsi", "Psi2S", "Ups1S", "Ups2S", "Ups3S", "Z", "D0"};
+  StringMap_t effFile =
+    {
+     {"JPsiNoPR" , "JPsiEff"},
+     {"JPsiPR"   , "JPsiEff"},
+     {"Psi2SNoPR", "Psi2SEff"},
+     {"Psi2SPR"  , "Psi2SEff"}
+    };
   //
-  for (const auto& o : obj) {
-    for (const auto& c : (contain(inputVar, o) ? inputVar.at(o) : inputVar.begin()->second)) {
+  for (const auto& o : effFile) {
+    // Extract efficiency
+    const auto& fileName = (o.second+".root");
+    const std::string& dirName = "Efficiency/MC/";
+    if (!existFile(dirName+fileName)) continue;
+    TFile file((dirName+fileName).c_str(), "READ");
+    if (!file.IsOpen() || file.IsZombie()) { std::cout << "[ERROR] File " << (dirName+fileName) << " was not found!" << std::endl; return false; }
+    const auto& effName = (o.second.substr(0,o.second.find("Eff"))+"_Efficiency");
+    const auto& effP = dynamic_cast<TEfficiency*>(file.Get(effName.c_str()));
+    if (!effP) { std::cout << "[ERROR] Efficiency " << effName << " in " << (dirName+fileName) << " was not found!" << std::endl; file.Close(); return false; }
+    //
+    for (const auto& c : inputVar.begin()->second) {
       for (const auto& pd : c.second) {
 	for (const auto& b : pd.second) {
+	  const auto& rap = b.first.getbin("Cand_Rap"); // x-axis
+	  const auto& pt  = b.first.getbin("Cand_Pt"); // y-axis
+	  const auto& iBin = effP->FindFixBin(rap.mean(), pt.mean());
+	  if (effP->GetEfficiency(iBin)<=0) {
+	    b.first.print();
+	    std::cout << iBin << "  " << pt.mean() << "  " << rap.mean() << "  " << effP->GetEfficiency(iBin) << "  " << o.first << std::endl;
+	    return false;
+	  }
 	  for (const auto& l : lbl) {
 	    // For MC Acceptance
-	    eff[o][c.first][pd.first]["Acceptance_MC"][l][b.first] = ((l=="Val") ? 1.0 : 0.0);
-	    // For MC Efficiency
-	    eff[o][c.first][pd.first]["Efficiency_MC"][l][b.first] = ((l=="Val") ? 1.0 : 0.0);
+	    eff[o.first][c.first][pd.first]["Acceptance_MC"][l][b.first] = ((l=="Val") ? 1.0 : 0.0);
 	  }
+	  // For MC Efficiency
+	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Val"][b.first] = effP->GetEfficiency(iBin);
+	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Stat_High"][b.first] = effP->GetEfficiencyErrorUp(iBin);
+	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Stat_Low"][b.first] = effP->GetEfficiencyErrorLow(iBin);
+	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Syst_High"][b.first] = 0.0;
+	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Syst_Low"][b.first] = 0.0;
+	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Tot_High"][b.first] = effP->GetEfficiencyErrorUp(iBin);
+	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Tot_Low"][b.first] = effP->GetEfficiencyErrorLow(iBin);
 	}
       }
     }
   }
+  return true;
 };
 
 
@@ -117,11 +140,11 @@ double getCorrectedYieldError(const double& rawN, const double& acc, const doubl
 };
 
 
-bool correctRawYields(VarBinTriMap_t& inputVar, const BinSextaMap_t& effMap, const std::string& accType, const std::string& effType)
+bool correctRawYields(VarBinTriMap_t& inputVar, const BinSextaMap_t& effMap)
 {
   //
-  const std::string accName = ((accType!="") ? Form("Acceptance_%s", accType.c_str()) : "");
-  const std::string effName = ((effType!="") ? Form("Efficiency_%s", effType.c_str()) : "");
+  const std::string& accName = "Acceptance_MC";
+  const std::string& effName = "Efficiency_MC";
   //
   for (const auto& o : inputVar) {
     for (const auto& c : o.second) {
@@ -181,15 +204,31 @@ bool computeRatioTo1S(BinSextaMap_t& var, const VarBinTriMap_t& inputVar)
     for (const auto& c : o.second) {
       for (const auto& pd : c.second) {
 	for (const auto& b : pd.second) {
-	  for (const auto& v : b.second) {
-	    if (v.first.rfind("R_",0)!=0 || v.first.find("To")==std::string::npos) continue;
-	    if (v.first.rfind("N_Bkg",0)==0 || v.first.find("SS")!=std::string::npos) continue;
-	    const auto& obj = v.first.substr(0, v.first.find("To")).substr(2);
+	  std::vector<std::string> rVec;
+	  for (const auto& v : b.second) { if (v.first.rfind("R_",0)==0) { rVec.push_back(v.first); } }
+	  if (rVec.empty()) { for (const auto& v : b.second) { if (v.first.rfind("N_",0)==0) { rVec.push_back(v.first); } } }
+	  if (rVec.empty()) { std::cout << "[ERROR] Info for RatioTo1S not found!" << std::endl; return false; }
+	  for (const auto& v : rVec) {
+	    if (v.find("To")==std::string::npos || v.rfind("N_Bkg",0)==0 || v.find("SS")!=std::string::npos) continue;
+	    const auto& obj = v.substr(0, v.find("To")).substr(2);
+	    if (obj.rfind("JPsi",0)==0 || obj.rfind("Ups1S",0)==0) continue;
 	    // Initialize ratio to 1S
-	    const auto& iVar = v.second;
+	    const auto& iVar = b.second.at(v);
 	    auto& oVar = var[obj][c.first][pd.first]["RatioTo1S"];
 	    // Copy value and errors of ratio to 1S
-	    for (const auto& p : iVar) { oVar[p.first][b.first] = p.second; }
+	    if (v.rfind("R_",0)==0) { for (const auto& p : iVar) { oVar[p.first][b.first] = p.second; } }
+	    else if (v.rfind("N_",0)==0) {
+	      auto r = v;
+	      if (obj.rfind("Psi2S",0)==0) { stringReplace(r, "Psi2S", "JPsi"); }
+	      else if (obj.rfind("Ups2S",0)==0) { stringReplace(r, "Ups2S", "Ups1S"); }
+	      else if (obj.rfind("Ups3S",0)==0) { stringReplace(r, "Ups3S", "Ups1S"); }
+	      const auto& rVar = b.second.at(r);
+	      oVar["Val"][b.first] = iVar.at("Val")/rVar.at("Val");
+	      oVar["Err_Stat_High"][b.first] = fabs(oVar.at("Val").at(b.first))*sumErrors({(iVar.at("Err_Stat_High")/iVar.at("Val")), (rVar.at("Err_Stat_High")/rVar.at("Val"))});
+	      oVar["Err_Stat_Low"][b.first] = fabs(oVar.at("Val").at(b.first))*sumErrors({(iVar.at("Err_Stat_Low")/iVar.at("Val")), (rVar.at("Err_Stat_Low")/rVar.at("Val"))});
+	      oVar["Err_Syst_High"][b.first] = fabs(oVar.at("Val").at(b.first))*sumErrors({(iVar.at("Err_Syst_High")/iVar.at("Val")), (rVar.at("Err_Syst_High")/rVar.at("Val"))});
+	      oVar["Err_Syst_Low"][b.first] = fabs(oVar.at("Val").at(b.first))*sumErrors({(iVar.at("Err_Syst_Low")/iVar.at("Val")), (rVar.at("Err_Syst_Low")/rVar.at("Val"))});
+	    }
 	  }
 	}
       }
@@ -200,15 +239,15 @@ bool computeRatioTo1S(BinSextaMap_t& var, const VarBinTriMap_t& inputVar)
 };
 
 
-double getCrossSectionValue(const double& N, const double& lumi)
+double getCrossSectionValue(const double& N, const double& lumi, const double& binWidth)
 {
-  return (N / lumi);
+  return (N / (lumi*binWidth));
 };
 
   
-double getCrossSectionError(const double& N, const double& lumi, const double& errN, const double& errLumi)
+double getCrossSectionError(const double& N, const double& lumi, const double& binWidth, const double& errN, const double& errLumi)
 {
-  const auto& common = getCrossSectionValue(N, lumi);
+  const auto& common = getCrossSectionValue(N, lumi, binWidth);
   const auto& relErrN = (errN / N);
   const auto& relErrL = (errLumi / lumi); 
   return (std::abs(common) * sumErrors({relErrN, relErrL}));
@@ -231,10 +270,11 @@ bool computeCrossSection(BinSextaMap_t& var, const VarBinTriMap_t& inputVar)
 	    auto& oVar = var[obj][c.first][pd.first]["Cross_Section"];
 	    // Extract the luminosity
 	    const auto& lumi = b.second.at("Luminosity").at("Val");
+	    
 	    // Compute the cross-section value and errors
 	    for (const auto& t : iVar) {
-	      if (t.first=="Val") { oVar[t.first][b.first] = getCrossSectionValue(t.second, lumi); }
-	      else if (t.first.rfind("Err_",0)==0) { oVar[t.first][b.first] = getCrossSectionError(iVar.at("Val"), lumi, t.second, 0.0); }
+	      if (t.first=="Val") { oVar[t.first][b.first] = getCrossSectionValue(t.second, lumi, 1.0); }
+	      else if (t.first.rfind("Err_",0)==0) { oVar[t.first][b.first] = getCrossSectionError(iVar.at("Val"), lumi, 1.0, t.second, 0.0); }
 	    }
 	  }
 	}

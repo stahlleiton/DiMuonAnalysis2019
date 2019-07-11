@@ -91,8 +91,12 @@ bool extractResultsTree(
       if (name=="Centrality") { min /= 2.0; max /= 2.0; }
       // Round up the bin boundaries to 3rd decimal
       roundValue(min, 3); roundValue(max, 3);
+      // Get mean and width
+      auto mean = var.at("Val");
+      auto width = var.at("Err");
+      roundValue(mean, 3); roundValue(width, 3);
       // Store the bin
-      bin.setbin(name, min, max);
+      bin.setbin(name, min, max, mean, width);
     }
     //
     // Store the parameter information
