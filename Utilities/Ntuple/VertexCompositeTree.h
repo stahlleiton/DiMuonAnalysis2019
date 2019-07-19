@@ -179,10 +179,10 @@ public :
   Int_t*    PID_gen()                     { SetBranch("PID_gen");                     return PID_gen_;                    }
   Int_t*    MotherID_gen()                { SetBranch("MotherID_gen");                return MotherID_gen_;               }
   Short_t*  RecIdx_gen()                  { SetBranch("RecIdx_gen");                  return RecIdx_gen_;                 }
-  Short_t*  V3DPointingAngle_gen()        { SetBranch("3DPointingAngle_gen");         return V3DPointingAngle_gen_;       }
-  Short_t*  V2DPointingAngle_gen()        { SetBranch("2DPointingAngle_gen");         return V2DPointingAngle_gen_;       }
-  Short_t*  V3DDecayLength_gen()          { SetBranch("3DDecayLength_gen");           return V3DDecayLength_gen_;         }
-  Short_t*  V2DDecayLength_gen()          { SetBranch("2DDecayLength_gen");           return V2DDecayLength_gen_;         }
+  Float_t*  V3DPointingAngle_gen()        { SetBranch("3DPointingAngle_gen");         return V3DPointingAngle_gen_;       }
+  Float_t*  V2DPointingAngle_gen()        { SetBranch("2DPointingAngle_gen");         return V2DPointingAngle_gen_;       }
+  Float_t*  V3DDecayLength_gen()          { SetBranch("3DDecayLength_gen");           return V3DDecayLength_gen_;         }
+  Float_t*  V2DDecayLength_gen()          { SetBranch("2DDecayLength_gen");           return V2DDecayLength_gen_;         }
   Int_t*    PIDD1_gen()                   { SetBranch("PIDD1_gen");                   return PIDD1_gen_;                  }
   Short_t*  chargeD1_gen()                { SetBranch("chargeD1_gen");                return chargeD1_gen_;               }
   Float_t*  pTD1_gen()                    { SetBranch("pTD1_gen");                    return pTD1_gen_;                   }
@@ -372,10 +372,10 @@ public :
   Int_t             PID_gen_[NGEN]={0};   //[candSize_gen]
   Int_t             MotherID_gen_[NGEN]={0};   //[candSize_gen]
   Short_t           RecIdx_gen_[NGEN]={0};   //[candSize_gen]
-  Short_t           V3DPointingAngle_gen_[NGEN]={0};   //[candSize_gen]
-  Short_t           V2DPointingAngle_gen_[NGEN]={0};   //[candSize_gen]
-  Short_t           V3DDecayLength_gen_[NGEN]={0};   //[candSize_gen]
-  Short_t           V2DDecayLength_gen_[NGEN]={0};   //[candSize_gen]
+  Float_t           V3DPointingAngle_gen_[NGEN]={0};   //[candSize_gen]
+  Float_t           V2DPointingAngle_gen_[NGEN]={0};   //[candSize_gen]
+  Float_t           V3DDecayLength_gen_[NGEN]={0};   //[candSize_gen]
+  Float_t           V2DDecayLength_gen_[NGEN]={0};   //[candSize_gen]
   Int_t             PIDD1_gen_[NGEN]={0};   //[candSize_gen]
   Short_t           chargeD1_gen_[NGEN]={0};   //[candSize_gen]
   Float_t           pTD1_gen_[NGEN]={0};   //[candSize_gen]
