@@ -19,6 +19,10 @@
 #include "../Utilities/rooDataUtils.h"
 
 
+RooAbsPdf*  getTotalPDF ( RooWorkspace& ws , const std::string& var , const std::string& label , const GlobalInfo& info   );
+bool        makeSPlotDS ( RooWorkspace& ws , GlobalInfo& info       , const std::string& var   , const std::string& label );
+
+
 bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const StringSet_t& varV={})
 {
   //
@@ -103,6 +107,20 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		else {
 		  std::cout << "[INFO] %s Template " << varName << " PDF in " << col << " was NOT created!" << std::endl; break;
 		}
+	      }
+	    case (int(Model::SPLOT)):
+	      {
+		// create the sPlot DataSet
+		if (!makeSPlotDS(ws, info, varName, label)) { return false; }
+		// create the PDF
+		const auto& sPlotDS = info.Par.at("dsName"+chg)+"_SPLOT";
+		const auto& sPlotN = ("N_"+label+"_sw");
+		const auto& range = std::vector<double>({((double)getNBins(varName, info)), info.Var.at(varName).at("Min"), info.Var.at(varName).at("Max")});
+		auto dataw = std::unique_ptr<RooDataSet>(new RooDataSet("TMP","TMP", dynamic_cast<RooDataSet*>(ws.data(sPlotDS.c_str())), RooArgSet(*ws.var(varName.c_str()), *ws.var(sPlotN.c_str())), 0, sPlotN.c_str()));
+		if (!histToPdf(ws, pdfName, *dataw, varName, range)) { return false; }
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " sPlot " << varName << " Template in " << col << " added!" << std::endl; break;
 	      }
 	      //-------------------------------------------
 	      //
@@ -1046,6 +1064,101 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
       auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfListTot));
       ws.import(*themodel);
     }
+  }
+  //
+  return true;
+};
+
+
+RooAbsPdf* getTotalPDF(RooWorkspace& ws, const std::string& var, const std::string& label, const GlobalInfo& info)
+{
+  // Define input file name
+  std::string fileName = "";
+  auto dir = info.Par.at("outputDir");
+  setFileName(fileName, dir, label, info, {var});
+  const auto& inFileName = (dir+"result/FIT_"+fileName+".root");
+  // Initialize the previous PDF
+  const auto& cha = info.Par.at("channel");
+  const auto& chg = label.substr(label.find(cha)+cha.size(), 2);
+  GlobalInfo infoTMP(info);
+  if (!addModel(ws, infoTMP, chg, {var})) { return NULL; }
+  // Extract the previous PDF
+  auto varT = var; stringReplace(varT, "_", "");
+  const auto& pdfName = ("pdf"+varT+"_Tot"+label);
+  if (!loadFitResult(ws, inFileName, pdfName)) { return NULL; }
+  return ws.pdf(pdfName.c_str());
+};
+
+
+bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& var, const std::string& label)
+{
+  //
+  const auto& cha = info.Par.at("channel");
+  if (label.find(cha)==std::string::npos) { std::cout << "[ERROR] makeSPlotDS: Invalid channel " << cha << " in label " << label << std::endl; return false; }
+  const auto& chg = label.substr(label.find(cha)+cha.size(), 2);
+  // Check if sPlot DataSet has already been created
+  const auto& dsName = info.Par.at("dsName"+chg);
+  if (ws.data((dsName+"_SPLOT").c_str())) { return true; }
+  const auto& obj = label.substr(0, label.find(cha));
+  const auto& col = label.substr(label.find("_")+1);
+  auto varT = var; stringReplace(varT, "_", "");
+  //
+  // Load the sPlot DataSet if already done
+  std::string fileName = "";
+  auto dir = info.Par.at("outputDir");
+  setFileName(fileName, dir, label, info, {"Cand_Mass"});
+  const auto& inFileName = (dir+"dataset/SPLOT_"+fileName+".root");
+  const auto& foundDS = getDataSet(ws, dsName+"_SPLOT", inFileName);
+  //
+  if (!foundDS) {
+    std::cout << "[INFO] Building the sPlot DataSets using the fitted mass PDF results!" << std::endl;
+    //
+    // Initialize the yields
+    std::cout << "[INFO] Initializing " << var << " model yields for SPLOT" << std::endl;
+    for (const auto& o : info.StrS.at("addObjectModel_"+varT+"_"+label)) {
+      const auto& lbl = (o + cha + chg + "_" + col);
+      if (!addModelPar(ws, info, {"N"}, var, lbl, "")) { return false; }
+    }
+    // Extract the yields
+    RooArgList yieldList;
+    if (ws.components().getSize()>0) {
+      auto cmpIt = std::unique_ptr<TIterator>(ws.componentIterator());
+      for (auto itp = cmpIt->Next(); itp!=NULL; itp = cmpIt->Next()) {
+	const auto& it = dynamic_cast<RooAbsArg*>(itp); if (!it) continue;
+	if (std::string(it->GetName()).rfind("N_",0)==0) { yieldList.add(*it); }
+      }
+    }
+    if (yieldList.getSize()==0) { std::cout << "[ERROR] makeSPlotDS: Workspace has no yields!" << endl; return false; }
+    //
+    // Extract the RooDataSet
+    auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())->Clone("TMP_DATA")));
+    if (!data) { std::cout << "[ERROR] RooDataSet " << dsName << " was not found!" << endl; return false; }
+    //
+    // Extract the mass PDF
+    const auto& massPDF = getTotalPDF(ws, "Cand_Mass", label, info);
+    if (!massPDF) { std::cout << "[ERROR] makeSPlotDS: Cand_Mass PDF was not loaded!" << endl; return false; }
+    auto cloneSet = std::unique_ptr<RooArgSet>(dynamic_cast<RooArgSet*>(RooArgSet(*massPDF, massPDF->GetName()).snapshot(kTRUE)));
+    if (!cloneSet) { std::cout << "[ERROR] Couldn't deep-clone " << massPDF->GetName() << std::endl; return false; }
+    const auto& clonePDF = dynamic_cast<RooAbsPdf*>(cloneSet->find(massPDF->GetName()));
+    if (!clonePDF) { cout << "[ERROR] Couldn't deep-clone " << massPDF->GetName() << endl; return false; }
+    clonePDF->setOperMode(RooAbsArg::ADirty, kTRUE);
+    //
+    // Create the sPlot DataSet
+    std::cout << "[INFO] Creating the sPlot DataSets!" << std::endl;
+    const auto& sData = RooStats::SPlot("sData", "An SPlot", *data, clonePDF, yieldList);
+    if (ws.import(*data, RooFit::Rename((dsName+"_SPLOT").c_str()))) { std::cout << "[ERROR] sPlot DataSets were not imported!" << std::endl; return false; }
+    else { std::cout << "[INFO] sPlot DataSets created succesfully!" << std::endl; }
+    ws.loadSnapshot("loadedParameters");
+    auto yIt = std::unique_ptr<TIterator>(yieldList.createIterator());
+    for (auto it = yIt->Next(); it!=NULL; it = yIt->Next()) {
+      const std::string& name = it->GetName();
+      const auto& fitVal = ws.var(name.c_str())->getVal();
+      const auto& sVal = sData.GetYieldFromSWeight(name.c_str());
+      if (std::abs(fitVal - sVal)>0.1) { std::cout << "[ERROR] Variable " << name << " has different fitted (" << fitVal << ") and sPlot (" << sVal << ") results!" << std::endl; return false; }
+    }
+    // Store the sPlot DataSet
+    const auto& dsSPlot = dynamic_cast<RooDataSet*>(ws.data((dsName+"_SPLOT").c_str()));
+    if (!saveDataSet(*dsSPlot, dir, fileName)) { return false; }
   }
   //
   return true;

@@ -43,7 +43,6 @@ TTree* skimTree(TTree* told, std::vector<int>& evtV)
   told->SetBranchAddress("candSize",&candSize);
   told->SetBranchAddress("mass",&mass);
   told->SetBranchAddress("evtSel",&evtSel);
-  told->SetBranchAddress("trigHLT",&trigHLT);
   told->SetBranchAddress("softMuon1",&softMuon1);
   told->SetBranchAddress("softMuon2",&softMuon2);
 
@@ -55,7 +54,7 @@ TTree* skimTree(TTree* told, std::vector<int>& evtV)
       told->GetEntry(i);
       bool hasGoodCandidate = false;
       for (uint j=0; j<candSize; j++) {
-        if ((mass[j]>2.2 && mass[j]<4.2) && (softMuon1[j] && softMuon2[j])) { hasGoodCandidate = true; break; }
+        if ((mass[j]>2.1 && mass[j]<4.8) && (softMuon1[j] && softMuon2[j])) { hasGoodCandidate = true; break; }
       }
       const bool& keepEvt = (hasGoodCandidate && evtSel[0]);
       evtV.push_back(keepEvt);

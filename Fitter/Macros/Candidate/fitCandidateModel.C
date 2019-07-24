@@ -8,7 +8,7 @@
 #include "../Utilities/initClasses.h"
 #include "../Utilities/rooDataUtils.h"
 #include "buildCandidateModel.C"
-#include "drawCandidateMassPlot.C"
+#include "drawCandidatePlot.C"
 
 
 void defineFitParameterRange ( GlobalInfo& info );
@@ -104,7 +104,8 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
   }
 
   // Set fit parameter range in workspace
-  for (const auto& chg : info.StrS.at("fitCharge")) { if (!setFitParameterRange(myws.at(chg), info)) { return false; } }
+  for (const auto& chg : info.StrS.at("fitCharge")) { if (!setFitParameterRange(myws.at(chg), info, chg)) { return false; } }
+  return false;
 
   // Build the fit model
   for (const auto& chg : info.StrS.at("fitCharge")) { if (!buildCandidateModel(myws.at(chg), info, chg))  { return false; } }
@@ -140,20 +141,22 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
       // Store the mean and RMS of each dataset variable
       if (!storeDSStat(myws.at(chg), dsNameFit)) { return false; }
       //
-      // Check if we have already done this fit. If yes, do nothing and return true.
-      bool found =  true; bool skipFit = false;
-      std::unique_ptr<RooArgSet> newpars;
-      if (myws.at(chg).pdf(pdfName.c_str())) { newpars = std::unique_ptr<RooArgSet>(myws.at(chg).pdf(pdfName.c_str())->getParameters(*myws.at(chg).data(dsName.c_str()))); }
-      else { newpars = std::unique_ptr<RooArgSet>(new RooArgSet(myws.at(chg).allVars())); }
-      const auto& outFileName = (outDir+"result/FIT_"+fileName+".root");
-      found = found && isFitAlreadyFound(*newpars, outFileName);
-      if (found) {
-        std::cout << "[INFO] This fit for " << pdfName << " was already done, so I'll just go to the next one." << std::endl;
-	continue;
-      }
+      bool skipFit = false;
+      if (contain(info.StrS.at("fitVariable"), "Cand_DLenErr") && myws.at(chg).data((dsName+"_SPLOT").c_str())) skipFit = false;
       //
-      // Fit the datasets
-      if (skipFit==false) {
+      if (!skipFit) {
+	// Check if we have already done this fit. If yes, continue.
+	bool found =  true;
+	std::unique_ptr<RooArgSet> newpars;
+	if (myws.at(chg).pdf(pdfName.c_str())) { newpars = std::unique_ptr<RooArgSet>(myws.at(chg).pdf(pdfName.c_str())->getParameters(*myws.at(chg).data(dsName.c_str()))); }
+	else { newpars = std::unique_ptr<RooArgSet>(new RooArgSet(myws.at(chg).allVars())); }
+	const auto& outFileName = (outDir+"result/FIT_"+fileName+".root");
+	found = found && isFitAlreadyFound(*newpars, outFileName);
+	if (found) {
+	  std::cout << "[INFO] This fit for " << pdfName << " was already done, so I'll just go to the next one." << std::endl;
+	  continue;
+	}
+	// Fit the datasets
 	bool fitFailed = false;
 	std::unique_ptr<RooFitResult> fitResult;
         if (myws.at(chg).pdf(pdfName.c_str())) {
@@ -217,16 +220,14 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
         else {
           std::cout << "[ERROR] The PDF " << pdfName << " was not found!" << std::endl; return false;
         }
-	//
-	// Draw the plot
-        if (!drawCandidateMassPlot(myws.at(chg), ("PLOT_"+fileName), outDir, info.Flag.at("setLogScale"), -1., true, false)) { return false; }
-	//
-	// Save the fit results
-	if (!fitFailed) {
-	  saveSnapshot(myws.at(chg), "fittedParameters", info.Par.at("dsName"+chg));
-	  if (!saveWorkSpace(myws.at(chg), Form("%sresult/", outDir.c_str()), Form("%s.root", ("FIT_"+fileName).c_str()), saveAll)) { return false; }
-	}
       }
+      //
+      // Draw the plot
+      if (!drawCandidatePlot(myws.at(chg), ("PLOT_"+fileName), outDir, info.Flag.at("setLogScale"), -1., true, false)) { return false; }
+      //
+      // Save the fit results
+      saveSnapshot(myws.at(chg), "fittedParameters", info.Par.at("dsName"+chg));
+      if (!saveWorkSpace(myws.at(chg), Form("%sresult/", outDir.c_str()), Form("%s.root", ("FIT_"+fileName).c_str()), saveAll)) { return false; }
     }
   }
   //
@@ -239,7 +240,8 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 
 void defineFitParameterRange(GlobalInfo& info)
 {
-  for (const auto& var : info.StrS.at("fitVariable")) {
+  for (const auto& var : info.StrV.at("variable")) {
+    if (var!="Cand_Mass" && !info.Flag.at("fit"+var)) continue;
     double varMin = 100000000., varMax = -100000000.;
     if (var=="Cand_Mass") {
       if (info.Flag.at("fitMC")) {
@@ -281,6 +283,14 @@ void defineFitParameterRange(GlobalInfo& info)
 	  if (varMax < 110.0) { varMax = 110.0; }
         }
       }
+    }
+    else if (var=="Cand_DLenErr") {
+      varMin = 0.0;
+      varMax = 10.0; 
+    }
+    else if (var=="Cand_DLenRes") {
+      varMin = -10.0;
+      varMax = (info.Flag.at("fitMC") ?  10.0 : 0.0);
     }
     if (varMax > varMin) {
       if (info.Var.at(var).at("Min") <= info.Var.at(var).at("Default_Min")) { info.Var.at(var).at("Min") = varMin; }

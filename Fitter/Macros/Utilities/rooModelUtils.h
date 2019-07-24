@@ -16,7 +16,8 @@
 #include <vector>
 #include <set>
 
-#include "initClasses.h"
+#include "rooDataUtils.h"
+#include "RooStats/SPlot.h"
 
 
 std::set<std::string> MODELCLASS_;
@@ -40,7 +41,6 @@ bool importModelClass(RooWorkspace& ws, const std::string& className)
 
 void constrainQuarkoniumMassParameters(GlobalInfo& info, const StringVector_t& varList, const std::string& excLabel)
 {
-  if (!contain(info.StrS.at("fitVariable"), "Cand_Mass")) return;
   const auto& cha = info.Par.at("channel");
   if (excLabel.find(cha)==std::string::npos) { std::cout << "[ERROR] Invalid channel " << cha << " in label " << excLabel << std::endl; return; }
   const auto& obj = excLabel.substr(0, excLabel.find(cha));
@@ -155,10 +155,13 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
 bool addModelPar(RooWorkspace& ws, GlobalInfo& info, const StringVector_t& parNames, const std::string& fitVar,
 		 const std::string& label, const std::string& modelN)
 {
+  // Check if parameters are already added
+  bool addPar = false; for (const auto& v : parNames) { addPar = addPar || !ws.arg((v+"_"+label).c_str()); };
+  if (!addPar) { return true; }
   // initialize all input parameters
   if (!setModelPar(info, parNames, label, fitVar, modelN)) { return false; }
   // Constrain Quarkonium excited states to 1S state
-  constrainQuarkoniumMassParameters(info, parNames, label);
+  if (fitVar=="Cand_Mass") constrainQuarkoniumMassParameters(info, parNames, label);
   // check that all input parameters are defined
   for (const auto& v : parNames) {
     if (!contain(info.Par, v+"_"+label)) {
@@ -228,20 +231,18 @@ TH1* rebinhist(const TH1& hist, const double& xmin, const double& xmax, const st
   return NULL;
 };
 
-
-bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& dsName, const std::string& var, const std::vector< double >& range)
+  
+bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const RooDataSet& ds, const std::string& var, const std::vector< double >& range)
 {
   //
   if (ws.pdf(pdfName.c_str())) { std::cout << "[INFO] The " << pdfName << " Template has already been created!" << std::endl; return true; }
+  if (!ws.var(var.c_str())) { std::cout << "[ERROR] Variable " << var << " was not found!" << std::endl; return false; }
   std::cout << "[INFO] Implementing " << pdfName << " Template" << std::endl;
-  //
-  if (ws.data(dsName.c_str())==NULL) { std::cout << "[ERROR] DataSet " << dsName << " was not found!" << std::endl; return false; }
-  if (ws.data(dsName.c_str())->numEntries()<=2.0) { std::cout << "[WARNING] DataSet " << dsName << " has too few events!" << std::endl; return false; }
-  if (ws.var(var.c_str())==NULL) { std::cout << "[ERROR] Variable " << var << " was not found!" << std::endl; return false; }
+  //  
   // Create the histogram
   auto histName = pdfName;
   histName.replace(histName.find("pdf"), std::string("pdf").length(), "h");
-  auto hist = std::unique_ptr<TH1D>(dynamic_cast<TH1D*>(ws.data(dsName.c_str())->createHistogram(histName.c_str(), *ws.var(var.c_str()), RooFit::Binning(int(range[0]), range[1], range[2]))));
+  auto hist = std::unique_ptr<TH1D>(static_cast<TH1D*>(ds.createHistogram(histName.c_str(), *ws.var(var.c_str()), RooFit::Binning(int(range[0]), range[1], range[2]))));
   if (!hist) { std::cout << "[ERROR] Histogram " << histName << " is NULL!" << std::endl; return false; }
   // Cleaning the input histogram
   // 1) Remove the Under and Overflow bins
@@ -249,7 +250,7 @@ bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& 
   // 2) Set negative bin content to zero
   for (int i=0; i<=hist->GetNbinsX(); i++) { if (hist->GetBinContent(i)<0.0) { hist->SetBinContent(i, 0.0); } }
   // 2) Reduce the range of histogram and rebin it
-  hist.reset(dynamic_cast<TH1D*>(rebinhist(*hist, range[1], range[2])));
+  hist.reset(static_cast<TH1D*>(rebinhist(*hist, range[1], range[2])));
   if (!hist) { std::cout << "[ERROR] Cleaned Histogram of " << histName << " is NULL!" << std::endl; return false; }
   auto dataName = pdfName;
   dataName.replace(dataName.find("pdf"), std::string("pdf").length(), "dh");
@@ -271,36 +272,13 @@ bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& 
 };
 
 
-/*
-bool createCtauErrTemplateUsingSPLOT(RooWorkspace& ws, const std::string& dsName, const std::string& pdfType, const GlobalInfo& info)
+bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& dsName, const std::string& var, const std::vector< double >& range)
 {
-  //
-  // Extract the yields
-  RooArgList yieldList;
-  if (ws.components().getSize()>0) {
-    auto cmpIt = std::unique_ptr<TIterator>(ws.componentIterator());
-    for (auto it = cmpIt->Next(); it!=NULL; it = cmpIt->Next()) {
-      if (std::string(it->GetName()).rfind("N_",0)==0) { yieldList.add(*it); }
-    }
-  }
-  if (yieldList.size()==0) { std::cout << "[ERROR] Workspace has no yields!" << endl; return false; }
-  //
-  // Extract the RooDataSet
-  auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())->Clone("TMP_DATA")));
-  if (!data) { std::cout << "[ERROR] RooDataSet " << dsName << " was not found!" << endl; return false; }
-  //
-  // Extract the mass PDF
-  const auto& massPDF = getTotalPDF(ws, "Cand_Mass");
-  auto pdf = std::unique_ptr<RooAbsPdf>(clone(*ws.pdf(pdfMassName.c_str())));
-  auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())->Clone("TMP_DATA")));
-  if (!data) { std::cout << "[ERROR] RooDataSet " << dsName << " was not found!" << endl; return false; }
-
-  RooStats::SPlot sData = RooStats::SPlot("sData","An SPlot", *data, pdf.get(), yieldList);
-  ws.import(*data, Rename((dsName+"_SPLOT").c_str()));
-
-  return true;
+  const auto& pd = dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()));
+  if (!pd) { std::cout << "[ERROR] DataSet " << dsName << " was not found!" << std::endl; return false; }
+  if (pd->numEntries()<=2.0) { std::cout << "[WARNING] DataSet " << dsName << " has too few events!" << std::endl; return false; }
+  return histToPdf(ws, pdfName, *pd, var, range);
 };
-*/
 
 
 #endif // #ifndef rooModelUtils_h

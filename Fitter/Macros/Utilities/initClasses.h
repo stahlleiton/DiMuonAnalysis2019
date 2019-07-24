@@ -45,6 +45,7 @@ enum class Model
     // General Models
     CutAndCount,
     Template,
+    SPLOT,
     // Candidate Mass Models
     SingleGaussian,
     DoubleGaussian,
@@ -92,6 +93,7 @@ const IntMap_t ModelDictionary = {
   // General Models
   {"CutAndCount",                 int(Model::CutAndCount)},
   {"Template",                    int(Model::Template)},
+  {"SPLOT",                       int(Model::SPLOT)},
   // Candidate Mass Models
   {"SingleGaussian",              int(Model::SingleGaussian)},
   {"DoubleGaussian",              int(Model::DoubleGaussian)},

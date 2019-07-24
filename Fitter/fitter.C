@@ -52,11 +52,11 @@ void fitter(
                                                           //              (bit 1  (2)) JPsi  , (bit 2   (4)) Psi2S ,
                                                           //              (bit 3  (8)) Ups1S , (bit 4  (16)) Ups2S , (bit 5 (32)) Ups3S ,
                                                           //              (bit 6 (64)) Z     , (bit 7 (128)) D0
-            const std::bitset<2> fitCat   = 3,            // Fit Objects: (bit 0  (1)) PR , (bit 1  (2)) NoPR
             // Select the fitting options
-            const unsigned int   numCores = 24,           // Number of cores used for fitting
-            const std::bitset<1> fitVar   = 1,            // Fit Variable: (bit 0 (1)) Cand_Mass    , (bit 1 (2)) Cand_DLen ,
+            const std::bitset<5> fitVar   = 1,            // Fit Variable: (bit 0 (1)) Cand_Mass    , (bit 1 (2)) Cand_DLen ,
 	                                                  //               (bit 2 (4)) Cand_DLenErr , (bit 3 (8)) Cand_DLenRes , (bit 4 (16)) Cand_DLenGen
+            const std::bitset<2> fitCat   = 3,            // Fit Objects: (bit 0  (1)) PR , (bit 1  (2)) NoPR
+            const unsigned int   numCores = 24,           // Number of cores used for fitting
             const std::string    analysis = "CandToMuMu", // Type of analysis: CandToXX (Mass Resonance)
             // Select the drawing options
             const bool setLogScale  = true                // Draw plot with log scale
@@ -154,8 +154,14 @@ void fitter(
   for (const auto& v : userInput.StrV.at("variable")) {
     if (userInput.Flag.at("fit"+v)) {
       userInput.StrS["fitVariable"].insert(v);
+      userInput.StrS["incVariable"].insert(v);
       auto var = v; stringReplace(var, "_", "");
       userInput.StrS["fitVarName"].insert(var);
+      userInput.StrS["incVarName"].insert(var);
+      if (v=="Cand_DLenErr" || v=="Cand_DLenRes") {
+	userInput.StrS["incVariable"].insert("Cand_Mass");
+	userInput.StrS["incVarName"].insert("CandMass");
+      }
     }
   }
   //
@@ -182,10 +188,10 @@ void fitter(
     else if (userInput.Flag.at("fitUps1S") || userInput.Flag.at("fitUps2S") || userInput.Flag.at("fitUps3S")) { massWidth = 0.05; }
     else if (userInput.Flag.at("fitZ")) { massWidth = 1.0; }
     userInput.Var["Cand_Mass"]["binWidth"] = massWidth;
-    userInput.Var["Cand_DLen"]["binWidth"] = 0.01;
-    userInput.Var["Cand_DLenErr"]["binWidth"] = 0.01;
-    userInput.Var["Cand_DLenRes"]["binWidth"] = 0.01;
-    userInput.Var["Cand_DLenGen"]["binWidth"] = 0.01;
+    userInput.Var["Cand_DLen"]["binWidth"] = 0.10;
+    userInput.Var["Cand_DLenErr"]["binWidth"] = 0.005;
+    userInput.Var["Cand_DLenRes"]["binWidth"] = 0.25;
+    userInput.Var["Cand_DLenGen"]["binWidth"] = 0.025;
   }
   //
   // Clear extra variables if missing
@@ -225,9 +231,9 @@ void fitter(
 
   std::vector< GlobalInfoVectorMap_t > infoMapVectors;
   BoolDiMap_t VARMAP;
-  for (const auto& var : userInput.StrV.at("variable")) {
+  for (const auto& var : userInput.StrS.at("incVariable")) {
     for (const auto& obj : userInput.StrV.at("object")) {
-      VARMAP[var][obj] = (userInput.Flag.at("fit"+var) && userInput.Flag.at("fit"+obj));
+      VARMAP[var][obj] = userInput.Flag.at("fit"+obj);
     }
   }
   BoolMap_t COLMAP;
@@ -489,7 +495,7 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
     v.second["Default_Max"] = v.second.at("Max");
   }
   info.Par["Cut"]   = "";
-  for (const auto& var : userInfo.StrS.at("fitVarName")) { info.Par["Model"+var] = ""; }
+  for (const auto& var : userInfo.StrS.at("incVarName")) { info.Par["Model"+var] = ""; }
   for (const auto& v : info.Var) { if (contain(row, v.first+"CM")) { info.Flag["use"+v.first+"CM"] = true; } }
   // set parameters from file
   for (const auto& col : row) {
@@ -519,11 +525,11 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
 	  std::cout << "[ERROR] Input column " << colName << " has empty value" << std::endl; return false;
 	}
 	auto var = colName.substr(0, colName.find("_")).substr(5);
-	if (var=="" && userInfo.StrS.at("fitVarName").size()>1) {
+	if (var=="" && userInfo.StrS.at("incVarName").size()>1) {
 	  std::cout << "[ERROR] Model name " << colName << " is not valid for multi-variable fits!" << std::endl; return false;
 	}
-	else if (var!="" && !contain(userInfo.StrS.at("fitVarName"), var)) continue;
-	var = (var=="" ? *userInfo.StrS.at("fitVarName").begin() : var);
+	else if (var!="" && !contain(userInfo.StrS.at("incVarName"), var)) continue;
+	var = (var=="" ? *userInfo.StrS.at("incVarName").begin() : var);
 	const auto& modelName = "Model"+var+colName.substr(colName.find("_"));
 	info.Par[modelName] = col.second;
 	for(const auto& s : userInfo.StrS.at("fitObject")) {
@@ -544,12 +550,12 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
 	      for (const auto& o : modP) {
 		bool incObj = (modT!="TEMP");
 		if (modT=="TEMP" && userInfo.Flag.at(mcTemp)) {
-		  userInfo.StrS.at("template_"+var).insert(o);
+		  userInfo.StrS["template_"+var].insert(o);
 		  userInfo.Flag["incMCTemp_"+var+"_"+s+"_"+o] = true;
 		  incObj = true;
 		}
 		if (incObj) {
-		  userInfo.StrS.at("incObject_"+var).insert(o);
+		  userInfo.StrS["incObject_"+var].insert(o);
 		  userInfo.Flag["inc"+o] = true;
 		}
 	      }

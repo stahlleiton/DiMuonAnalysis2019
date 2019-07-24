@@ -18,8 +18,8 @@
 #include <string>
 #include <sys/stat.h>
 #include <iostream>
-#include <unordered_map>
-#include <unordered_set>
+#include <map>
+#include <set>
 #include <vector>
 #include <chrono>
 #include <memory>
@@ -30,16 +30,16 @@
 #include "RunInfo/eventUtils.h"
 
 
-typedef std::unordered_set< std::string                  > StringSet_t;
-typedef std::unordered_map< std::string , StringSet_t    > StringSetMap_t;
-typedef std::vector<        std::string                  > StringVector_t;
-typedef std::unordered_map< std::string , StringVector_t > StringVectorMap_t;
-typedef std::unordered_map< std::string , double         > DoubleMap_t;
-typedef std::unordered_map< std::string , DoubleMap_t    > DoubleDiMap_t;
-typedef std::unordered_map< std::string , std::string    > StringMap_t;
-typedef std::unordered_map< std::string , std::string*   > StringPMap_t;
-typedef std::unordered_map< std::string , int            > IntMap_t;
-typedef std::unordered_map< std::string , bool           > BoolMap_t;
+typedef std::set< std::string                  > StringSet_t;
+typedef std::map< std::string , StringSet_t    > StringSetMap_t;
+typedef std::vector< std::string               > StringVector_t;
+typedef std::map< std::string , StringVector_t > StringVectorMap_t;
+typedef std::map< std::string , double         > DoubleMap_t;
+typedef std::map< std::string , DoubleMap_t    > DoubleDiMap_t;
+typedef std::map< std::string , std::string    > StringMap_t;
+typedef std::map< std::string , std::string*   > StringPMap_t;
+typedef std::map< std::string , int            > IntMap_t;
+typedef std::map< std::string , bool           > BoolMap_t;
 
 
 // Global Info Structure (wrapper to carry information around)
@@ -400,6 +400,13 @@ int getNBins(const double& min, const double& max, const double& binW)
 {
   const auto& nBins = std::round((max - min)/binW);
   return std::min(int(nBins), 2000);
+};
+
+
+int getNBins(const std::string& var, const GlobalInfo& info)
+{
+  if (!contain(info.Var, var)) { return -1; }
+  return getNBins(info.Var.at(var).at("Min"), info.Var.at(var).at("Max"), info.Var.at(var).at("binWidth"));
 };
 
 

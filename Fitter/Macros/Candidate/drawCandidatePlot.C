@@ -1,5 +1,5 @@
-#ifndef Candidate_drawCandidateMassPlot_C
-#define Candidate_drawCandidateMassPlot_C
+#ifndef Candidate_drawCandidatePlot_C
+#define Candidate_drawCandidatePlot_C
 
 
 #include "../Utilities/drawUtils.h"
@@ -10,7 +10,7 @@ void     printCandidateTextInfo    ( TPad& pad , const RooWorkspace& ws , const 
 TLegend* printCandidateLegend      ( TPad& pad , const RooPlot& frame   , const StringMap_t& legInfo , const int& plotStyle );
 
 
-bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
+bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
                             // Select the type of datasets to fit
                             const std::string& fileName,
                             const std::string& outputDir,
@@ -23,12 +23,14 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
                             )
 {
   //
+  const auto& setLogScale = yLogScale;
+  const auto& fitVars = ws.set("fitVariable");
+  if (!fitVars) { std::cout << "[ERROR] Set fitVariable was not found!" << std::endl; return false; }
+  const std::string& varName = fitVars->first()->GetName(); // For now, only use the first fit variable
+  auto varTag = varName; stringReplace(varTag, "_", "");
+  //
   // set the CMS style
   setTDRStyle();
-  //
-  const std::string& varName = "Cand_Mass";
-  auto varTag = varName; stringReplace(varTag, "_", "");
-  const auto& setLogScale = yLogScale;
   //
   const std::string& DSTAG   = (ws.obj("DSTAG")     ? dynamic_cast<RooStringVar*>(ws.obj("DSTAG")    )->getVal() : "");
   const std::string& cha     = (ws.obj("channel")   ? dynamic_cast<RooStringVar*>(ws.obj("channel")  )->getVal() : "");
@@ -51,7 +53,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
   const auto& fitVar = ws.var(varName.c_str());
   if (!fitVar) { std::cout << "[ERROR] Fit variable " << varName << " was not found!" << std::endl;  return false; }
   const auto& fitSet = RooArgSet(*fitVar);
-  const auto& binWidth = fitVar->getBinWidth(0);
+  const auto& binWidth = fitVar->getBinWidth(0, "FitWindow");
   const auto& minRange = fitVar->getMin();
   const auto& maxRange = ( (maxRng>0.0) ? maxRng : fitVar->getMax() );
   const auto& nBins    = int(std::round((maxRange - minRange)/binWidth));
@@ -121,7 +123,7 @@ bool drawCandidateMassPlot( RooWorkspace& ws,  // Local Workspace
 	  std::string obj = it->GetName(); obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find(cha));
 	  if (!contain(PDFMAP_, obj)) { std::cout << "[ERROR] Object " << obj << " is not defined in PDFMAP!" << std::endl; return false; }
 	  // Store the PDFs
-	  const bool& doStack = (varName.find("Mass")==std::string::npos || obj.find("Swap")!=std::string::npos || obj=="Bkg");
+	  const bool& doStack = (varName!="Cand_Mass" || obj.find("Swap")!=std::string::npos || obj=="Bkg");
 	  if  (doStack) { pdfStackMap[PDFMAP_.at(obj)[0]] = it; }
 	  else { pdfDrawMap[PDFMAP_.at(obj)[0]] = it; }
 	}
@@ -397,7 +399,7 @@ void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string
   for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next()) {
     const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
     const std::string& varN = it->GetName();
-    if (varN==fitVar) continue;
+    if (varN==fitVar || varN=="Cand_Mass") continue;
     if (varN=="Centrality" && col.rfind("PbPb",0)!=0) continue;
     auto absVarN = varN; if (absVarN.find("_")!=std::string::npos) { absVarN.insert(absVarN.find("_")+1, "Abs"); }
     dsVar.push_back(ws.var(absVarN.c_str()) ? *ws.var(absVarN.c_str()) : *it);
@@ -474,4 +476,4 @@ TLegend* printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_t
 };
 
 
-#endif // #ifndef Candidate_drawCandidateMassPlot_C
+#endif // #ifndef Candidate_drawCandidatePlot_C

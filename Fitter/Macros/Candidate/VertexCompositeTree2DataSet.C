@@ -218,7 +218,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& d2Eta = candOSTree->EtaD2()[iC];
           const auto& d1P   = d1Pt*std::cosh(d1Eta);
           const auto& d2P   = d2Pt*std::cosh(d2Eta);
-          if ( (std::abs(d1Eta) > 2.4 || d1P < 3.0) || (std::abs(d2Eta) > 2.4 || d2P < 3.0) ) continue;
+          if ( (std::abs(d1Eta) > 2.4 || d1P < 2.5) || (std::abs(d2Eta) > 2.4 || d2P < 2.5) ) continue;
           //
           // Apply loose muon quality cuts
           const auto& centV = candOSTree->centrality();
@@ -327,7 +327,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& d2Eta = candSSTree->EtaD2()[iC];
           const auto& d1P   = d1Pt*std::cosh(d1Eta);
           const auto& d2P   = d2Pt*std::cosh(d2Eta);
-          if ( (std::abs(d1Eta) > 2.4 || d1P < 3.0) || (std::abs(d2Eta) > 2.4 || d2P < 3.0) ) continue;
+          if ( (std::abs(d1Eta) > 2.4 || d1P < 2.5) || (std::abs(d2Eta) > 2.4 || d2P < 2.5) ) continue;
           //
           // Apply loose muon quality cuts
           const auto& centV = candSSTree->centrality();

@@ -73,17 +73,21 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   const std::string massCut = Form("(Cand_Mass > %g && Cand_Mass < %g)", minM, maxM);
   //
   // Define the muon kinematic cuts
-  std::string PsiAcceptance_2015_Hybrid = "((abs(Dau1_Eta)<1.2 && Dau1_Pt>=3.5) || (1.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.1 && Dau1_Pt>=5.77-1.89*abs(Dau1_Eta)) || (2.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.8))";
-  PsiAcceptance_2015_Hybrid += " && ((abs(Dau2_Eta)<1.2 && Dau2_Pt>=3.5) || (1.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.1 && Dau2_Pt>=5.77-1.89*abs(Dau2_Eta)) || (2.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.8))";
-  std::string PsiAcceptance_2015_Soft = "((abs(Dau1_Eta)<1.0 && Dau1_Pt>=3.3) || (1.0<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.2 && Dau1_Pt>=2.9) || (2.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=0.8))";
-  PsiAcceptance_2015_Soft += " && ((abs(Dau2_Eta)<1.0 && Dau2_Pt>=3.3) || (1.0<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.2 && Dau2_Pt>=2.9) || (2.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=0.8))";
+  std::string PsiAcceptance_2015_Tight = "((abs(Dau1_Eta)<1.2 && Dau1_Pt>=3.5) || (1.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.1 && Dau1_Pt>=5.77-1.89*abs(Dau1_Eta)) || (2.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.8))";
+  PsiAcceptance_2015_Tight += " && ((abs(Dau2_Eta)<1.2 && Dau2_Pt>=3.5) || (1.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.1 && Dau2_Pt>=5.77-1.89*abs(Dau2_Eta)) || (2.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.8))";
+  std::string PsiAcceptance_2015_Loose = "((abs(Dau1_Eta)<1.0 && Dau1_Pt>=3.3) || (1.0<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.2 && Dau1_Pt*cosh(Dau1_Eta)>=2.9) || (2.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=0.8))";
+  PsiAcceptance_2015_Loose += " && ((abs(Dau2_Eta)<1.0 && Dau2_Pt>=3.3) || (1.0<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.2 && Dau2_Pt*cosh(Dau2_Eta)>=2.9) || (2.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=0.8))";
   //
-  std::string PsiAcceptance_2018_Hybrid = "((abs(Dau1_Eta)<1.2 && Dau1_Pt>=3.5) || (1.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.1 && Dau1_Pt>=5.47-1.89*abs(Dau1_Eta)) || (2.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.5))";
-  PsiAcceptance_2018_Hybrid += " && ((abs(Dau2_Eta)<1.2 && Dau2_Pt>=3.5) || (1.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.1 && Dau2_Pt>=5.47-1.89*abs(Dau2_Eta)) || (2.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.5))";
+  std::string PsiAcceptance_2016_Tight = "((abs(Dau1_Eta)<1.2 && Dau1_Pt>=3.3) || (1.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.1 && Dau1_Pt>=3.93-1.11*abs(Dau1_Eta)) || (2.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.3))";
+  PsiAcceptance_2016_Tight += " && ((abs(Dau2_Eta)<1.2 && Dau2_Pt>=3.3) || (1.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.1 && Dau2_Pt>=3.93-1.11*abs(Dau2_Eta)) || (2.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.3))";
+  std::string PsiAcceptance_2016_Loose = "((abs(Dau1_Eta)<0.8 && Dau1_Pt>=3.3) || (0.8<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.5 && Dau1_Pt>=5.81-3.14*abs(Dau1_Eta)) || (1.5<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.89-0.526*abs(Dau1_Eta) && Dau1_Pt>=0.8))";
+  PsiAcceptance_2016_Loose += " && ((abs(Dau2_Eta)<0.8 && Dau2_Pt>=3.3) || (0.8<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.5 && Dau2_Pt>=5.81-3.14*abs(Dau2_Eta)) || (1.5<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.89-0.526*abs(Dau2_Eta) && Dau2_Pt>=0.8))";
+  //
+  std::string PsiAcceptance_2018_Tight = "((abs(Dau1_Eta)<1.2 && Dau1_Pt>=3.5) || (1.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.1 && Dau1_Pt>=5.47-1.89*abs(Dau1_Eta)) || (2.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.5))";
+  PsiAcceptance_2018_Tight += " && ((abs(Dau2_Eta)<1.2 && Dau2_Pt>=3.5) || (1.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.1 && Dau2_Pt>=5.47-1.89*abs(Dau2_Eta)) || (2.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.5))";
   std::string PsiAcceptance_2018_Loose = "((abs(Dau1_Eta)<0.3 && Dau1_Pt>=3.4) || (0.3<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.1 && Dau1_Pt>=3.3) || (1.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.4 && Dau1_Pt>=7.7-4.0*abs(Dau1_Eta)) || (1.4<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.55 && Dau1_Pt>=2.1) || (1.55<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.2 && Dau1_Pt>=4.25-1.39*abs(Dau1_Eta)) || (2.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.2))";
   PsiAcceptance_2018_Loose += " && ((abs(Dau2_Eta)<0.3 && Dau2_Pt>=3.4) || (0.3<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.1 && Dau2_Pt>=3.3) || (1.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.4 && Dau2_Pt>=7.7-4.0*abs(Dau2_Eta)) || (1.4<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.55 && Dau2_Pt>=2.1) || (1.55<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.2 && Dau2_Pt>=4.25-1.39*abs(Dau2_Eta)) || (2.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.2))";
   //
-  const std::string PsiAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt*cosh(Dau1_Eta)>=3.5) && (abs(Dau2_Eta)<2.4 && Dau2_Pt*cosh(Dau2_Eta)>=3.5))";
   const std::string UpsAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=3.4) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=3.4))";
   const std::string ZAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=15.0) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=15.0))";
   //
@@ -120,13 +124,16 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
     std::string cutStr = massCut+" && "+trigCut;
     if (minM > 30.) { cutStr += " && "+ZAcceptance+" && "+useTightMuons; }
     else if (minM > 5.0) {
-      const bool isSoft = (info.Par.at("PD")=="UPC" || evtCol.find("5Y1")==std::string::npos);
+      const bool isSoft = (PD=="UPC" || evtCol.find("5Y1")==std::string::npos);
       cutStr += " && "+UpsAcceptance+" && "+(isSoft ? useSoftMuons : useHybridMuons);
     }
     else {
-      const bool isSoft = (info.Par.at("PD")=="UPC" || evtCol.find("5Y1")==std::string::npos);
+      const bool isSoft = (PD=="UPC" || evtCol.find("5Y1")==std::string::npos);
       const bool isAcc2018 = (evtCol.rfind("Y18")!=std::string::npos || evtCol.rfind("Y17")!=std::string::npos);
-      cutStr += " && "+(isAcc2018 ? PsiAcceptance_2018_Hybrid : (isSoft ? PsiAcceptance : PsiAcceptance_2015_Hybrid));
+      const bool isAcc2016 = !isAcc2018 && (evtCol.rfind("Y16")!=std::string::npos);
+      const bool isAcc2015 = !isAcc2016 && (evtCol.rfind("Y15")!=std::string::npos);
+      const bool useTightCut = (PD.rfind("MUON")!=std::string::npos);
+      cutStr += " && "+(isAcc2018 ? (useTightCut ? PsiAcceptance_2018_Tight : PsiAcceptance_2018_Loose) : (isAcc2016 ? (useTightCut ? PsiAcceptance_2016_Tight : PsiAcceptance_2016_Loose) : (isAcc2015 ? (useTightCut ? PsiAcceptance_2015_Tight : PsiAcceptance_2015_Loose) : "")));
       cutStr += " && "+(isSoft ? useSoftMuons : useHybridMuons);
     }
     //
@@ -307,6 +314,7 @@ bool processDecayLength(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
       //
       // Loop over the entries//
       for (int i = 0; i < ds->numEntries(); i++) {
+	ds->get(i);
 	//
 	// Process the decay length information
 	candDLen->setVal(candDLen->getVal()*massRatio);

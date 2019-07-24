@@ -31,8 +31,10 @@
 #include "../../../Utilities/dataUtils.h"
 
 
-void setFileName(std::string& fileName, std::string& outputDir, const std::string& label, const GlobalInfo& info, const StringSet_t& varV={})
+void setFileName(std::string& fileName, std::string& outputDir, const std::string& lbl, const GlobalInfo& info, const StringSet_t& varV={})
 {
+  const auto& cha = info.Par.at("channel");
+  const auto& label = lbl.substr(lbl.find(cha));
   // Define plot label
   auto varS = info.StrS.at("fitVariable"); if (!varV.empty()) { varS = varV; }
   auto varT = info.StrS.at("fitVarName"); if (!varV.empty()) { varT.clear(); for (const auto& v : varV) { auto t = v; stringReplace(t, "_", ""); varT.insert(t); } }
@@ -41,7 +43,7 @@ void setFileName(std::string& fileName, std::string& outputDir, const std::strin
     for (const auto& obj : info.StrS.at("fitObject")) {
       std::string modelN = info.Par.at("Model"+var+"_"+obj+label);
       modelN.erase(std::remove(modelN.begin(), modelN.end(), ' '), modelN.end());
-      stringReplace( modelN, "[", "" ); stringReplace( modelN, "]", "" ); stringReplace( modelN, "+", "_" ); stringReplace( modelN, ",", "" ); stringReplace( modelN, ";", "" );
+      stringReplace( modelN, "[", "" ); stringReplace( modelN, "]", "" ); stringReplace( modelN, "+", "_" ); stringReplace( modelN, ",", "_" ); stringReplace( modelN, ";", "_" );
       plotLabel += obj + "Model"+var+"_" + modelN+"_";
     }
   }
@@ -56,8 +58,8 @@ void setFileName(std::string& fileName, std::string& outputDir, const std::strin
   outputDir = Form("%s%s/%s/%s/%s/", outputDir.c_str(), fitVar.c_str(), dsTag.c_str(), objTag.c_str(), colTag.c_str());
   std::string varLbl = "";
   for (const auto& var : info.StrS.at("cutPars")) {
-    bool incVar = true;
-    for (const auto& v : varS) { if (var==v) { incVar = false; break; } }
+    if (var=="Cand_Mass" || var=="Cand_DLenErr") continue;
+    bool incVar = true; for (const auto& v : varS) { if (var==v) { incVar = false; break; } }
     if (!incVar || !contain(info.Var, var) || !contain(info.Var.at(var), "Min")) continue;
     if (info.Var.at(var).at("Min")==info.Var.at(var).at("Default_Min") && info.Var.at(var).at("Max")==info.Var.at(var).at("Default_Max")) continue;
     if (var=="Centrality" && (DSTAG.rfind("PbPb")==std::string::npos || info.Par.at("PD")=="UPC")) continue;
@@ -116,6 +118,26 @@ void getRange(std::vector<double>& range, const TH1D& hist, const int& nMaxBins,
   //
   return;
 };
+
+
+bool getRange(GlobalInfo& info, const RooWorkspace& ws, const std::string& var, const std::string& chg, const int& nMaxBins, const double& minEntries=5.0)
+{
+  const auto& dsName = info.Par.at("dsName"+chg);
+  if (!ws.data(dsName.c_str())) { std::cout << "[ERROR] getRange: DataSet " << dsName << " was not found!" << std::endl; return false; }
+  if (!ws.var(var.c_str())) { std::cout << "[ERROR] getRange: Variable " << var << " was not found!" << std::endl; return false; }
+  double varMin, varMax;
+  ws.data(dsName.c_str())->getRange(*ws.var(var.c_str()), varMin, varMax);
+  if (varMin>=0.0) { varMin = 0.0; } else { varMin -= 0.005; roundValue(varMin, 2); }
+  if (varMax<=0.0) { varMax = 0.0; } else { varMax += 0.005; roundValue(varMax, 2); }
+  const auto& nBins = getNBins(varMin, varMax, ws.var(var.c_str())->getBinWidth(0));
+  auto hTot = std::unique_ptr<TH1D>(static_cast<TH1D*>(ws.data(dsName.c_str())->createHistogram("TMP", *ws.var(var.c_str()), RooFit::Binning(nBins, varMin, varMax))));
+  if (!hTot) { std::cout << "[ERROR] getRange: Histogram " << dsName << " was not created!" << std::endl; return false; }
+  std::vector<double> varRange; getRange(varRange, *hTot, nMaxBins, minEntries);
+  info.Var.at(var).at("Min") = std::max(varRange[0], info.Var.at(var).at("Min"));
+  info.Var.at(var).at("Max") = std::min(varRange[1], info.Var.at(var).at("Max"));
+  std::cout << "[INFO] " << var << " range set from data: [ " << info.Var.at(var).at("Min") << " , " << info.Var.at(var).at("Max") << " ]" << std::endl;
+  return true; 
+}
 
 
 void addString(RooWorkspace& ws, const std::string& strName, const std::string& strVal, const bool& asObj=true)
@@ -358,6 +380,50 @@ void copyWorkspace(RooWorkspace& outWS, const RooWorkspace& inWS, const std::str
 };
 
 
+bool saveDataSet(const RooDataSet& ds, const std::string& outputDir, const std::string& fileName)
+{
+  // Create the output file
+  gSystem->mkdir((outputDir+"dataset/").c_str(), kTRUE);
+  const auto& inFileName = (outputDir+"dataset/SPLOT_"+fileName+".root");
+  auto file = std::unique_ptr<TFile>(new TFile(inFileName.c_str(), "RECREATE"));
+  if (!file || !file->IsOpen() || file->IsZombie()) {
+    std::cout << "[ERROR] Output root file with fit results could not be created!" << std::endl; if (file) { file->Close(); }; return false;
+  }
+  file->cd();
+  // Save the dataset
+  ds.Write(ds.GetName());
+  // Write and close output file
+  file->Write(); file->Close();
+  std::cout << "[INFO] RooDataSet " << ds.GetName() << " stored in: " << inFileName << std::endl;
+  return true;
+};
+
+
+bool getDataSet(RooWorkspace& ws, const std::string& dsName, const std::string& fileName)
+{
+  std::cout << "[INFO] Loading RooDataSet " << dsName << " from: " << fileName << std::endl;
+  // Check if dataset already exist in workspace
+  if (ws.data(dsName.c_str())) { std::cout << "[INFO] DataSet " << dsName << " already exist, will not load it!" << std::endl; return true; }
+  // Check if input file exists
+  if (gSystem->AccessPathName(fileName.c_str())) {
+    std::cout << "[INFO] File: " << fileName << " not found!" << std::endl; return false;
+  }
+  // Open the input file
+  auto file = std::unique_ptr<TFile>(TFile::Open(fileName.c_str()));
+  if (!file || !file->IsOpen() || file->IsZombie()) {
+    std::cout << "[ERROR] File: " << fileName << " is corrupted!" << std::endl; if(file) { file->Close(); }; return false;
+  }
+  file->cd();
+  TH1::AddDirectory(kFALSE); // Avoid adding objects to memory
+  const auto& inDS = dynamic_cast<RooDataSet*>(file->Get(dsName.c_str()));
+  if (!inDS) { std::cout << "[ERROR] DataSet " << dsName << " in: " << fileName << " not found!" << std::endl; file->Close(); return false; }
+  if (ws.import(*inDS)) { std::cout << "[ERROR] DataSet " << dsName << " in was not imported!" << std::endl; file->Close(); return false; }
+  // Close input file
+  file->Close();
+  return true;
+};
+
+
 bool saveWorkSpace(const RooWorkspace& ws, const std::string& outputDir, const std::string& fileName, const bool& saveDS=true)
 {
   // Create the output file
@@ -517,7 +583,7 @@ void updateParameterRange(RooWorkspace& ws, GlobalInfo&  info, const std::string
     ws.var(var.c_str())->setBins(nBins, "FitWindow");
     //
     auto dataToFit = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())->reduce(varFitRange.c_str())->Clone((dsName+"_FIT").c_str())));
-    ws.import(*dataToFit);
+    if (ws.import(*dataToFit)) { std::cout << "[ERROR] DataSet " << dsName+"_FIT" << " was not imported!" << std::endl; return; }
     info.Var.at("numEntries").at(chg) = ws.data((dsName+"_FIT").c_str())->sumEntries();
     ws.factory(Form("numEntries_%s_FIT[%.0f]", dsName.c_str(), info.Var.at("numEntries").at(chg)));
     //
@@ -580,7 +646,7 @@ bool loadSPlotDS(RooWorkspace& myws, const std::string& fileName, const std::str
 {
   RooWorkspace ws; if (!getWorkSpace(ws, fileName)) { return false; }
   if (ws.data(dsName.c_str())) {
-    myws.import(*ws.data(dsName.c_str()), RooFit::Rename((dsName+"_INPUT").c_str()));
+    if (myws.import(*ws.data(dsName.c_str()), RooFit::Rename((dsName+"_INPUT").c_str()))) { std::cout << "[ERROR] DataSet " << dsName << " was not imported!" << std::endl; return false; }
     if (myws.data((dsName+"_INPUT").c_str())) { std::cout << "[INFO] RooDataset " << (dsName+"_INPUT") << " was imported!" << std::endl; }
     else { std::cout << "[ERROR] Importing RooDataset " << (dsName+"_INPUT") << " failed!" << std::endl; }
   }
@@ -591,13 +657,14 @@ bool loadSPlotDS(RooWorkspace& myws, const std::string& fileName, const std::str
 
 bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::string& pdfName, const std::string& snapName="fittedParameters")
 {
+  std::cout << "[INFO] Loading parameters for " << pdfName << " from " << fileName << std::endl;
   // Extract the workspace
   RooWorkspace inWS;
   if (!ws.pdf(pdfName.c_str())) {
     if (!getWorkSpace(inWS, fileName, "")) { return false; }
     const auto& pdf = inWS.pdf(pdfName.c_str());
-    if (!pdf) { std::cout << "[INFO] PDF " << pdfName << " was not found in " << fileName << std::endl; return false; }
-    ws.import(*pdf);
+    if (!pdf) { std::cout << "[ERROR] PDF " << pdfName << " was not found in " << fileName << std::endl; return false; }
+    if (ws.import(*pdf, RooFit::RecycleConflictNodes())) { std::cout << "[ERROR] PDF " << pdfName << " was not imported!" << std::endl; return false; }
   }
   else if (!getWorkSpace(inWS, fileName, "", true)) { return false; }
   // Extract PDF
@@ -612,33 +679,31 @@ bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::str
   auto parIt = std::unique_ptr<TIterator>(params->createIterator());
   for (auto it = parIt->Next(); it!=NULL; it = parIt->Next()) {
     const std::string& name = it->GetName();
-    if (!ws.var(name.c_str()) || name.rfind("N_",0)==0 || name.rfind("R_",0)==0) continue;
+    if (!ws.var(name.c_str())) continue;
     const auto& sPar = dynamic_cast<RooRealVar*>(snapPar->find(name.c_str()));
-    if (sPar) {
-      ws.var(name.c_str())->setVal(sPar->getVal());
-      ws.var(name.c_str())->setConstant(true);
-      res += Form("%s = %g, ", name.c_str(), sPar->getVal());
+    double val = -99999.;
+    if (!sPar && snapPar->find(("R_"+name.substr(2)).c_str())) {
+      const auto& vN = name.substr(2);
+      const auto& obj = vN.substr(0, vN.find("To"));
+      auto rN = vN; stringReplace(rN, obj, (obj=="Psi2S"?"JPsi":(obj=="Ups2S"?"Ups1S":(obj=="Ups3S"?"Ups1S":obj))));
+      const auto& rPar = dynamic_cast<RooRealVar*>(snapPar->find(("R_"+vN).c_str()));
+      const auto& nPar = dynamic_cast<RooRealVar*>(snapPar->find(("N_"+rN).c_str()));
+      if (!nPar) { std::cout << "[ERROR] Parameter " << ("N_"+rN) << " was not found in snapshot " << snapName << std::endl; return false; }
+      val = rPar->getVal()*nPar->getVal();
+    }
+    else if (sPar) {
+      val = sPar->getVal(); if (name.rfind("N_",0)==0) { val = std::max(val, 0.0); }
+    }
+    if (val!=-99999.) {
+      ws.var(name.c_str())->setVal(val);
+      if (name.rfind("N_",0)!=0 && name.rfind("R_",0)!=0) ws.var(name.c_str())->setConstant(true);
+      res += Form("%s = %g, ", name.c_str(), val);
       loadSet.add(*ws.var(name.c_str()));
     }
   }
-  saveSnapshot(ws, loadSet, (snapName+"_"+pdfName));
+  saveSnapshot(ws, loadSet, "loadedParameters");
   std::cout << "[INFO] Loaded " << pdfName << " parameters: " << res << std::endl;
   return true;
-};
-
-
-RooAbsPdf* getTotalPDF(RooWorkspace& ws, const std::string& var, const std::string& label, const GlobalInfo& info)
-{
-  // Define input file name
-  std::string fileName = "";
-  auto dir = info.Par.at("outputDir");
-  setFileName(fileName, dir, label, info, {var});
-  const auto& inFileName = (dir+"result/FIT_"+fileName+".root");
-  // Extract the previous PDF
-  auto varT = var; stringReplace(varT, "_", "");
-  const auto& pdfName = ("pdf"+varT+"_Tot"+label);
-  if (!loadFitResult(ws, inFileName, pdfName)) { return NULL; }
-  return ws.pdf(pdfName.c_str());
 };
 
 
@@ -660,7 +725,7 @@ bool createBinnedDataset(RooWorkspace& ws, const std::string& var="Cand_Mass")
   // Create the histogram
   auto histName = dsName + "_" + var;
   histName.replace(histName.find("d"), std::string("d").length(), "h");
-  std::unique_ptr<TH1D> hist = std::unique_ptr<TH1D>(dynamic_cast<TH1D*>(ws.data(dsName.c_str())->createHistogram(histName.c_str(), *ws.var(var.c_str()), RooFit::Binning(nBin, min, max))));
+  std::unique_ptr<TH1D> hist = std::unique_ptr<TH1D>(static_cast<TH1D*>(ws.data(dsName.c_str())->createHistogram(histName.c_str(), *ws.var(var.c_str()), RooFit::Binning(nBin, min, max))));
   if (hist==NULL) { std::cout << "[WARNING] Histogram " << histName << " is NULL!" << std::endl; return false; }
   // Cleaning the input histogram
   // 1) Remove the Under and Overflow bins
@@ -668,14 +733,14 @@ bool createBinnedDataset(RooWorkspace& ws, const std::string& var="Cand_Mass")
   // 2) Set negative bin content to zero
   for (int i=0; i<=hist->GetNbinsX(); i++) { if (hist->GetBinContent(i)<0.0) { hist->SetBinContent(i, 0.0); } }
   // 2) Reduce the range of histogram and rebin it
-  //hist.reset(dynamic_cast<TH1D*>(rebinhist(*hist, range[1], range[2])));
+  //hist.reset(static_cast<TH1D*>(rebinhist(*hist, range[1], range[2])));
   if (hist==NULL) { std::cout << "[WARNING] Cleaned Histogram of " << histName << " is NULL!" << std::endl; return false; }
   const auto& dataName = (dsName +"_"+var+"_FIT");
   std::unique_ptr<RooDataHist> dataHist = std::unique_ptr<RooDataHist>(new RooDataHist(dataName.c_str(), "", *ws.var(var.c_str()), hist.get()));
   if (dataHist==NULL) { std::cout << "[WARNING] DataHist used to create " << dsName << " failed!" << std::endl; return false; }
   if (dataHist->sumEntries()==0) { std::cout << "[WARNING] DataHist used to create " << dsName << " is empty!" << std::endl; return false; }
   if (std::abs(dataHist->sumEntries() - hist->GetSumOfWeights())>0.001) { std::cout << "[ERROR] DataHist used to create " << dsName << "  " << " is invalid!  " << std::endl; return false; }
-  ws.import(*dataHist);
+  if (ws.import(*dataHist)) { std::cout << "[ERROR] DataHist " << dataName << " was not imported!" << std::endl; return false; }
   ws.var(var.c_str())->setBins(nBin); // Bug Fix
   return true;
 };
@@ -691,7 +756,7 @@ bool setModel(GlobalInfo&  info)
   for (const auto& col : info.StrS.at("fitSystem")) {
     for (const auto& obj : info.StrS.at("fitObject")) {
       for (const auto& chg : info.StrS.at("fitCharge")) {
-	for (const auto& var : info.StrS.at("fitVarName")) {
+	for (const auto& var : info.StrS.at("incVarName")) {
 	  const std::string& label = Form("Model%s_%s_%s", var.c_str(), (obj+cha+chg).c_str(), col.c_str());
 	  info.StrS["tags"].insert(obj+cha+chg+"_"+col);
 	  const std::string inputLabel = "Model"+findLabel("Model", var, obj, chg, col, cha, info);
@@ -783,16 +848,19 @@ void setDefaultRange(RooWorkspace& ws, const GlobalInfo& info)
 };
 
 
-bool setFitParameterRange(RooWorkspace& ws, const GlobalInfo& info)
+bool setFitParameterRange(RooWorkspace& ws, GlobalInfo& info, const std::string& chg)
 {
   // Store the default range
   setDefaultRange(ws, info);
   // Set the fit parameter range
   for (const auto& var : info.StrS.at("fitVariable")) {
     if (!ws.var(var.c_str())) { std::cout << "[ERROR] Parameter " << var << " does not exist, failed to set fit parameter range!" << std::endl; return false; }
+    if ((var=="Cand_DLenErr" || var=="Cand_DLenRes") && info.Flag.at("fit"+var)) {
+      if (!getRange(info, ws, var, chg, 2, 5.0)) { return false; }
+    }
     ws.var(var.c_str())->setRange("FitWindow", info.Var.at(var).at("Min"), info.Var.at(var).at("Max"));
-    const auto& nBins = getNBins(info.Var.at(var).at("Min"), info.Var.at(var).at("Max"), info.Var.at(var).at("binWidth"));
-    ws.var(var.c_str())->setBins(nBins, "FitWindow");
+    ws.var(var.c_str())->setBins(getNBins(var, info), "FitWindow");
+    const auto& nBins = getNBins(ws.var(var.c_str())->getMin(), ws.var(var.c_str())->getMax(), info.Var.at(var).at("binWidth"));
     ws.var(var.c_str())->setBins(nBins);
   }
   return true;
@@ -877,14 +945,15 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
         }
         const auto& cutDST = cutDS + (isSwapDS ? "&&(Cand_IsSwap==Cand_IsSwap::Yes)" : "");
         auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(inputWS.at(label).data(dsExtName.c_str())->reduce(RooFit::Cut(cutDST.c_str()), RooFit::Name(dsName.c_str()), RooFit::Title(dsName.c_str()))));
-        if (!data || data->sumEntries()==0){
+        if (!data) { std::cout << "[ERROR] Dataset " <<  dsExtName << " failed to reduce!" << std::endl; return -1; }
+        else if (data->sumEntries()==0){
           if (extLabel.rfind("MC_",0)==0 || chg=="SS") {
             std::cout << "[WARNING] No events from dataset " <<  dsExtName << " passed the kinematic cuts!" << std::endl;
           }
           else { std::cout << "[ERROR] No events from dataset " <<  dsExtName << " passed the kinematic cuts!" << std::endl; return -1; }
         }
         else {
-          myws.import(*data);
+          if (myws.import(*data)) { std::cout << "[ERROR] DataSet " << dsName << " was not imported!" << std::endl; return -1; }
 	  if (!myws.data(dsName.c_str())) { std::cout << "[ERROR] Importing RooDataSet " <<  dsName << " failed!" << std::endl; return -1; }
 	  copyWorkspace(myws, inputWS.at(label), "", false, false, true); // Copy the generic objects
         }
@@ -903,7 +972,7 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
         else {
           const auto& dsSPLOTName = (dsName+"_SPLOT");
           data->SetName(dsSPLOTName.c_str());
-          myws.import(*data, RooFit::Rename(dsSPLOTName.c_str()));
+          if (myws.import(*data, RooFit::Rename(dsSPLOTName.c_str()))) { std::cout << "[ERROR] DataSet " << dsSPLOTName << " was not imported!" << std::endl; return -1; }
           if (myws.data(dsSPLOTName.c_str())) { std::cout << "[INFO] RooDataSet " << dsSPLOTName << " was imported!" << std::endl; }
           else { std::cout << "[ERROR] Importing RooDataSet " << dsSPLOTName << " failed!" << std::endl; return -1; }
           std::cout << "[INFO] SPlotDS Events: " << data->sumEntries() << " , origDS Events: " << myws.data(Form("dOS_%s", label.c_str()))->sumEntries() << std::endl;
