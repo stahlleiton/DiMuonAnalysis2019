@@ -56,7 +56,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 
   // Define the range of all the fit parameters
   defineFitParameterRange(info);
-
+  
   // Set models based on input files
   if (!setModel(info)) { return false; }
 
@@ -105,7 +105,6 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 
   // Set fit parameter range in workspace
   for (const auto& chg : info.StrS.at("fitCharge")) { if (!setFitParameterRange(myws.at(chg), info, chg)) { return false; } }
-  return false;
 
   // Build the fit model
   for (const auto& chg : info.StrS.at("fitCharge")) { if (!buildCandidateModel(myws.at(chg), info, chg))  { return false; } }
@@ -245,7 +244,7 @@ void defineFitParameterRange(GlobalInfo& info)
     double varMin = 100000000., varMax = -100000000.;
     if (var=="Cand_Mass") {
       if (info.Flag.at("fitMC")) {
-  	for (const auto& obj : info.StrS.at("incObject")) {
+  	for (const auto& obj : info.StrS.at("incObject_CandMass")) {
     	  if (contain(MASS, obj)) {
       	    if (varMin > MASS.at(obj).at("Min")) { varMin = MASS.at(obj).at("Min"); }
       	    if (varMax < MASS.at(obj).at("Max")) { varMax = MASS.at(obj).at("Max"); }
