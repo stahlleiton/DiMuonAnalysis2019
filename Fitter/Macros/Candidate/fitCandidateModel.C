@@ -172,26 +172,12 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
           }
           else {
             std::cout << "[INFO] Fitting " << pdfName << " on " << dsNameFit << std::endl;
-            const auto& tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Strategy(2),
+	    myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Strategy(0), RooFit::Range("FitWindow"), RooFit::NumCPU(numCores));
+            const auto& tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
+								       RooFit::InitialHesse(true), RooFit::Minos(true), RooFit::Strategy(2),
 								       RooFit::Range("FitWindow"), RooFit::NumCPU(numCores), RooFit::Save());
             fitResult.reset(tmp);
             fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-	    if (fitFailed) {
-	      std::cout << std::endl; std::cout << "[WARNING] Fit failed, trying again with Minuit2 and Minimizer" << std::endl; std::cout << std::endl;
-	      const auto& tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
-									 RooFit::Minimizer("Minuit2","minimize"), RooFit::Strategy(2),
-									 RooFit::Range("FitWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-	      fitResult.reset(tmp);
-	      fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-	    }
-	    if (fitFailed) {
-	      std::cout << std::endl; std::cout << "[WARNING] Fit failed, trying again with Minuit2 and Scan" << std::endl; std::cout << std::endl;
-	      const auto& tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
-									 RooFit::Minimizer("Minuit2","scan"), RooFit::Strategy(2),
-									 RooFit::Range("FitWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-	      fitResult.reset(tmp);
-	      fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
-	    }
           }
           if (fitResult) {
 	    fitResult->Print("v");
@@ -258,12 +244,12 @@ void defineFitParameterRange(GlobalInfo& info)
 	  if (varMax < 2.00) { varMax = 2.00; }
         }
         if (contain(info.Flag, "incJPsi") && info.Flag.at("incJPsi")) {
-	  if (varMin > 2.7) { varMin = 2.7; }
+	  if (varMin > 2.7) { varMin = 2.5; }
 	  if (varMax < 3.5) { varMax = 3.5; }
         }
         if (contain(info.Flag, "incPsi2S") && info.Flag.at("incPsi2S")) {
   	  if (varMin > 3.4) { varMin = 3.4; }
-  	  if (varMax < 4.0) { varMax = 4.0; }
+  	  if (varMax < 4.0) { varMax = 4.2; }
         }
         if (contain(info.Flag, "incUps1S") && info.Flag.at("incUps1S")) {
 	  if (varMin >  8.0) { varMin =  8.0; }
