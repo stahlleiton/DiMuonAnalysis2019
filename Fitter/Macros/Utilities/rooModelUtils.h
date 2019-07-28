@@ -93,7 +93,7 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
 	  const auto& numEntries = info.Var.at("numEntries").at(chg);
 	  info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", ("N_"+objLabel).c_str(), numEntries, -200.0, 2.0*numEntries);
 	}
-	else if (v.rfind("rSigma", 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  2.000,    1.000,   8.000); }
+	else if (v.rfind("rSigma", 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  1.500,    0.950,   3.000); }
 	else if (v=="Alpha2"   && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("Alpha_"+objLabel).c_str());  }
 	else if (v=="AlphaR2"  && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("AlphaR_"+objLabel).c_str()); }
 	else if (v.rfind("Alpha" , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  2.000,    0.500,   8.000); }
@@ -101,7 +101,7 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
 	else if (v.rfind("nR"    , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  6.000,    0.500,  25.000); }
 	else if (v=="n2"       && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("n_"+objLabel).c_str()); }
 	else if (v.rfind("n"     , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  2.000,    0.500,  10.000); }
-	else if (v.rfind("f"     , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.500,    0.000,   1.000); }
+	else if (v.rfind("f"     , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.500,   -0.200,   1.200); }
 	else if (v.rfind("b"     , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.500,    0.000,   1.000); }
 	else if (v=="Lambda"            ) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.200,   -2.000,   2.000); }
 	else if (v=="LambdaF"           ) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.300,  0.00001,   5.000); }
@@ -115,7 +115,7 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
 	else if (v=="xb"                ) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(), 10.000,    0.000,  40.000); }
 	else if (v.rfind("Sigma",  0)==0) {
 	  const auto& varR = ((fitVar=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Width") : ((info.Var.at(fitVar).at("Max")-info.Var.at(fitVar).at("Min"))/6.0));
-	  info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(), varR, 0.2*varR, 2.0*varR);
+	  info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(), varR, 0.1*varR, 2.5*varR);
 	}
 	else if (v=="m") {
 	  const auto& varV = ((fitVar=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Val")   : ((info.Var.at(fitVar).at("Max")+info.Var.at(fitVar).at("Min"))/2.0));
