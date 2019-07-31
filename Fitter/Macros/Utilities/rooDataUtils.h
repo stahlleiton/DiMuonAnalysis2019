@@ -905,13 +905,26 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
   if (contain(info.Par, "Cut") && info.Par.at("Cut")!="") {
     std::string cutSel = "";
     const auto& cutLbl = info.Par.at("Cut");
-    if (cutLbl=="PromptDecay") {
-      cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen < (0.00419541 + 0.171485/pow(Cand_Pt, 0.721154))) || (abs(Cand_Rap) > 1.4 && Cand_DLen < (-0.0404945 + 0.181201/pow(Cand_Pt, 0.309656))))";
-      std::cout << "[INFO] Cutting on candidate decay length to select PROMPT decays" << std::endl;
+    const auto& PD = info.Par.at("PD");
+    if (PD.rfind("MUON")!=std::string::npos) {
+      if (cutLbl=="PromptDecay") {
+        cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen < (0.008 + 0.133/pow(Cand_Pt, 0.734))) || (abs(Cand_Rap) > 1.4 && Cand_DLen < (-0.034 + 0.178/pow(Cand_Pt, 0.351))))";
+        std::cout << "[INFO] Cutting on candidate decay length to select PROMPT decays" << std::endl;
+      }
+      else if (cutLbl=="NonPromptDecay") {
+        cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen > (0.008 + 0.133/pow(Cand_Pt, 0.734))) || (abs(Cand_Rap) > 1.4 && Cand_DLen > (-0.034 + 0.178/pow(Cand_Pt, 0.351))))";
+        std::cout << "[INFO] Cutting on candidate decay length to select NON-PROMPT decays" << std::endl;
+      }
     }
-    else if (cutLbl=="NonPromptDecay") {
-      cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen > (0.00419541 + 0.171485/pow(Cand_Pt, 0.721154))) || (abs(Cand_Rap) > 1.4 && Cand_DLen > (-0.0404945 + 0.181201/pow(Cand_Pt, 0.309656))))";
-      std::cout << "[INFO] Cutting on candidate decay length to select NON-PROMPT decays" << std::endl;
+    else {
+      if (cutLbl=="PromptDecay") {
+        cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen < (-0.010 + 0.122/pow(Cand_Pt, 0.431))) || (abs(Cand_Rap) > 1.4 && Cand_DLen < (-0.045 + 0.183/pow(Cand_Pt, 0.299))))";
+        std::cout << "[INFO] Cutting on candidate decay length to select PROMPT decays" << std::endl;
+      }
+      else if (cutLbl=="NonPromptDecay") {
+        cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen > (-0.010 + 0.122/pow(Cand_Pt, 0.431))) || (abs(Cand_Rap) > 1.4 && Cand_DLen > (-0.045 + 0.183/pow(Cand_Pt, 0.299))))";
+        std::cout << "[INFO] Cutting on candidate decay length to select NON-PROMPT decays" << std::endl;
+      }
     }
     if (cutSel!="") {
       cutDS += " && "+cutSel;

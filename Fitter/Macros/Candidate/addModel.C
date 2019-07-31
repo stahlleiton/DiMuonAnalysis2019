@@ -470,7 +470,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
 		// add PDF to list
 		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] %s Uniform " << varName << " PDF in " << col << " added!" << std::endl; break;
+		std::cout << "[INFO] " << tag << " Uniform " << varName << " PDF in " << col << " added!" << std::endl; break;
 	      }
 	    case (int(Model::Chebychev1)):
 	      {
