@@ -88,16 +88,19 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   std::string PsiAcceptance_2018_Loose = "((abs(Dau1_Eta)<0.3 && Dau1_Pt>=3.4) || (0.3<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.1 && Dau1_Pt>=3.3) || (1.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.4 && Dau1_Pt>=7.7-4.0*abs(Dau1_Eta)) || (1.4<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.55 && Dau1_Pt>=2.1) || (1.55<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.2 && Dau1_Pt>=4.25-1.39*abs(Dau1_Eta)) || (2.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.2))";
   PsiAcceptance_2018_Loose += " && ((abs(Dau2_Eta)<0.3 && Dau2_Pt>=3.4) || (0.3<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.1 && Dau2_Pt>=3.3) || (1.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.4 && Dau2_Pt>=7.7-4.0*abs(Dau2_Eta)) || (1.4<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.55 && Dau2_Pt>=2.1) || (1.55<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.2 && Dau2_Pt>=4.25-1.39*abs(Dau2_Eta)) || (2.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.2))";
   //
-  const std::string UpsAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=3.4) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=3.4))";
-  const std::string ZAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=15.0) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=15.0))";
+  const std::string& UpsAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=3.4) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=3.4))";
+  const std::string& ZAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=15.0) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=15.0))";
   //
   // Define the muon quality cuts
-  const std::string useSoftMuons = "(Cand_Qual & 1)";
-  const std::string useHybridMuons = "(Cand_Qual & 2)";
-  const std::string useTightMuons = "(Cand_Qual & 4)";
+  const std::string& useSoftMuons = "(Cand_Qual & 1)";
+  const std::string& useHybridMuons = "(Cand_Qual & 2)";
+  const std::string& useTightMuons = "(Cand_Qual & 4)";
+  //
+  // Define the dimuon cuts
+  const std::string& vtxPCut = "(Cand_VtxP > 0.0001)";
   //
   // Variables to delete
-  const std::vector<std::string> delVarNames = {"Cand_APhi", "Cand_Qual", "Cand_Trig", "Cand_VtxP", "Dau1_Eta", "Dau1_Pt", "Dau2_Eta", "Dau2_Pt"};
+  const std::vector<std::string> delVarNames = {"Cand_Qual", "Cand_Trig", "Cand_VtxP", "Dau1_Eta", "Dau1_Pt", "Dau2_Eta", "Dau2_Pt", "Cand_DLen2D", "Cand_DLenErr2D", "Cand_DLenGen2D"};
   //
   // Loop over the RooDataSets
   for (auto& ws : workspaces) {
@@ -109,19 +112,20 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
     //
     // Define the trigger selection
     std::vector<uint> trigIdx;
-    const auto& PD = info.Par.at("PD");
+    const std::string& PD = (ws.second.obj("PD") ? dynamic_cast<RooStringVar*>(ws.second.obj("PD"))->getVal() : "");
+    if (PD=="") { std::cout << "[ERROR] PD was not defined!" << std::endl; return false; }
     if      (evtCol=="PP13Y18" ) { trigIdx = pp::R13TeV::Y2018::HLTBitsFromPD(PD); }
     else if (evtCol=="PP5Y17"  ) { trigIdx = pp::R5TeV::Y2017::HLTBitsFromPD(PD); }
     else if (evtCol=="PbPb5Y18") { trigIdx = PbPb::R5TeV::Y2018::HLTBitsFromPD(PD); }
     else if (evtCol=="PbPb5Y15") { trigIdx = PbPb::R5TeV::Y2015::HLTBitsFromPD(PD); }
     else if (evtCol.rfind("8Y16")!=std::string::npos) { trigIdx = pPb::R8TeV::Y2016::HLTBitsFromPD(PD); }
-    if (trigIdx.empty()) { std::cout << "[ERROR] Could not determine the trigger index for the sample" << std::endl; return false; }
+    if (trigIdx.empty()) { std::cout << "[ERROR] Could not determine the trigger index for the " << PD << " sample" << std::endl; return false; }
     std::string trigCut = "";
     for (const auto& idx : trigIdx) { trigCut += Form("(Cand_Trig & %.0f) ||", std::pow(2.0, idx)); }
     trigCut = trigCut.substr(0, trigCut.rfind(" ||")); if (trigIdx.size()>1) { trigCut = "("+trigCut+")"; }
     //
     // Determine the cut string
-    std::string cutStr = massCut+" && "+trigCut;
+    std::string cutStr = massCut+" && "+trigCut+" && "+vtxPCut;
     if (minM > 30.) { cutStr += " && "+ZAcceptance+" && "+useTightMuons; }
     else if (minM > 5.0) {
       const bool isSoft = (PD=="UPC" || evtCol.find("5Y1")==std::string::npos);
@@ -161,12 +165,11 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
 };
 
 
-bool invertEtaAndFill(RooDataSet& dsPA, RooDataSet& dsPbp)
+bool invertEtaAndFill(RooDataSet& dsPA, const RooDataSet& dsPbp, const double& lumiW=1.0)
 {
-  const auto& ds = dsPbp;
   // Find the rapidity related variables
   StringSet_t varNames;
-  const auto& iniVars = ds.get();
+  const auto& iniVars = dsPbp.get();
   auto parIt = std::unique_ptr<TIterator>(iniVars->createIterator());
   for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next()) {
     const std::string& vName = itp->GetName();
@@ -175,20 +178,18 @@ bool invertEtaAndFill(RooDataSet& dsPA, RooDataSet& dsPbp)
     }
   }
   // Fill the PA dataset
-  if (!varNames.empty()) {
-    for(int i = 0; i < ds.numEntries(); i++){
-      auto set = *ds.get(i);
-      // Invert the rapidities
-      for (const auto& vName : varNames) {
-        const auto& var = dynamic_cast<RooRealVar*>(set.find(vName.c_str()));
-        var->setVal(-1.0*var->getVal());
-      }
-      // Add the new event
-      if (ds.weight() <= 0.0) { std::cout << "[ERROR] invertEtaAndFill: Weight is negative ( " << ds.weight() << " )" << std::endl; return false; }
-      dsPA.add(set, ds.weight());
+  for(int i = 0; i < dsPbp.numEntries(); i++){
+    const auto& dsSet = *dsPbp.get(i);
+    // Invert the rapidities
+    for (const auto& vName : varNames) {
+      const auto& var = dynamic_cast<RooRealVar*>(dsSet.find(vName.c_str()));
+      var->setVal(-1.0*var->getVal());
     }
+    // Add the new event
+    const auto& weight = lumiW*dsPbp.weight();
+    if (weight <= 0.0) { std::cout << "[ERROR] invertEtaAndFill: Pbp weight is negative ( " << weight << " )" << std::endl; return false; }
+    dsPA.add(dsSet, weight);
   }
-  else { dsPA.append(dsPbp); }
   //
   return true;
 };
@@ -217,6 +218,8 @@ bool combineDataSet(RooWorkspaceMap_t& workspaces, GlobalInfo& info, const std::
     const auto& ws_Pbp = workspaces.at(sample_Pbp);
     auto& ws_PA = workspaces[sample_PA];
     copyWorkspace(ws_PA, ws_pPb, "");
+    const std::string& PD = (ws_PA.obj("PD") ? dynamic_cast<RooStringVar*>(ws_PA.obj("PD"))->getVal() : "");
+    if (PD=="") { std::cout << "[ERROR] PD was not defined!" << std::endl; return false; }
     //
     // Determine the dataset tags
     StringSet_t dsTags;
@@ -240,10 +243,25 @@ bool combineDataSet(RooWorkspaceMap_t& workspaces, GlobalInfo& info, const std::
       //
       std::cout << "[INFO] Creating RooDataSet " << dsTag_PA << std::endl;
       // Copy the pPb datasets
-      auto ds_PA = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ds_pPb->Clone(dsTag_PA.c_str())));
+      std::unique_ptr<RooDataSet> ds_PA;
+      if (sample_pPb.find("DATA",0)==0) { ds_PA.reset(dynamic_cast<RooDataSet*>(ds_pPb->Clone(dsTag_PA.c_str()))); }
+      else if (sample_pPb.find("MC",0)==0) {
+	ds_PA.reset(dynamic_cast<RooDataSet*>(ds_pPb->emptyClone(dsTag_PA.c_str())));
+	const auto& lumiW = pPb::R8TeV::Y2016::LumiWeightFromPD(PD, "pPb8Y16", sample_pPb);
+	for(int i = 0; i < ds_pPb->numEntries(); i++){
+	  const auto& dsSet = *ds_pPb->get(i);
+	  const auto& weight = lumiW*ds_pPb->weight();
+	  if (weight <= 0.0) { std::cout << "[ERROR] combineDataSet: pPb weight is negative ( " << weight << " )" << std::endl; return false; }
+	  ds_PA->add(dsSet, weight);
+	}
+      }
       if (!ds_PA || ds_PA->sumEntries()==0) { std::cout << "[ERROR] RooDataSet " << dsTag_PA << " was not created!" << std::endl; return false; }
       // Invert the rapidity of Pbp dataset and fill the PA dataset
-      if (!invertEtaAndFill(*ds_PA, *ds_Pbp)) { return false; }
+      if (sample_Pbp.find("DATA",0)==0) { if (!invertEtaAndFill(*ds_PA, *ds_Pbp)) { return false; } }
+      else if (sample_Pbp.find("MC",0)==0) {
+	const auto& lumiW = pPb::R8TeV::Y2016::LumiWeightFromPD(PD, "Pbp8Y16", sample_Pbp);
+	if (!invertEtaAndFill(*ds_PA, *ds_Pbp, lumiW)) { return false; }
+      }
       // Check the consistency of the combined dataset
       if (ds_PA->numEntries()!=(ds_pPb->numEntries()+ds_Pbp->numEntries())) { std::cout << "[ERROR] Number of entries for the combined " << dsTag_PA << " dataset is inconsistent!" << std::endl; return false; }
       if (std::abs(ds_PA->sumEntries()-(ds_pPb->sumEntries()+ds_Pbp->sumEntries()))>0.05*(ds_pPb->sumEntries()+ds_Pbp->sumEntries())) {

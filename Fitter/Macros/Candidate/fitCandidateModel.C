@@ -132,6 +132,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
       const auto& pdfName = info.Par.at("pdfName"+chg);
       addString(myws.at(chg), "dsName", dsName);
       addString(myws.at(chg), "pdfName", pdfName);
+      const bool& isData = (dsName.find("_DATA_")!=std::string::npos);
       //
       // Check if the user wants to do binned fits and proceed to bin the data
       if (contain(info.Flag, "doBinnedFit") && info.Flag.at("doBinnedFit")) { if (!createBinnedDataset(myws.at(chg))) { return false; } }
@@ -160,27 +161,32 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 	std::unique_ptr<RooFitResult> fitResult;
         if (myws.at(chg).pdf(pdfName.c_str())) {
           bool isWeighted = myws.at(chg).data(dsNameFit.c_str())->isWeighted();
-          if (dsName.find("_DATA_")!=std::string::npos) { isWeighted = false; } // BUG FIX
+          if (isData) { isWeighted = false; } // BUG FIX
           const auto& numCores = info.Int.at("numCores");
           const auto& pdfConstrains = dynamic_cast<RooArgList*>(myws.at(chg).genobj(("pdfConstr"+label).c_str()));
+          std::vector<RooCmdArg> cmdList = { RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::InitialHesse(true), RooFit::Minos(false), RooFit::Minimizer("Minuit2"), RooFit::Strategy(2), RooFit::Range("FitWindow"), RooFit::NumCPU(numCores), RooFit::Save(), RooFit::PrintLevel(0) };
           if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
             std::cout << "[INFO] Using constrain PDFs to fit " << pdfName << " on " << dsNameFit << std::endl;
-            const auto& tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Strategy(2),
-								       RooFit::Range("FitWindow"), RooFit::ExternalConstraints(*pdfConstrains), RooFit::NumCPU(numCores), RooFit::Save());
-            fitResult.reset(tmp);
-            fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+            cmdList.push_back(RooFit::ExternalConstraints(*pdfConstrains));
+            fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
           }
           else {
             std::cout << "[INFO] Fitting " << pdfName << " on " << dsNameFit << std::endl;
-	    myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::Strategy(0), RooFit::Range("FitWindow"), RooFit::NumCPU(numCores));
-            const auto& tmp = myws.at(chg).pdf(pdfName.c_str())->fitTo(*myws.at(chg).data(dsNameFit.c_str()), RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted),
-								       RooFit::InitialHesse(true), RooFit::Minos(true), RooFit::Strategy(2),
-								       RooFit::Range("FitWindow"), RooFit::NumCPU(numCores), RooFit::Save());
-            fitResult.reset(tmp);
-            fitFailed = false; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitFailed = true; break; } }
+            bool fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+	    if (fitFailed) {
+	      cmdList[5] = RooFit::Strategy(1);
+              fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+            }
+            if (fitFailed) {
+              cmdList[5] = RooFit::Strategy(0);
+              fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+            }
+	    if (isData && !fitFailed) {
+              cmdList[3] = RooFit::Minos(true);
+              fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+	    }
           }
           if (fitResult) {
-	    fitResult->Print("v");
 	    fitResult->SetTitle(fitResult->GetName());
 	    myws.at(chg).import(*fitResult, fitResult->GetName());
 	  }
@@ -191,6 +197,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 		std::cout << "[ERROR] Fit failed in " << fitResult->statusLabelHistory(iSt) << " with status " << fitResult->statusCodeHistory(iSt) << " !" << std::endl; break;
 	      }
 	    }
+	    myws.at(chg).factory("FAILED[1.0]");
 	  }
         }
         else if ( myws.at(chg).obj(pdfName.c_str()) ) {

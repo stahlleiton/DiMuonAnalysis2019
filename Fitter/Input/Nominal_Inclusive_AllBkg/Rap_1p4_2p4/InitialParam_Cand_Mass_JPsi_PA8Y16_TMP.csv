@@ -152,12 +152,12 @@ DIMUON,1.4-2.4,9.0-100.0,120.0-155.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[P
 DIMUON,1.4-2.4,9.0-100.0,120.0-155.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev5[Bkg],[1.6],[2.0]
 DIMUON,1.4-2.4,9.0-100.0,120.0-155.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev6[Bkg],[1.6],[2.0]
 
-DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Uniform[Bkg],[1.6],[2.0],[0.042;0.010;0.070],[0.7;-0.1;1.3],[1.6;0.1;3.0]
+DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Uniform[Bkg],[1.6],[2.0],[0.039;0.001;0.090],[0.6;-2.0;2.0],[1.5;0.1;5.0]
 DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev1[Bkg],[1.6],[2.0],[0.042;0.010;0.090],[0.7;0.1;2.0],[1.6;0.1;5.0]
-DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev2[Bkg],[1.6],[2.0],[0.042;-0.080;0.120],[0.7;-2.0;2.5],[1.6;0.1;5.0]
-DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev3[Bkg],[1.6],[2.0],[0.042;0.002;0.090],[0.7;-0.5;1.5],[1.6;0.6;3.0]
+DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev2[Bkg],[1.6],[2.0],[0.042;-0.010;0.100],[0.7;-1.0;2.5],[1.6;0.1;5.0]
+DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev3[Bkg],[1.6],[2.0],[0.042;-0.040;0.120],[0.7;0.0;1.0],[1.6;0.1;3.0]
 DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev4[Bkg],[1.6],[2.0],[0.042;-0.060;0.120],[0.7;-2.0;1.5],[1.6;0.6;5.0]
-DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev5[Bkg],[1.6],[2.0],[0.042;-0.060;0.100],[0.7;-2.0;1.3],[1.6;0.6;3.0]
+DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev5[Bkg],[1.6],[2.0],[0.042;-0.060;0.120],[0.7;0.0;1.0],[1.6;0.1;5.0]
 DIMUON,1.4-2.4,9.0-100.0,155.0-190.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Chebychev6[Bkg],[1.6],[2.0],[0.042;0.001;0.090],[0.7;-2.0;2.0],[1.6;0.1;5.0]
 
 DIMUON,1.4-2.4,9.0-100.0,190.0-1000.0,DoubleCrystalBall[JPsi]+DoubleCrystalBall[Psi2S]+Uniform[Bkg],[1.6],[2.0],,[0.4;-2.0;2.0],[1.4;0.1;4.0]

@@ -3,12 +3,15 @@
     
      P.d.f implementing the Modified Crystal Ball line shape
  **/
-    
-#include "RooFit.h"
+
+#include "Riostream.h"
+
 #include "RooModCBShape.h"
+#include "RooAbsReal.h"
+#include "RooRealVar.h"
 #include "RooMath.h"
-    
-using namespace std;
+
+ClassImp(RooModCBShape);
     
 ////////////////////////////////////////////////////////////////////////////////
     
