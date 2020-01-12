@@ -194,6 +194,21 @@ public :
   Float_t*  EtaD2_gen()                   { SetBranch("EtaD2_gen");                   return EtaD2_gen_;                  }
   Float_t*  PhiD2_gen()                   { SetBranch("PhiD2_gen");                   return PhiD2_gen_;                  }
 
+  // MUON INFO GETTERS
+  UInt_t    candSize_mu()                 { SetBranch("candSize_mu");                 return candSize_mu_;                }
+  Float_t*  pT_mu()                       { SetBranch("pT_mu");                       return pT_mu_;                      }
+  Float_t*  eta_mu()                      { SetBranch("eta_mu");                      return eta_mu_;                     }
+  Float_t*  phi_mu()                      { SetBranch("phi_mu");                      return phi_mu_;                     }
+  Bool_t*   OneStMuon_mu()                { SetBranch("OneStMuon_mu");                return OneStMuon_mu_;               }
+  Bool_t*   GlbMuon_mu()                  { SetBranch("GlbMuon_mu");                  return GlbMuon_mu_;                 }
+  Bool_t*   softMuon_mu()                 { SetBranch("softMuon_mu");                 return softMuon_mu_;                }
+  Bool_t*   HPMuon_mu()                   { SetBranch("HPMuon_mu");                   return HPMuon_mu_;                  }
+  UCharVecVec trigMuon_mu()               { SetBranch("trigMuon_mu");                 return GET(trigMuon_mu_);           }
+  Short_t*  nTrackerLayer_mu()            { SetBranch("nTrackerLayer_mu");            return nTrackerLayer_mu_;           }
+  Short_t*  nPixelLayer_mu()              { SetBranch("nPixelLayer_mu");              return nPixelLayer_mu_;             }
+  Float_t*  dXY_mu()                      { SetBranch("dXY_mu");                      return dXY_mu_;                     }
+  Float_t*  dZ_mu()                       { SetBranch("dZ_mu");                       return dZ_mu_;                      }
+
   // EXTRA GETTERS
   Bool_t    tightMuon1  (const UInt_t& iC, const std::string& type="");
   Bool_t    tightMuon2  (const UInt_t& iC, const std::string& type="");
@@ -386,6 +401,21 @@ public :
   Float_t           pTD2_gen_[NGEN]={0};   //[candSize_gen]
   Float_t           EtaD2_gen_[NGEN]={0};   //[candSize_gen]
   Float_t           PhiD2_gen_[NGEN]={0};   //[candSize_gen]
+  
+  // MUON INFO VARIABLES
+  UInt_t            candSize_mu_=0;
+  Float_t           pT_mu_[NCAND]={0};   //[candSize]
+  Float_t           eta_mu_[NCAND]={0};   //[candSize]
+  Float_t           phi_mu_[NCAND]={0};   //[candSize]
+  Bool_t            OneStMuon_mu_[NCAND]={0};   //[candSize]
+  Bool_t            GlbMuon_mu_[NCAND]={0};   //[candSize]
+  Bool_t            softMuon_mu_[NCAND]={0};   //[candSize]
+  Bool_t            HPMuon_mu_[NCAND]={0};   //[candSize]
+  UCharVecVec*      trigMuon_mu_=0;
+  Short_t           nTrackerLayer_mu_[NCAND]={0};   //[candSize]
+  Short_t           nPixelLayer_mu_[NCAND]={0};   //[candSize]
+  Float_t           dXY_mu_[NCAND]={0};   //[candSize]
+  Float_t           dZ_mu_[NCAND]={0};   //[candSize]
 
   // BRANCHES
   std::map<std::string, TBranch*> b; //!
@@ -631,6 +661,21 @@ void VertexCompositeTree::InitTree(void)
     if (fChain->GetBranch("pTD2_gen"))                    fChain->SetBranchAddress("pTD2_gen",                   pTD2_gen_,                   &(b["pTD2_gen"])                  );
     if (fChain->GetBranch("EtaD2_gen"))                   fChain->SetBranchAddress("EtaD2_gen",                  EtaD2_gen_,                  &(b["EtaD2_gen"])                 );
     if (fChain->GetBranch("PhiD2_gen"))                   fChain->SetBranchAddress("PhiD2_gen",                  PhiD2_gen_,                  &(b["PhiD2_gen"])                 );
+
+    // SET MUON INFO BRANCHES
+    if (fChain->GetBranch("candSize_mu"))                 fChain->SetBranchAddress("candSize_mu",               &candSize_mu_,                &(b["candSize_mu"])               );
+    if (fChain->GetBranch("pT_mu"))                       fChain->SetBranchAddress("pT_mu",                      pT_mu_,                      &(b["pT_mu"])                     );
+    if (fChain->GetBranch("eta_mu"))                      fChain->SetBranchAddress("eta_mu",                     eta_mu_,                     &(b["eta_mu"])                    );
+    if (fChain->GetBranch("phi_mu"))                      fChain->SetBranchAddress("phi_mu",                     phi_mu_,                     &(b["phi_mu"])                    );
+    if (fChain->GetBranch("OneStMuon_mu"))                fChain->SetBranchAddress("OneStMuon_mu",               OneStMuon_mu_,               &(b["OneStMuon_mu"])              );
+    if (fChain->GetBranch("GlbMuon_mu"))                  fChain->SetBranchAddress("GlbMuon_mu",                 GlbMuon_mu_,                 &(b["GlbMuon_mu"])                );
+    if (fChain->GetBranch("softMuon_mu"))                 fChain->SetBranchAddress("softMuon_mu",                softMuon_mu_,                &(b["softMuon_mu"])               );
+    if (fChain->GetBranch("HPMuon_mu"))                   fChain->SetBranchAddress("HPMuon_mu",                  HPMuon_mu_,                  &(b["HPMuon_mu"])                 );
+    if (fChain->GetBranch("trigMuon_mu"))                 fChain->SetBranchAddress("trigMuon_mu",               &trigMuon_mu_,                &(b["trigMuon_mu"])               );
+    if (fChain->GetBranch("nTrackerLayer_mu"))            fChain->SetBranchAddress("nTrackerLayer_mu",           nTrackerLayer_mu_,           &(b["nTrackerLayer_mu"])          );
+    if (fChain->GetBranch("nPixelLayer_mu"))              fChain->SetBranchAddress("nPixelLayer_mu",             nPixelLayer_mu_,             &(b["nPixelLayer_mu"])            );
+    if (fChain->GetBranch("dZ_mu"))                       fChain->SetBranchAddress("dZ_mu",                      dZ_mu_,                      &(b["dZ_mu"])                     );
+    if (fChain->GetBranch("dXY_mu"))                      fChain->SetBranchAddress("dXY_mu",                     dXY_mu_,                     &(b["dXY_mu"])                    );
   }
 };
 
@@ -793,6 +838,22 @@ void VertexCompositeTree::Clear(void)
   if (GetBranchStatus("pTD2_gen")==1)     std::fill_n(pTD2_gen_, nGen, -1.);
   if (GetBranchStatus("EtaD2_gen")==1)    std::fill_n(EtaD2_gen_, nGen, -9.);
   if (GetBranchStatus("PhiD2_gen")==1)    std::fill_n(PhiD2_gen_, nGen, -9.);
+  
+  // CLEAR MUON INFO VARIABLES
+  const auto& nCand_mu = (candSize_mu_>0 ? candSize_mu_ : NCAND);
+  if (GetBranchStatus("candSize_mu")==1)      candSize_ = 0;
+  if (GetBranchStatus("pT_mu")==1)            std::fill_n(pT_mu_, nCand_mu, -1.);
+  if (GetBranchStatus("eta_mu")==1)           std::fill_n(eta_mu_, nCand_mu, -9.);
+  if (GetBranchStatus("phi_mu")==1)           std::fill_n(phi_mu_, nCand_mu, -9.);
+  if (GetBranchStatus("OneStMuon_mu")==1)     std::fill_n(OneStMuon_mu_, nCand_mu, 0);
+  if (GetBranchStatus("GlbMuon_mu")==1)       std::fill_n(GlbMuon_mu_, nCand_mu, 0);
+  if (GetBranchStatus("softMuon_mu")==1)      std::fill_n(softMuon_mu_, nCand_mu, 0);
+  if (GetBranchStatus("HPMuon_mu")==1)        std::fill_n(HPMuon_mu_, nCand_mu, 0);
+  if (GetBranchStatus("trigMuon_mu")==1 && trigMuon1_) trigMuon_mu_->clear();
+  if (GetBranchStatus("nTrackerLayer_mu")==1) std::fill_n(nTrackerLayer_mu_, nCand_mu, -1);
+  if (GetBranchStatus("nPixelLayer_mu")==1)   std::fill_n(nPixelLayer_mu_, nCand_mu, -1);
+  if (GetBranchStatus("dZ_mu")==1)            std::fill_n(dZ_mu_, nCand_mu, -99.);
+  if (GetBranchStatus("dXY_mu")==1)           std::fill_n(dXY_mu_, nCand_mu, -99.);
 };
 
 void VertexCompositeTree::GenerateDictionaries(void)
