@@ -427,6 +427,7 @@ void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string
   if (cutDS) { t.DrawLatex(xPos, yPos-dy, formatCut(cutDS->getVal()).c_str()); dy+=dYPos; }
   const std::string& cutSel = (ws.obj("cutSelStr") ? dynamic_cast<RooStringVar*>(ws.obj("cutSelStr"))->getVal() : "");
   if (cutSel!="") { t.DrawLatex(xPos, yPos-dy, (formatCutLbl(cutSel)+" cut").c_str()); dy+=dYPos; }
+  if (ws.var("FAILED")) { t.DrawLatex(xPos, yPos-dy, "FIT FAILED"); dy+=dYPos; }
   //
   // Display the number of events lost if the dataset was reduced before fitting
   const auto& dsEntries = ws.var(("numEntries_"+dsName).c_str());

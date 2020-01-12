@@ -26,6 +26,7 @@
 #include "RooRealVar.h"
 #include "RooCategory.h"
 #include "RooArgSet.h"
+#include "RooStringVar.h"
 
 #include <string>
 #include <memory>
@@ -94,30 +95,32 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     if (doSS && candSSTree->GetEntries() != nentries) { std::cout << "[ERROR] Inconsistent number of entries in candTreeSS!" << std::endl; return false; }
     //
     ///// RooDataSet Variables
-    auto candMass = RooRealVar ( "Cand_Mass"  , "Candidate Mass"  ,    -1.0 ,     100.0 ,  "GeV/c^{2}" );
-    auto candPt   = RooRealVar ( "Cand_Pt"    , "Candidate p_{T}" ,    -1.0 ,    1000.0 ,  "GeV/c"     );
-    auto candRap  = RooRealVar ( "Cand_Rap"   , "Candidate y"     ,   -10.0 ,      10.0 ,  ""          );
-    auto candAPhi = RooRealVar ( "Cand_APhi"  , "Candidate #phi_{#mu}" , -10.0 ,   10.0 ,  ""          );
-    auto candDLen = RooRealVar ( "Cand_DLen"  , "Candidate c#tau" , -1000.0 ,    1000.0 ,  "mm"        );
-    auto candDLenErr = RooRealVar ( "Cand_DLenErr" , "Candidate c#tau error" , -1.0 , 1000.0 , "mm"    );
-    auto candDLenGen = RooRealVar ( "Cand_DLenGen" , "GEN candidate c#tau" , -1000.0 , 1000.0 , "mm"   );
-    auto dau1Pt   = RooRealVar ( "Dau1_Pt"    , "Daughter1 p_{T}" ,  -1.0 ,       100.0 ,  "GeV/c"     );
-    auto dau2Pt   = RooRealVar ( "Dau2_Pt"    , "Daughter2 p_{T}" ,  -1.0 ,       100.0 ,  "GeV/c"     );
-    auto dau1Eta  = RooRealVar ( "Dau1_Eta"   , "Daughter1 #eta"  , -10.0 ,        10.0 ,  ""          );
-    auto dau2Eta  = RooRealVar ( "Dau2_Eta"   , "Daughter2 #eta"  , -10.0 ,        10.0 ,  ""          );
-    auto cent     = RooRealVar ( "Centrality" , "Centrality"      ,  -1.0 ,      1000.0 ,  ""          );
-    auto nTrk     = RooRealVar ( "NTrack"     , "Number of Tracks",  -1.0 ,   1000000.0 ,  ""          );
-    auto candQual = RooRealVar ( "Cand_Qual"  , "Candidate Quality", -1.0 ,        10.0 ,  ""          );
-    auto candTrig = RooRealVar ( "Cand_Trig"  , "Candidate Trigger", -1.0 ,      1000.0 ,  ""          );
-    auto candVtxP = RooRealVar ( "Cand_VtxP"  , "Cand. Vertex Prob." , -1.0 ,      10.0 ,  ""          );
-    auto weight   = RooRealVar ( "Weight"     , "Weight"          ,  -1.0 , 100000000.0 ,  ""          );
-    auto isSwap   = RooCategory( "Cand_IsSwap" , "Candidate IsSwap");
+    auto candMass      = RooRealVar ( "Cand_Mass"      , "Candidate Mass"           ,    -1.0 ,       100.0 , "GeV/c^{2}" );
+    auto candPt        = RooRealVar ( "Cand_Pt"        , "Candidate p_{T}"          ,    -1.0 ,      1000.0 , "GeV/c"     );
+    auto candRap       = RooRealVar ( "Cand_Rap"       , "Candidate y"              ,   -10.0 ,        10.0 , ""          );
+    auto candDLen      = RooRealVar ( "Cand_DLen"      , "Candidate c#tau"          , -1000.0 ,      1000.0 , "mm"        );
+    auto candDLenErr   = RooRealVar ( "Cand_DLenErr"   , "Candidate c#tau error"    ,    -1.0 ,      1000.0 , "mm"        );
+    auto candDLenGen   = RooRealVar ( "Cand_DLenGen"   , "GEN candidate c#tau"      , -1000.0 ,      1000.0 , "mm"        );
+    auto candDLen2D    = RooRealVar ( "Cand_DLen2D"    , "Candidate c#tau 2D"       , -1000.0 ,      1000.0 , "mm"        );
+    auto candDLenErr2D = RooRealVar ( "Cand_DLenErr2D" , "Candidate c#tau error 2D" ,    -1.0 ,      1000.0 , "mm"        );
+    auto candDLenGen2D = RooRealVar ( "Cand_DLenGen2D" , "GEN candidate c#tau 2D"   , -1000.0 ,      1000.0 , "mm"        );
+    auto dau1Pt        = RooRealVar ( "Dau1_Pt"        , "Daughter1 p_{T}"          ,    -1.0 ,       100.0 , "GeV/c"     );
+    auto dau2Pt        = RooRealVar ( "Dau2_Pt"        , "Daughter2 p_{T}"          ,    -1.0 ,       100.0 , "GeV/c"     );
+    auto dau1Eta       = RooRealVar ( "Dau1_Eta"       , "Daughter1 #eta"           ,   -10.0 ,        10.0 , ""          );
+    auto dau2Eta       = RooRealVar ( "Dau2_Eta"       , "Daughter2 #eta"           ,   -10.0 ,        10.0 , ""          );
+    auto cent          = RooRealVar ( "Centrality"     , "Centrality"               ,    -1.0 ,      1000.0 , ""          );
+    auto nTrk          = RooRealVar ( "NTrack"         , "Number of Tracks"         ,    -1.0 ,   1000000.0 , ""          );
+    auto candQual      = RooRealVar ( "Cand_Qual"      , "Candidate Quality"        ,    -1.0 ,        10.0 , ""          );
+    auto candTrig      = RooRealVar ( "Cand_Trig"      , "Candidate Trigger"        ,    -1.0 ,      1000.0 , ""          );
+    auto candVtxP      = RooRealVar ( "Cand_VtxP"      , "Cand. Vertex Prob."       ,    -1.0 ,        10.0 , ""          );
+    auto weight        = RooRealVar ( "Weight"         , "Weight"                   ,    -1.0 , 100000000.0 , ""          );
+    auto isSwap        = RooCategory( "Cand_IsSwap"    , "Candidate IsSwap");
     isSwap.defineType("None", -1); isSwap.defineType("No", 0); isSwap.defineType("Yes", 1);
     //
-    auto cols = RooArgSet(candMass, candPt, candRap, candDLen, candDLenErr, cent, nTrk);
-    cols.add(dau1Pt); cols.add(dau1Eta); cols.add(dau2Pt); cols.add(dau2Eta);
-    cols.add(candAPhi); cols.add(candQual); cols.add(candTrig); cols.add(candVtxP);
-    if (isMC) { cols.add(isSwap); cols.add(candDLenGen); }
+    auto cols = RooArgSet(candMass, candPt, candRap, candDLen, candDLen2D, cent, nTrk);
+    cols.add(dau1Pt); cols.add(dau1Eta); cols.add(dau2Pt); cols.add(dau2Eta); cols.add(candDLenErr); cols.add(candDLenErr2D);
+    cols.add(candQual); cols.add(candTrig); cols.add(candVtxP);
+    if (isMC) { cols.add(isSwap); cols.add(candDLenGen); cols.add(candDLenGen2D); }
     //
     ///// Initiliaze RooDataSets
     dataOS.clear(); dataSS.clear();
@@ -261,9 +264,10 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           // Store muon trigger matching info
           uint trigM = 0;
 	  for (const auto& idx : allTrig) {
-            bool isTrigMatch = true;
+            bool isTrigMatch = false;
             if      (idx.second=="Muon"  ) { isTrigMatch = (trigMap.at(idx.first) && candOSTree->trigCand(idx.first, iC, true )); }
             else if (idx.second=="DiMuon") { isTrigMatch = (trigMap.at(idx.first) && candOSTree->trigCand(idx.first, iC, false)); }
+            else  { isTrigMatch = trigMap.at(idx.first); }
             if (isTrigMatch) { trigM += std::pow(2.0, idx.first); }
           }
 	  if (trigM==0) continue;
@@ -274,29 +278,33 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& massJPsi = MASS.at("JPsi").at("Val");
           const auto& dLen = (candOSTree->V3DDecayLength()[iC] * candOSTree->V3DCosPointingAngle()[iC])*(massJPsi/p)*10.0;
           const auto& dLenErr = (candOSTree->V3DDecayLengthError()[iC])*(massJPsi/p)*10.0;
+          const auto& dLen2D = (candOSTree->V2DDecayLength()[iC] * candOSTree->V2DCosPointingAngle()[iC])*(massJPsi/pT)*10.0;
+          const auto& dLenErr2D = (candOSTree->V2DDecayLength()[iC]/candOSTree->V2DDecayLengthSignificance()[iC])*(massJPsi/pT)*10.0;
           //
           // Compute the azimuthal asymmetry
           const auto& aPhi = candOSTree->phiAsym(iC);
           //
           // Set the variables
-          candMass.setVal( mass  );
-          candPt.setVal  ( pT    );
-          candRap.setVal ( rap   );
-          candDLen.setVal( dLen  );
+          candMass.setVal   ( mass  );
+          candPt.setVal     ( pT    );
+          candRap.setVal    ( rap   );
+          candDLen.setVal   ( dLen  );
           candDLenErr.setVal( dLenErr );
-          candAPhi.setVal( aPhi  );
-          candQual.setVal( candQ );
-	  candTrig.setVal( trigM );
-          candVtxP.setVal( candOSTree->VtxProb()[iC] );
-          dau1Pt.setVal  ( d1Pt  );
-          dau2Pt.setVal  ( d2Pt  );
-          dau1Eta.setVal ( d1Eta );
-          dau2Eta.setVal ( d2Eta );
-          cent.setVal    ( centV );
-          nTrk.setVal    ( candOSTree->Ntrkoffline() );
-          weight.setVal  ( 1.0   );
-          isSwap.setLabel( "None");
-	  candDLenGen.setVal( -1.0 );
+          candDLen2D.setVal ( dLen2D  );
+          candDLenErr2D.setVal( dLenErr2D );
+          candQual.setVal   ( candQ );
+	  candTrig.setVal   ( trigM );
+          candVtxP.setVal   ( candOSTree->VtxProb()[iC] );
+          dau1Pt.setVal     ( d1Pt  );
+          dau2Pt.setVal     ( d2Pt  );
+          dau1Eta.setVal    ( d1Eta );
+          dau2Eta.setVal    ( d2Eta );
+          cent.setVal       ( centV );
+          nTrk.setVal       ( candOSTree->Ntrkoffline() );
+          weight.setVal     ( 1.0   );
+          isSwap.setLabel   ( "None");
+	  candDLenGen.setVal( -1.0  );
+	  candDLenGen2D.setVal( -1.0  );
           if (isMC) {
             weight.setVal( candOSTree->weight_gen() );
             isSwap.setLabel( candOSTree->isSwap() ? "Yes" : "No" );
@@ -305,6 +313,9 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
 	      const auto& pGen = candOSTree->pT_gen()[iGen]*std::cosh(candOSTree->eta_gen()[iGen]);
 	      const auto& dLenGen = (candOSTree->V3DDecayLength_gen()[iGen] * std::cos(candOSTree->V3DPointingAngle_gen()[iGen]))*(massJPsi/pGen)*10.0;
 	      candDLenGen.setVal( dLenGen );
+	      const auto& pTGen = candOSTree->pT_gen()[iGen];
+	      const auto& dLenGen2D = (candOSTree->V2DDecayLength_gen()[iGen] * std::cos(candOSTree->V2DPointingAngle_gen()[iGen]))*(massJPsi/pTGen)*10.0;
+	      candDLenGen2D.setVal( dLenGen2D );
 	    }
           }
           //
@@ -371,29 +382,33 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& massJPsi = MASS.at("JPsi").at("Val");
           const auto& dLen = (candSSTree->V3DDecayLength()[iC] * candSSTree->V3DCosPointingAngle()[iC])*(massJPsi/p)*10.0;
           const auto& dLenErr = (candSSTree->V3DDecayLengthError()[iC])*(massJPsi/p)*10.0;
+          const auto& dLen2D = (candSSTree->V2DDecayLength()[iC] * candSSTree->V2DCosPointingAngle()[iC])*(massJPsi/pT)*10.0;
+          const auto& dLenErr2D = (candSSTree->V2DDecayLength()[iC]/candSSTree->V2DDecayLengthSignificance()[iC])*(massJPsi/pT)*10.0;
           //
           // Compute the azimuthal asymmetry  
           const auto& aPhi = candSSTree->phiAsym(iC);
           //
           // Set the variables
-          candMass.setVal( mass  );
-          candPt.setVal  ( pT    );
-          candRap.setVal ( rap   );
-          candDLen.setVal ( dLen  );
+          candMass.setVal   ( mass  );
+          candPt.setVal     ( pT    );
+          candRap.setVal    ( rap   );
+          candDLen.setVal   ( dLen  );
           candDLenErr.setVal( dLenErr );
-          candAPhi.setVal( aPhi  );
-          candQual.setVal( candQ );
-	  candTrig.setVal( trigM );
-      	  candVtxP.setVal( candSSTree->VtxProb()[iC] );
-          dau1Pt.setVal  ( d1Pt  );
-          dau2Pt.setVal  ( d2Pt  );
-          dau1Eta.setVal ( d1Eta );
-          dau2Eta.setVal ( d2Eta );
-          cent.setVal    ( centV );
-          nTrk.setVal    ( candSSTree->Ntrkoffline() );
-          weight.setVal  ( 1.0 );
-          isSwap.setLabel("None");
-	  candDLenGen.setVal( -1.0 );
+          candDLen2D.setVal ( dLen2D  );
+          candDLenErr2D.setVal( dLenErr2D );
+          candQual.setVal   ( candQ );
+	  candTrig.setVal   ( trigM );
+          candVtxP.setVal   ( candSSTree->VtxProb()[iC] );
+          dau1Pt.setVal     ( d1Pt  );
+          dau2Pt.setVal     ( d2Pt  );
+          dau1Eta.setVal    ( d1Eta );
+          dau2Eta.setVal    ( d2Eta );
+          cent.setVal       ( centV );
+          nTrk.setVal       ( candSSTree->Ntrkoffline() );
+          weight.setVal     ( 1.0   );
+          isSwap.setLabel   ("None" );
+	  candDLenGen.setVal( -1.0  );
+	  candDLenGen2D.setVal( -1.0  );
           //
           // Fill the RooDataSets
           for (uint i=0; i<dsNames.size(); i++) {
@@ -431,6 +446,8 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
       if (dataSS[i]->numEntries()==0) { std::cout << "[WARNING] " << dsNames[i] << " SS dataset is empty!" << std::endl; }
       workspaces[dsNames[i]].import(*dataSS[i]);
     }
+    RooStringVar strVar("PD", "PD", PD.c_str(), 20);
+    workspaces[dsNames[i]].import(*dynamic_cast<TObject*>(&strVar), "PD");
   }
   dataOS.clear(); dataSS.clear();
   return true;
@@ -449,12 +466,14 @@ bool checkVertexCompositeDS(const RooDataSet& ds, const std::string& analysis)
         ( row->find("Cand_Rap") !=0  ) &&
         ( row->find("Cand_DLen") !=0 ) &&
         ( row->find("Cand_DLenErr") !=0 ) &&
-        ( row->find("Cand_APhi") !=0 ) &&
+        ( row->find("Cand_DLen2D") !=0 ) &&
+        ( row->find("Cand_DLenErr2D") !=0 ) &&
         ( row->find("Cand_Qual") !=0 ) &&
 	( row->find("Cand_Trig") !=0 ) &&
 	( row->find("Cand_VtxP") !=0 ) &&
         ( !isMC || row->find("Cand_IsSwap") !=0  ) &&
         ( !isMC || row->find("Cand_DLenGen") !=0 ) &&
+        ( !isMC || row->find("Cand_DLenGen2D") !=0 ) &&
         ( row->find("Dau1_Pt") !=0  ) &&
         ( row->find("Dau1_Eta") !=0 ) &&
         ( row->find("Dau2_Pt") !=0  ) &&

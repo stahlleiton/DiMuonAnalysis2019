@@ -83,6 +83,11 @@ public :
   Float_t*  V3DDecayLengthError()         { SetBranch("3DDecayLengthError");          return V3DDecayLengthError_;        }
   Float_t*  V2DDecayLengthSignificance()  { SetBranch("2DDecayLengthSignificance");   return V2DDecayLengthSignificance_; }
   Float_t*  V2DDecayLength()              { SetBranch("2DDecayLength");               return V2DDecayLength_;             }
+  Float_t*  V2DDecayLengthError()         { SetBranch("2DDecayLengthError");          return V2DDecayLengthError_;        }
+  Float_t*  privtxX()                     { SetBranch("privtxX");                     return privtxX_;                    }
+  Float_t*  privtxY()                     { SetBranch("privtxY");                     return privtxY_;                    }
+  Float_t*  privtxZ()                     { SetBranch("privtxZ");                     return privtxZ_;                    }
+  Int_t*    NTracks()                     { SetBranch("NTracks");                     return NTracks_;                    }
   Float_t*  zDCASignificanceDaugther1()   { SetBranch("zDCASignificanceDaugther1");   return zDCASignificanceDaugther1_;  }
   Float_t*  xyDCASignificanceDaugther1()  { SetBranch("xyDCASignificanceDaugther1");  return xyDCASignificanceDaugther1_; }
   Bool_t*   HighPurityDaugther1()         { SetBranch("HighPurityDaugther1");         return HighPurityDaugther1_;        }
@@ -291,6 +296,11 @@ public :
   Float_t           V3DDecayLengthError_[NCAND]={0};   //[candSize]
   Float_t           V2DDecayLengthSignificance_[NCAND]={0};   //[candSize]
   Float_t           V2DDecayLength_[NCAND]={0};   //[candSize]
+  Float_t           V2DDecayLengthError_[NCAND]={0};   //[candSize]
+  Float_t           privtxX_[NCAND]={0};   //[candSize]
+  Float_t           privtxY_[NCAND]={0};   //[candSize]
+  Float_t           privtxZ_[NCAND]={0};   //[candSize]
+  Int_t             NTracks_[NCAND]={0};   //[candSize]
   Float_t           zDCASignificanceDaugther1_[NCAND]={0};   //[candSize]
   Float_t           xyDCASignificanceDaugther1_[NCAND]={0};   //[candSize]
   Bool_t            HighPurityDaugther1_[NCAND]={0};   //[candSize]
@@ -571,6 +581,11 @@ void VertexCompositeTree::InitTree(void)
     if (fChain->GetBranch("3DDecayLengthError"))          fChain->SetBranchAddress("3DDecayLengthError",         V3DDecayLengthError_,        &(b["3DDecayLengthError"])        );
     if (fChain->GetBranch("2DDecayLengthSignificance"))   fChain->SetBranchAddress("2DDecayLengthSignificance",  V2DDecayLengthSignificance_, &(b["2DDecayLengthSignificance"]) );
     if (fChain->GetBranch("2DDecayLength"))               fChain->SetBranchAddress("2DDecayLength",              V2DDecayLength_,             &(b["2DDecayLength"])             );
+    if (fChain->GetBranch("2DDecayLengthError"))          fChain->SetBranchAddress("2DDecayLengthError",         V2DDecayLengthError_,        &(b["2DDecayLengthError"])        );
+    if (fChain->GetBranch("privtxX"))                     fChain->SetBranchAddress("privtxX",                    privtxX_,                    &(b["privtxX"])                   );
+    if (fChain->GetBranch("privtxY"))                     fChain->SetBranchAddress("privtxY",                    privtxY_,                    &(b["privtxY"])                   );
+    if (fChain->GetBranch("privtxZ"))                     fChain->SetBranchAddress("privtxZ",                    privtxZ_,                    &(b["privtxZ"])                   );
+    if (fChain->GetBranch("NTracks"))                     fChain->SetBranchAddress("NTracks",                    NTracks_,                    &(b["NTracks"])                   );
     if (fChain->GetBranch("zDCASignificanceDaugther1"))   fChain->SetBranchAddress("zDCASignificanceDaugther1",  zDCASignificanceDaugther1_,  &(b["zDCASignificanceDaugther1"]) );
     if (fChain->GetBranch("xyDCASignificanceDaugther1"))  fChain->SetBranchAddress("xyDCASignificanceDaugther1", xyDCASignificanceDaugther1_, &(b["xyDCASignificanceDaugther1"]));
     if (fChain->GetBranch("HighPurityDaugther1"))         fChain->SetBranchAddress("HighPurityDaugther1",        HighPurityDaugther1_,        &(b["HighPurityDaugther1"])       );
@@ -729,6 +744,11 @@ void VertexCompositeTree::Clear(void)
   if (GetBranchStatus("3DDecayLengthError")==1)         std::fill_n(V3DDecayLengthError_, nCand, -1.);
   if (GetBranchStatus("2DDecayLengthSignificance")==1)  std::fill_n(V2DDecayLengthSignificance_, nCand, -1.);
   if (GetBranchStatus("2DDecayLength")==1)              std::fill_n(V2DDecayLength_, nCand, -1.);
+  if (GetBranchStatus("2DDecayLengthError")==1)         std::fill_n(V2DDecayLengthError_, nCand, -1.);
+  if (GetBranchStatus("privtxX")==1)                    std::fill_n(privtxX_, nCand, -1.);
+  if (GetBranchStatus("privtxY")==1)                    std::fill_n(privtxY_, nCand, -1.);
+  if (GetBranchStatus("privtxZ")==1)                    std::fill_n(privtxZ_, nCand, -1.);
+  if (GetBranchStatus("NTracks")==1)                    std::fill_n(NTracks_, nCand, -1);
   if (GetBranchStatus("zDCASignificanceDaugther1")==1)  std::fill_n(zDCASignificanceDaugther1_, nCand, -1.);
   if (GetBranchStatus("xyDCASignificanceDaugther1")==1) std::fill_n(xyDCASignificanceDaugther1_, nCand, -1.);
   if (GetBranchStatus("HighPurityDaugther1")==1)        std::fill_n(HighPurityDaugther1_, nCand, 0);

@@ -1,12 +1,11 @@
 #ifndef ROO_MODCB_SHAPE
 #define ROO_MODCB_SHAPE
 
-#include "TObject.h"
-#include "RooAbsReal.h"
-#include "RooRealVar.h"
+
 #include "RooAbsPdf.h"
-#include "RooArgSet.h"
 #include "RooRealProxy.h"
+#include "RooAbsReal.h"
+#include "RooArgSet.h"
   
 class RooRealVar;
   
@@ -38,6 +37,10 @@ class RooModCBShape : public RooAbsPdf {
   RooRealProxy alphaL;
   
   Double_t evaluate() const;
+  
+ private:
+
+  ClassDef(RooModCBShape,1)
   
 };
   

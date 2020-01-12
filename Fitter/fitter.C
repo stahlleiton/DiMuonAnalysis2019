@@ -1,3 +1,6 @@
+#ifndef fitter_C
+#define fitter_C
+
 #include "TROOT.h"
 #include "TSystem.h"
 #include "TSystemDirectory.h"
@@ -27,6 +30,8 @@ bool parseString       ( std::vector<double>& output , std::string input );
 bool iniWorkEnv        ( StringVectorMap_t& DIR , const std::string& workDirName );
 void iniFileDir        ( StringMapVector_t& inputFitDirs , StringDiMapVector_t& inputInitialFilesDirs ,
                          const StringMap_t& inputFitDir  , const StringDiMap_t& inputInitialFilesDir , const StringVectorMap_t& DIR );
+bool loadIniParameters ( std::vector< GlobalInfoVectorMap_t >& infoMapVectors , GlobalInfo& userInput ,
+			 const StringDiMapVector_t& inputInitialFilesDirs , const StringVectorMap_t& DIR );
 bool readFile          ( StringDiVector_t& content, const std::string& fileName , const int& nCol=-1, int nRow=-1 );
 bool getInputFileNames ( StringDiVectorMap_t& inputFileCollection , const std::string& inputTrees );
 bool setParameters     ( GlobalInfo& info , GlobalInfo& userInfo , const StringMap_t& row );
@@ -44,9 +49,9 @@ void fitter(
                                                           //             (bit 3  (8)) pPb8Y16  , (bit 4 (16)) Pbp8Y16 , (bit 5 (32)) PA8Y16  ,
                                                           //             (bit 6 (64)) PbPb5Y15
             const std::bitset<3> fitChg   = 1,            // Fit Charge: (bit 0 (1)) OS , (bit 1 (2)) SS , (bit 2 (4)) Inclusive
-            const unsigned int   usePD    = 0,            // Use PD: (0) MUON , (1) DIMUON , (2) DIMUONPERI ,
-                                                          //         (3) HIGHMULT , (4) HIGHMULT2 (100/255) ,
-                                                          //         (5) MINBIAS , (6) UPC
+            const unsigned int   usePD    = 0,            // Use PD: (0) MUON     , (1) DIMUON , (2) DIMUONPERI ,
+                                                          //         (3) HIGHMULT , (4) HIGHMULT0 (150) , (5) HIGHMULT2 (100/255) ,
+                                                          //         (6) MINBIAS  , (7) UPC
             // Select the type of objects to fit
             const std::bitset<8> fitObj   = 8,            // Fit Objects: (bit 0  (1)) Bkg   ,
                                                           //              (bit 1  (2)) JPsi  , (bit 2   (4)) Psi2S ,
@@ -56,7 +61,7 @@ void fitter(
             const std::bitset<5> fitVar   = 1,            // Fit Variable: (bit 0 (1)) Cand_Mass    , (bit 1 (2)) Cand_DLen ,
 	                                                  //               (bit 2 (4)) Cand_DLenErr , (bit 3 (8)) Cand_DLenRes , (bit 4 (16)) Cand_DLenGen
             const std::bitset<2> fitCat   = 3,            // Fit Objects: (bit 0  (1)) PR , (bit 1  (2)) NoPR
-            const unsigned int   numCores = 24,           // Number of cores used for fitting
+            const unsigned int   numCores = 32,           // Number of cores used for fitting
             const std::string    analysis = "CandToMuMu", // Type of analysis: CandToXX (Mass Resonance)
             // Select the drawing options
             const bool setLogScale  = true                // Draw plot with log scale
@@ -112,7 +117,8 @@ void fitter(
   for (uint i=0; i<userInput.StrV.at("sample").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("sample")[i]] = fitData[i]; }
   //
   // Dataset to use (ignored if fitting MC)
-  userInput.StrV["PD"] = {"MUON", "DIMUON", "DIMUONPERI", "HIGHMULT", "HIGHMULT2", "MINBIAS", "UPC"};
+  userInput.StrV["PD"] = {"MUON", "DIMUON", "DIMUONPERI", "HIGHMULT", "HIGHMULT0", "HIGHMULT2", "MINBIAS", "UPC"};
+  userInput.StrS["fitPD"].insert(userInput.StrV.at("PD")[usePD]);
   userInput.Par["PD"] = userInput.StrV.at("PD")[usePD];
   //
   // Collision system
@@ -230,47 +236,8 @@ void fitter(
   */
 
   std::vector< GlobalInfoVectorMap_t > infoMapVectors;
-  BoolDiMap_t VARMAP;
-  for (const auto& var : userInput.StrS.at("incVariable")) {
-    for (const auto& obj : userInput.StrV.at("object")) {
-      VARMAP[var][obj] = userInput.Flag.at("fit"+obj);
-    }
-  }
-  BoolMap_t COLMAP;
-  for (const auto& col : userInput.StrV.at("system")) {
-    COLMAP[col] = userInput.Flag.at("fit"+col);
-  }
-  for(uint j = 0; j < DIR.at("input").size(); j++) {
-    if (DIR.at("input").size()>1 && j==0) continue; // First entry is always the main input directory
-    GlobalInfoVectorMap_t infoMapVector;
-    for (const auto& VAR : VARMAP) {
-      auto PARMAP = VAR.second;
-      for (const auto& PAR : PARMAP) {
-        if (PAR.second) {
-          for (const auto& COL : COLMAP) {
-            if(COL.second) {
-              std::string dir = DIR.at("input")[j];
-              if (inputInitialFilesDirs[j].at(VAR.first).at(PAR.first)!="") { dir = inputInitialFilesDirs[j].at(VAR.first).at(PAR.first); }
-              std::string inputFile = "", name = (dir + "InitialParam_" + VAR.first + "_" + PAR.first);
-              StringVector_t tryChannel = { userInput.Par.at("channel") , "" };
-              StringVector_t trySystem  = { COL.first };
-              if (userInput.Flag.at("doPA8Y16")) { trySystem.push_back("PA8Y16"); }; trySystem.push_back("");
-              for (const auto& tryCha : tryChannel) {
-                bool trySuccess = false;
-                for (const auto& tryCol : trySystem) {
-                  if (ifstream(inputFile).good()==false) { inputFile = (name + tryCha + (tryCol!="" ? "_"+tryCol : "") + ".csv"); } else { trySuccess = true; break; }
-                }
-                if (trySuccess) break;
-              }
-              if (!addParameters(infoMapVector[COL.first], userInput, inputFile)) { return; }
-            }
-          }
-        }
-      }
-    }
-    infoMapVectors.push_back(infoMapVector);
-  }
-
+  if (!loadIniParameters(infoMapVectors, userInput, inputInitialFilesDirs, DIR)) { return; }
+ 
   // -------------------------------------------------------------------------------
   // STEP 2: CREATE/LOAD THE ROODATASETS
   /*
@@ -316,6 +283,7 @@ void fitter(
             //
             for (const auto& infoVector : infoMapVector.second) {
               //
+	      if (DSTAG.rfind("DATA_",0)==0 && DSTAG.rfind("DATA_"+infoVector.Par.at("PD")+"_DIMUON")==std::string::npos) continue;
 	      std::cout << "[INFO] Proceed to fit the dataset " << DSTAG << std::endl;
               if (userInput.Par.at("analysis").rfind("CandTo", 0)==0) {
                 if (!fitCandidateModel( iniWorkspaces, infoVector,
@@ -338,6 +306,52 @@ void fitter(
   }
   std::cout << "[INFO] All fits done!" << std::endl;
 };
+
+
+bool loadIniParameters(std::vector< GlobalInfoVectorMap_t >& infoMapVectors, GlobalInfo& userInput, const StringDiMapVector_t& inputInitialFilesDirs, const StringVectorMap_t& DIR)
+{
+  BoolDiMap_t VARMAP;
+  for (const auto& var : userInput.StrS.at("incVariable")) {
+    for (const auto& obj : userInput.StrV.at("object")) {
+      VARMAP[var][obj] = userInput.Flag.at("fit"+obj);
+    }
+  }
+  BoolMap_t COLMAP;
+  for (const auto& col : userInput.StrV.at("system")) {
+    COLMAP[col] = userInput.Flag.at("fit"+col);
+  }
+  for(uint j = 0; j < DIR.at("input").size(); j++) {
+    if (DIR.at("input").size()>1 && j==0) continue; // First entry is always the main input directory
+    GlobalInfoVectorMap_t infoMapVector;
+    for (const auto& VAR : VARMAP) {
+      auto PARMAP = VAR.second;
+      for (const auto& PAR : PARMAP) {
+	if (PAR.second) {
+	  for (const auto& COL : COLMAP) {
+	    if(COL.second) {
+	      std::string dir = DIR.at("input")[j];
+	      if (!inputInitialFilesDirs.empty() && inputInitialFilesDirs[j].at(VAR.first).at(PAR.first)!="") { dir = inputInitialFilesDirs[j].at(VAR.first).at(PAR.first); }
+	      std::string inputFile = "", name = (dir + "InitialParam_" + VAR.first + "_" + PAR.first);
+	      StringVector_t tryChannel = { userInput.Par.at("channel") , "" };
+	      StringVector_t trySystem  = { COL.first };
+	      if (contain(userInput.Flag, "doPA8Y16") && userInput.Flag.at("doPA8Y16")) { trySystem.push_back("PA8Y16"); }; trySystem.push_back("");
+	      for (const auto& tryCha : tryChannel) {
+		bool trySuccess = false;
+		for (const auto& tryCol : trySystem) {
+		  if (ifstream(inputFile).good()==false) { inputFile = (name + tryCha + (tryCol!="" ? "_"+tryCol : "") + ".csv"); } else { trySuccess = true; break; }
+		}
+		if (trySuccess) break;
+	      }
+	      if (!addParameters(infoMapVector[COL.first], userInput, inputFile)) { return false; }
+	    }
+	  }
+	}
+      }
+    }
+    infoMapVectors.push_back(infoMapVector);
+  }
+  return true;
+}
 
 
 bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const StringVectorMap_t& DIR)
@@ -368,11 +382,14 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
     std::string dir = "";
     bool fitDS = false;
     // If we have data, check if the user wants to fit data
-    if (FILETAG.rfind("DATA_"+userInput.Par.at("PD")+"_", 0)==0) {
-      if (userInput.Flag.at("fitData")) {
-        dir = userInput.Par.at("localDSDir");
-        if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_DATA")!="" && existDir(userInput.Par.at("extDSDir_DATA"))) { dir = userInput.Par.at("extDSDir_DATA"); }
-        fitDS = true;
+    for (const auto& pd : userInput.StrS.at("fitPD")) {
+      if (FILETAG.rfind("DATA_"+pd+"_", 0)==0) {
+	if (userInput.Flag.at("fitData")) {
+	  dir = userInput.Par.at("localDSDir");
+	  if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_DATA")!="" && existDir(userInput.Par.at("extDSDir_DATA"))) { dir = userInput.Par.at("extDSDir_DATA"); }
+	  userInput.Par.at("PD") = pd;
+	  fitDS = true; break;
+	}
       }
     }
     // If we find MC, check if the user wants to fit MC
@@ -494,7 +511,8 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
     v.second["Default_Min"] = v.second.at("Min");
     v.second["Default_Max"] = v.second.at("Max");
   }
-  info.Par["Cut"]   = "";
+  info.Par["Cut"] = "";
+  info.Par["PD"] = userInfo.Par.at("PD");
   for (const auto& var : userInfo.StrS.at("incVarName")) { info.Par["Model"+var] = ""; }
   for (const auto& v : info.Var) { if (contain(row, v.first+"CM")) { info.Flag["use"+v.first+"CM"] = true; } }
   // set parameters from file
@@ -573,6 +591,7 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
             std::cout << "[ERROR] Input column " << colName << " has empty value" << std::endl; return false;
           }
 	  info.Par[colName] = col.second;
+	  if (colName=="PD") { userInfo.StrS.at("fitPD").insert(col.second); }
           found = true;
         }
       }
@@ -797,7 +816,7 @@ bool checkSettings(const GlobalInfo& userInput)
   for (const auto& s : userInput.StrV.at("sample")) { if (userInput.Flag.at("fit"+s)) { foundSample = true; break; } }
   if (!foundSample) { std::cout << "[ERROR] Neither data or MC were selected!" << std::endl; return false; }
   // Check dataset
-  if (userInput.Par.at("PD")=="") { std::cout << "[ERROR] No trigger dataset was selected!" << std::endl; return false; }
+  if (userInput.StrS.at("fitPD").empty()) { std::cout << "[ERROR] No trigger dataset was selected!" << std::endl; return false; }
   // Check collision system
   bool foundSystem = false;
   for (const auto& s : userInput.StrV.at("system")) { if (userInput.Flag.at("fit"+s)) { foundSystem = true; break; } }
@@ -806,3 +825,5 @@ bool checkSettings(const GlobalInfo& userInput)
   std::cout << "[INFO] All user setting are correct " << std::endl;
   return true;
 };
+
+#endif // #ifndef fitter_C

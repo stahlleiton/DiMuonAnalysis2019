@@ -30,11 +30,11 @@ bool importModelClass(RooWorkspace& ws, const std::string& className)
   TInterpreter::EErrorCode ecode;
   if (MODELCLASS_.find(className)==MODELCLASS_.end()) {
     gInterpreter->ProcessLineSynch(Form(".L %s%s.cxx+",classDir.c_str(), className.c_str()), &ecode);
-    if (ecode!=TInterpreter::kNoError) return false;
+    if (ecode!=TInterpreter::kNoError) { std::cout << "[ERROR] Class " << className << " did not compile!" << std::endl; return false; }
     MODELCLASS_.insert(className);
   }
   auto classPdf = std::unique_ptr<RooAbsPdf>((RooAbsPdf*)gInterpreter->ProcessLineSynch(Form("new %s()", className.c_str()), &ecode));
-  if (ecode!=TInterpreter::kNoError) return false;
+  if (ecode!=TInterpreter::kNoError) { std::cout << "[ERROR] Class " << className << " was not created!" << std::endl; return false; }
   return ws.importClassCode(classPdf->IsA());
 };
 
@@ -47,9 +47,10 @@ void constrainQuarkoniumMassParameters(GlobalInfo& info, const StringVector_t& v
   const auto& col = excLabel.substr(excLabel.find("_")+1);
   const auto& chg = excLabel.substr(excLabel.find(cha)+cha.size(), 2);
   if (obj!="Psi2S" && obj!="Ups2S" && obj!="Ups3S") return;
-  std::cout << "[INFO] Constraining " << obj << " mass model parameters to 1S state using PDG mass ratio!" << std::endl;
   const auto& refState = StringMap_t({{"Psi2S" , "JPsi"}, {"Ups2S" , "Ups1S"}, {"Ups3S" , "Ups1S"}});
   const auto& refLabel = (refState.at(obj)+cha+chg+"_"+col);
+  if (!info.Flag.at("inc"+refState.at(obj))) return;
+  std::cout << "[INFO] Constraining " << obj << " mass model parameters to 1S state using PDG mass ratio!" << std::endl;
   for (const auto& v : varList) {
     if (contain(info.Par, v+"_"+excLabel)) {
       if (v=="m" || v=="Sigma1" || v=="Sigma2") {
@@ -93,7 +94,7 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
 	  const auto& numEntries = info.Var.at("numEntries").at(chg);
 	  info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", ("N_"+objLabel).c_str(), numEntries, -200.0, 2.0*numEntries);
 	}
-	else if (v.rfind("rSigma", 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  1.500,    0.950,   3.000); }
+	else if (v.rfind("rSigma", 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  1.500,    0.950,   4.000); }
 	else if (v=="Alpha2"   && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("Alpha_"+objLabel).c_str());  }
 	else if (v=="AlphaR2"  && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("AlphaR_"+objLabel).c_str()); }
 	else if (v.rfind("Alpha" , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  2.000,    0.500,   8.000); }
@@ -101,13 +102,13 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
 	else if (v.rfind("nR"    , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  6.000,    0.500,  25.000); }
 	else if (v=="n2"       && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("n_"+objLabel).c_str()); }
 	else if (v.rfind("n"     , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  2.000,    0.500,  10.000); }
-	else if (v.rfind("f"     , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.500,   -0.200,   1.200); }
+	else if (v.rfind("f"     , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.600,   -2.000,   2.000); }
 	else if (v.rfind("b"     , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.500,    0.000,   1.000); }
 	else if (v=="Lambda"            ) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.200,   -2.000,   2.000); }
 	else if (v=="LambdaF"           ) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.300,  0.00001,   5.000); }
 	else if (v=="LambdaDS"          ) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.060,   0.0001,   5.000); }
 	else if (v.rfind("LambdaS",0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.450,   0.0001,   5.000); }
-	else if (v.rfind("Lambda", 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.000, -100.000, 100.000); }
+	else if (v.rfind("Lambda", 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  0.000,  -10.000,  10.000); }
 	else if (v=="Sigma2"   && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", ("Sigma2_"+objLabel).c_str(), ("rSigma21_"+objLabel).c_str(), ("Sigma1_"+objLabel).c_str()); }
 	else if (v=="Sigma3"   && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", ("Sigma3_"+objLabel).c_str(), ("rSigma32_"+objLabel).c_str(), ("Sigma2_"+objLabel).c_str()); }
 	else if (v=="Sigma4"   && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", ("Sigma4_"+objLabel).c_str(), ("rSigma43_"+objLabel).c_str(), ("Sigma3_"+objLabel).c_str()); }
