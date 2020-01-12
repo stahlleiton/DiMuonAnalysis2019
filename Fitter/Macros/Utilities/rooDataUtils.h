@@ -1048,7 +1048,7 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
 bool fitPDF(std::unique_ptr<RooFitResult>& fitResult, RooWorkspace& ws, const std::vector<RooCmdArg>& cmdList, const std::string& pdfName, const std::string& dsName, const std::string& snapshot="")
 {
   if (snapshot!="") { ws.loadSnapshot(snapshot.c_str()); }
-  RooLinkedList fitConf; for (auto& cmd : cmdList) { fitConf.Add(dynamic_cast<TObject*>(&cmd)); }
+  RooLinkedList fitConf; for (auto cmd : cmdList) { fitConf.Add(dynamic_cast<TObject*>(&cmd)); }
   const auto& tmp = ws.pdf(pdfName.c_str())->fitTo(*ws.data(dsName.c_str()), fitConf);
   fitResult.reset(tmp);
   bool fitPass = true; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitPass = false; break; } }

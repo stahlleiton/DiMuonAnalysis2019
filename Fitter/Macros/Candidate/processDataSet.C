@@ -147,7 +147,7 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
     for (const auto& ds : listData) {
       // Define the skimmed dataset variables
       auto vars = *ds->get();
-      for (const auto& n : delVarNames) { const auto& var = vars.find(n.c_str()); vars.remove(*var); }
+      for (const auto& n : delVarNames) { const auto& var = vars.find(n.c_str()); if (var) { vars.remove(*var); } }
       // Reduce the dataset
       std::cout << "[INFO] Applying skim selection: " << cutStr << std::endl;
       auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ds->reduce(RooFit::Cut(cutStr.c_str()), RooFit::SelectVars(vars), RooFit::Name(ds->GetName()), RooFit::Title(ds->GetTitle()))));
