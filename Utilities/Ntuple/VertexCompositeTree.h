@@ -81,6 +81,7 @@ public :
   Float_t*  V3DDecayLengthSignificance()  { SetBranch("3DDecayLengthSignificance");   return V3DDecayLengthSignificance_; }
   Float_t*  V3DDecayLength()              { SetBranch("3DDecayLength");               return V3DDecayLength_;             }
   Float_t*  V3DDecayLengthError()         { SetBranch("3DDecayLengthError");          return V3DDecayLengthError_;        }
+  Float_t*  V3DDecayLengthError2()        { SetBranch("3DDecayLengthError2");         return V3DDecayLengthError2_;       }
   Float_t*  V2DDecayLengthSignificance()  { SetBranch("2DDecayLengthSignificance");   return V2DDecayLengthSignificance_; }
   Float_t*  V2DDecayLength()              { SetBranch("2DDecayLength");               return V2DDecayLength_;             }
   Float_t*  V2DDecayLengthError()         { SetBranch("2DDecayLengthError");          return V2DDecayLengthError_;        }
@@ -279,6 +280,7 @@ public :
   Float_t           V3DDecayLengthSignificance_[NCAND]={0};   //[candSize]
   Float_t           V3DDecayLength_[NCAND]={0};   //[candSize]
   Float_t           V3DDecayLengthError_[NCAND]={0};   //[candSize]
+  Float_t           V3DDecayLengthError2_[NCAND]={0};   //[candSize]
   Float_t           V2DDecayLengthSignificance_[NCAND]={0};   //[candSize]
   Float_t           V2DDecayLength_[NCAND]={0};   //[candSize]
   Float_t           V2DDecayLengthError_[NCAND]={0};   //[candSize]
@@ -549,6 +551,7 @@ void VertexCompositeTree::InitTree(void)
     if (fChain->GetBranch("3DDecayLengthSignificance"))   fChain->SetBranchAddress("3DDecayLengthSignificance",  V3DDecayLengthSignificance_, &(b["3DDecayLengthSignificance"]) );
     if (fChain->GetBranch("3DDecayLength"))               fChain->SetBranchAddress("3DDecayLength",              V3DDecayLength_,             &(b["3DDecayLength"])             );
     if (fChain->GetBranch("3DDecayLengthError"))          fChain->SetBranchAddress("3DDecayLengthError",         V3DDecayLengthError_,        &(b["3DDecayLengthError"])        );
+    if (fChain->GetBranch("3DDecayLengthError2"))         fChain->SetBranchAddress("3DDecayLengthError2",        V3DDecayLengthError2_,       &(b["3DDecayLengthError2"])       );
     if (fChain->GetBranch("2DDecayLengthSignificance"))   fChain->SetBranchAddress("2DDecayLengthSignificance",  V2DDecayLengthSignificance_, &(b["2DDecayLengthSignificance"]) );
     if (fChain->GetBranch("2DDecayLength"))               fChain->SetBranchAddress("2DDecayLength",              V2DDecayLength_,             &(b["2DDecayLength"])             );
     if (fChain->GetBranch("2DDecayLengthError"))          fChain->SetBranchAddress("2DDecayLengthError",         V2DDecayLengthError_,        &(b["2DDecayLengthError"])        );
@@ -697,6 +700,7 @@ void VertexCompositeTree::Clear(void)
   if (GetBranchStatus("3DDecayLengthSignificance")==1)  std::fill_n(V3DDecayLengthSignificance_, nCand, -1.);
   if (GetBranchStatus("3DDecayLength")==1)              std::fill_n(V3DDecayLength_, nCand, -1.);
   if (GetBranchStatus("3DDecayLengthError")==1)         std::fill_n(V3DDecayLengthError_, nCand, -1.);
+  if (GetBranchStatus("3DDecayLengthError2")==1)        std::fill_n(V3DDecayLengthError2_, nCand, -1.);
   if (GetBranchStatus("2DDecayLengthSignificance")==1)  std::fill_n(V2DDecayLengthSignificance_, nCand, -1.);
   if (GetBranchStatus("2DDecayLength")==1)              std::fill_n(V2DDecayLength_, nCand, -1.);
   if (GetBranchStatus("2DDecayLengthError")==1)         std::fill_n(V2DDecayLengthError_, nCand, -1.);

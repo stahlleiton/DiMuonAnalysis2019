@@ -30,7 +30,12 @@ DATA_UPC_DIMUON_PbPb5Y15        , /storage1/users/wl33/DiMuTrees/PbPb2015/Tree/V
 
 # Monte Carlo Input Files
 
-MC_JPsi_DIMUON_pPb8Y16          , /storage1/users/wl33/DiMuTrees/pPb2016/Tree/VertexCompositeTree_JPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root
-MC_JPsi_DIMUON_Pbp8Y16          , /storage1/users/wl33/DiMuTrees/pPb2016/Tree/VertexCompositeTree_JPsiToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root
-MC_Psi2S_DIMUON_pPb8Y16         , /storage1/users/wl33/DiMuTrees/pPb2016/Tree/VertexCompositeTree_Psi2SToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root
-MC_Psi2S_DIMUON_Pbp8Y16         , /storage1/users/wl33/DiMuTrees/pPb2016/Tree/VertexCompositeTree_Psi2SToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root
+MC_JPsiCatPR_DIMUON_pPb8Y16     , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_JPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root
+MC_JPsiCatPR_DIMUON_Pbp8Y16     , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_JPsiToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root
+MC_Psi2SCatPR_DIMUON_pPb8Y16    , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_Psi2SToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root
+MC_Psi2SCatPR_DIMUON_Pbp8Y16    , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_Psi2SToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root
+
+MC_JPsiCatNoPR_DIMUON_pPb8Y16   , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_BToPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root
+MC_JPsiCatNoPR_DIMUON_Pbp8Y16   , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_BToPsiToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root
+MC_Psi2SCatNoPR_DIMUON_pPb8Y16  , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_BToPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root
+MC_Psi2SCatNoPR_DIMUON_Pbp8Y16  , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_BToPsiToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root

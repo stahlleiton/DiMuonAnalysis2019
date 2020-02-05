@@ -277,7 +277,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& rap  = candOSTree->y()[iC];
           const auto& massJPsi = MASS.at("JPsi").at("Val");
           const auto& dLen = (candOSTree->V3DDecayLength()[iC] * candOSTree->V3DCosPointingAngle()[iC])*(massJPsi/p)*10.0;
-          const auto& dLenErr = (candOSTree->V3DDecayLengthError()[iC])*(massJPsi/p)*10.0;
+          const auto& dLenErr = (candOSTree->V3DDecayLengthError2()[iC])*(massJPsi/p)*10.0;
           const auto& dLen2D = (candOSTree->V2DDecayLength()[iC] * candOSTree->V2DCosPointingAngle()[iC])*(massJPsi/pT)*10.0;
           const auto& dLenErr2D = (candOSTree->V2DDecayLength()[iC]/candOSTree->V2DDecayLengthSignificance()[iC])*(massJPsi/pT)*10.0;
           //
