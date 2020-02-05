@@ -89,6 +89,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     auto candOSTree = std::unique_ptr<VertexCompositeTree>(new VertexCompositeTree());
     if (!candOSTree->GetTree(inputFileNames, dirName)) return false;
     const auto& nentries = candOSTree->GetEntries();
+    const auto& snentries = Form("%lld", nentries);
     auto candSSTree = std::unique_ptr<VertexCompositeTree>(new VertexCompositeTree());
     doSS = candSSTree->GetTree(inputFileNames, dirNameSS);
     if (doSS==false) { std::cout << "[INFO] Tree: " << dirName+"_wrongsign not found, will be ignored!" << std::endl; }
@@ -96,7 +97,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     //
     ///// RooDataSet Variables
     auto candMass      = RooRealVar ( "Cand_Mass"      , "Candidate Mass"           ,    -1.0 ,       100.0 , "GeV/c^{2}" );
-    auto candPt        = RooRealVar ( "Cand_Pt"        , "Candidate p_{T}"          ,    -1.0 ,      1000.0 , "GeV/c"     );
+    auto candPt        = RooRealVar ( "Cand_Pt"        , "Candidate p_{T}"          ,    -1.0 ,    100000.0 , "GeV/c"     );
     auto candRap       = RooRealVar ( "Cand_Rap"       , "Candidate y"              ,   -10.0 ,        10.0 , ""          );
     auto candDLen      = RooRealVar ( "Cand_DLen"      , "Candidate c#tau"          , -1000.0 ,      1000.0 , "mm"        );
     auto candDLenErr   = RooRealVar ( "Cand_DLenErr"   , "Candidate c#tau error"    ,    -1.0 ,      1000.0 , "mm"        );
@@ -109,7 +110,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     auto dau1Eta       = RooRealVar ( "Dau1_Eta"       , "Daughter1 #eta"           ,   -10.0 ,        10.0 , ""          );
     auto dau2Eta       = RooRealVar ( "Dau2_Eta"       , "Daughter2 #eta"           ,   -10.0 ,        10.0 , ""          );
     auto cent          = RooRealVar ( "Centrality"     , "Centrality"               ,    -1.0 ,      1000.0 , ""          );
-    auto nTrk          = RooRealVar ( "NTrack"         , "Number of Tracks"         ,    -1.0 ,   1000000.0 , ""          );
+    auto nTrk          = RooRealVar ( "NTrack"         , "Number of Tracks"         ,    -1.0 ,    100000.0 , ""          );
     auto candQual      = RooRealVar ( "Cand_Qual"      , "Candidate Quality"        ,    -1.0 ,        10.0 , ""          );
     auto candTrig      = RooRealVar ( "Cand_Trig"      , "Candidate Trigger"        ,    -1.0 ,      1000.0 , ""          );
     auto candVtxP      = RooRealVar ( "Cand_VtxP"      , "Cand. Vertex Prob."       ,    -1.0 ,        10.0 , ""          );
@@ -127,12 +128,12 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     for (uint i=0; i<dsNames.size(); i++) {
       if (isMC) {
         cols.add(weight);
-        dataOS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), "dOS", cols, RooFit::WeightVar(weight))) );
-        if (doSS) { dataSS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dSS_RAW_%s", dsNames[i].c_str()), "dSS", cols, RooFit::WeightVar(weight))) ); }
+        dataOS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), snentries, cols, RooFit::WeightVar(weight))) );
+        if (doSS) { dataSS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dSS_RAW_%s", dsNames[i].c_str()), snentries, cols, RooFit::WeightVar(weight))) ); }
       }
       else {
-        dataOS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), "dOS", cols)) );
-        if (doSS) { dataSS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dSS_RAW_%s", dsNames[i].c_str()), "dSS", cols)) ); }
+        dataOS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), snentries, cols)) );
+        if (doSS) { dataSS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dSS_RAW_%s", dsNames[i].c_str()), snentries, cols)) ); }
       }
     }
     //
@@ -321,7 +322,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           //
           // Fill the RooDataSets
           for (uint i=0; i<dsNames.size(); i++) {
-            if (dsNames[i].rfind(evtCol)!=std::string::npos) { dataOS[i]->addFast(cols); }
+            if (dsNames[i].rfind(evtCol)!=std::string::npos) { dataOS[i]->addFast(cols, weight.getVal()); }
           }
         }
       }
@@ -412,7 +413,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           //
           // Fill the RooDataSets
           for (uint i=0; i<dsNames.size(); i++) {
-            if (dsNames[i].rfind(evtCol)!=std::string::npos) { dataSS[i]->addFast(cols); }
+            if (dsNames[i].rfind(evtCol)!=std::string::npos) { dataSS[i]->addFast(cols, weight.getVal()); }
           }
         }
       }

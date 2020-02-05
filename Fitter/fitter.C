@@ -40,8 +40,8 @@ bool createDataSets    ( RooWorkspaceMap_t& Workspace , GlobalInfo& userInput , 
 
 
 void fitter(
-            const std::string workDirName = "Test",       // Working directory
-            const std::bitset<1> useExt   = 1,            // Use external: (bit 0 (1)) Input DataSets
+            const std::string workDirName = "Test_Charmonia",       // Working directory
+            const std::bitset<1> useExt   = 0,            // Use external: (bit 0 (1)) Input DataSets
             // Select the type of datasets to fit
             const std::bitset<2> fitData  = 1,            // Fit Sample: (bit 0 (1)) Data , (bit 1 (2)) MC
             const std::bitset<7> fitColl  = 32,           // Fit System: (bit 0  (1)) PbPb5Y18 ,
@@ -49,19 +49,18 @@ void fitter(
                                                           //             (bit 3  (8)) pPb8Y16  , (bit 4 (16)) Pbp8Y16 , (bit 5 (32)) PA8Y16  ,
                                                           //             (bit 6 (64)) PbPb5Y15
             const std::bitset<3> fitChg   = 1,            // Fit Charge: (bit 0 (1)) OS , (bit 1 (2)) SS , (bit 2 (4)) Inclusive
-            const unsigned int   usePD    = 0,            // Use PD: (0) MUON     , (1) DIMUON , (2) DIMUONPERI ,
+            const unsigned int   usePD    = 1,            // Use PD: (0) MUON     , (1) DIMUON , (2) DIMUONPERI ,
                                                           //         (3) HIGHMULT , (4) HIGHMULT0 (150) , (5) HIGHMULT2 (100/255) ,
                                                           //         (6) MINBIAS  , (7) UPC
             // Select the type of objects to fit
-            const std::bitset<8> fitObj   = 8,            // Fit Objects: (bit 0  (1)) Bkg   ,
+            const std::bitset<8> fitObj   = 2,            // Fit Objects: (bit 0  (1)) Bkg   ,
                                                           //              (bit 1  (2)) JPsi  , (bit 2   (4)) Psi2S ,
                                                           //              (bit 3  (8)) Ups1S , (bit 4  (16)) Ups2S , (bit 5 (32)) Ups3S ,
                                                           //              (bit 6 (64)) Z     , (bit 7 (128)) D0
             // Select the fitting options
-            const std::bitset<5> fitVar   = 1,            // Fit Variable: (bit 0 (1)) Cand_Mass    , (bit 1 (2)) Cand_DLen ,
+            const std::bitset<5> fitVar   = 3,            // Fit Variable: (bit 0 (1)) Cand_Mass    , (bit 1 (2)) Cand_DLen ,
 	                                                  //               (bit 2 (4)) Cand_DLenErr , (bit 3 (8)) Cand_DLenRes , (bit 4 (16)) Cand_DLenGen
-            const std::bitset<2> fitCat   = 3,            // Fit Objects: (bit 0  (1)) PR , (bit 1  (2)) NoPR
-            const unsigned int   numCores = 32,           // Number of cores used for fitting
+            const unsigned int   numCores = 20,           // Number of cores used for fitting
             const std::string    analysis = "CandToMuMu", // Type of analysis: CandToXX (Mass Resonance)
             // Select the drawing options
             const bool setLogScale  = true                // Draw plot with log scale
@@ -115,10 +114,11 @@ void fitter(
   // Type of data to fit
   userInput.StrV["sample"] = {"Data", "MC"};
   for (uint i=0; i<userInput.StrV.at("sample").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("sample")[i]] = fitData[i]; }
+  userInput.Par["fitSampleType"] = "ALL";
   //
   // Dataset to use (ignored if fitting MC)
   userInput.StrV["PD"] = {"MUON", "DIMUON", "DIMUONPERI", "HIGHMULT", "HIGHMULT0", "HIGHMULT2", "MINBIAS", "UPC"};
-  userInput.StrS["fitPD"].insert(userInput.StrV.at("PD")[usePD]);
+  userInput.StrS["allPD"].insert(userInput.StrV.at("PD")[usePD]);
   userInput.Par["PD"] = userInput.StrV.at("PD")[usePD];
   //
   // Collision system
@@ -157,19 +157,23 @@ void fitter(
   // Fit variable
   userInput.StrV["variable"] = {"Cand_Mass", "Cand_DLen", "Cand_DLenErr", "Cand_DLenRes", "Cand_DLenGen"};
   for (uint i=0; i<userInput.StrV.at("variable").size(); i++) { userInput.Flag["fit"+userInput.StrV.at("variable")[i]] = fitVar[i]; }
-  for (const auto& v : userInput.StrV.at("variable")) {
-    if (userInput.Flag.at("fit"+v)) {
-      userInput.StrS["fitVariable"].insert(v);
-      userInput.StrS["incVariable"].insert(v);
-      auto var = v; stringReplace(var, "_", "");
-      userInput.StrS["fitVarName"].insert(var);
-      userInput.StrS["incVarName"].insert(var);
-      if (v=="Cand_DLenErr" || v=="Cand_DLenRes") {
-	userInput.StrS["incVariable"].insert("Cand_Mass");
-	userInput.StrS["incVarName"].insert("CandMass");
-      }
-    }
+  for (const auto& var : userInput.StrV.at("variable")) {
+    userInput.Flag["cond"+var] = (var=="Cand_DLenErr" && userInput.Flag.at("fitCand_DLen"));
   }
+  userInput.StrS["fitVariable"].clear(); userInput.StrS["fitVarName"].clear();
+  for (const auto& v : userInput.StrV.at("variable")) { if (userInput.Flag.at("fit"+v)) { userInput.StrS.at("fitVariable").insert(v); } }
+  for (const auto& v : userInput.StrS.at("fitVariable")) { auto var = v; stringReplace(var, "_", ""); userInput.StrS.at("fitVarName").insert(var); }
+  //
+  userInput.StrS["condVariable"].clear(); userInput.StrS["condVarName"].clear();
+  for (const auto& v : userInput.StrV.at("variable")) { if (userInput.Flag.at("cond"+v)) { userInput.StrS.at("condVariable").insert(v); } }
+  for (const auto& v : userInput.StrS.at("condVariable")) { auto var = v; stringReplace(var, "_", ""); userInput.StrS.at("condVarName").insert(var); }
+  //
+  userInput.StrS["fitCondVariable"] = merge(userInput.StrS.at("fitVariable"), userInput.StrS.at("condVariable"));
+  userInput.StrS["fitCondVarName"] = merge(userInput.StrS.at("fitVarName"), userInput.StrS.at("condVarName"));
+  //
+  userInput.StrS["incVariable"] = merge(userInput.StrS.at("condVariable"), userInput.StrS.at("fitVariable"));
+  if (userInput.Flag.at("fitData") || userInput.Flag.at("fitCand_DLenErr") || userInput.Flag.at("fitCand_DLen")) { userInput.StrS.at("incVariable").insert("Cand_Mass"); }
+  for (const auto& v : userInput.StrS.at("incVariable")) { auto var = v; stringReplace(var, "_", ""); userInput.StrS["incVarName"].insert(var); }
   //
   // Type of candidates
   userInput.StrV["object"] = {"Bkg", "JPsi", "Psi2S", "Ups1S", "Ups2S", "Ups3S", "Z", "D0"};
@@ -178,14 +182,20 @@ void fitter(
     userInput.Flag["inc"+userInput.StrV.at("object")[i]] = fitObj[i];
   }
   for (const auto& obj : userInput.StrV.at("object")) { if (userInput.Flag.at("fit"+obj)) { userInput.StrS["fitObject"].insert(obj); } }
-  for (const auto& var : userInput.StrS.at("fitVarName")) {
-    userInput.StrS["incObject_"+var].clear();
-    userInput.StrS["template_"+var].clear();
+  for (const auto& var : userInput.StrS.at("fitCondVarName")) {
+    userInput.StrS["allObject_"+var].clear();
+    userInput.StrS["allTemplate_"+var].clear();
   }
-  userInput.StrV["category"] = {"PR", "NoPR"};
-  for (uint i=0; i<userInput.StrV.at("category").size(); i++) {
-    userInput.Flag["fit"+userInput.StrV.at("category")[i]] = fitCat[i];
-    userInput.Flag["inc"+userInput.StrV.at("category")[i]] = fitCat[i];
+  //
+  const auto& defObj = (workDirName.rfind("Psi2S")!=std::string::npos ? "Psi2S" : "JPsi");
+  for (const auto& v : userInput.StrV.at("variable")) {
+    auto var = v; stringReplace(var, "_", "");
+    for (const auto& o : userInput.StrV.at("object")) {
+      userInput.Flag["load"+var+"_"+o] = (userInput.Flag.at("fitBkg") && !contain(userInput.StrS.at("fitCondVariable"), v) ? o==defObj : userInput.Flag.at("fit"+o));
+    }
+    for (const auto& o : userInput.StrS.at("fitObject")) {
+      userInput.Par["objTag_"+var+"_"+o] = (o=="Bkg" && !contain(userInput.StrS.at("fitCondVariable"), v) ? defObj : o);
+    }
   }
   //  
   if (userInput.Par.at("analysis").rfind("CandTo",0)==0) {
@@ -194,10 +204,10 @@ void fitter(
     else if (userInput.Flag.at("fitUps1S") || userInput.Flag.at("fitUps2S") || userInput.Flag.at("fitUps3S")) { massWidth = 0.05; }
     else if (userInput.Flag.at("fitZ")) { massWidth = 1.0; }
     userInput.Var["Cand_Mass"]["binWidth"] = massWidth;
-    userInput.Var["Cand_DLen"]["binWidth"] = 0.10;
-    userInput.Var["Cand_DLenErr"]["binWidth"] = 0.005;
-    userInput.Var["Cand_DLenRes"]["binWidth"] = 0.25;
-    userInput.Var["Cand_DLenGen"]["binWidth"] = 0.025;
+    userInput.Var["Cand_DLen"]["binWidth"] = 0.100;
+    userInput.Var["Cand_DLenErr"]["binWidth"] = 0.002;
+    userInput.Var["Cand_DLenRes"]["binWidth"] = 0.200;
+    userInput.Var["Cand_DLenGen"]["binWidth"] = 0.050;
   }
   //
   // Clear extra variables if missing
@@ -207,6 +217,9 @@ void fitter(
   const bool& useExtDS = (userInput.Flag.at("useExtDS") && (workDirName.find("Test")==std::string::npos));
   for (const auto& var : userInput.StrV.at("variable")) { if (userInput.Flag.at("fit"+var) || !useExtDS) { userInput.Par["extFitDir_"+var] = ""; userInput.Par["extInitFileDir_"+var] = "";} }
   for (const auto& var : userInput.StrV.at("variable")) { for (const auto& obj : userInput.StrV.at("object")) { if (userInput.Flag.at("fit"+var) || !useExtDS) { userInput.Par["extInitFileDir_"+var+"_"+obj] = ""; } } }
+  //
+  // Check if user wants to fit SPLOT dataset
+  if (userInput.Flag.at("fitData") && (userInput.Flag.at("fitCand_DLenRes") || (userInput.Flag.at("fitCand_DLen") && !userInput.Flag.at("fitCand_Mass")))) { userInput.Par.at("fitSampleType") = "SPLOT"; }
   //
   // Check the User Input Settings
   if (!checkSettings(userInput)){ return; }
@@ -226,7 +239,6 @@ void fitter(
   StringMapVector_t inputFitDirs;
   StringDiMapVector_t inputInitialFilesDirs;
   iniFileDir(inputFitDirs, inputInitialFilesDirs, inputFitDir, inputInitialFilesDir, DIR);
-
 
   // -------------------------------------------------------------------------------
   // STEP 1: LOAD THE INITIAL PARAMETERS
@@ -284,6 +296,7 @@ void fitter(
             for (const auto& infoVector : infoMapVector.second) {
               //
 	      if (DSTAG.rfind("DATA_",0)==0 && DSTAG.rfind("DATA_"+infoVector.Par.at("PD")+"_DIMUON")==std::string::npos) continue;
+	      if (DSTAG.rfind("MC_",0)==0 && DSTAG.rfind("Cat"+infoVector.Par.at("MC_CAT")+"_DIMUON")==std::string::npos) continue;
 	      std::cout << "[INFO] Proceed to fit the dataset " << DSTAG << std::endl;
               if (userInput.Par.at("analysis").rfind("CandTo", 0)==0) {
                 if (!fitCandidateModel( iniWorkspaces, infoVector,
@@ -313,7 +326,8 @@ bool loadIniParameters(std::vector< GlobalInfoVectorMap_t >& infoMapVectors, Glo
   BoolDiMap_t VARMAP;
   for (const auto& var : userInput.StrS.at("incVariable")) {
     for (const auto& obj : userInput.StrV.at("object")) {
-      VARMAP[var][obj] = userInput.Flag.at("fit"+obj);
+      auto v = var; stringReplace(v, "_", "");
+      VARMAP[var][obj] = userInput.Flag.at("load"+v+"_"+obj);
     }
   }
   BoolMap_t COLMAP;
@@ -350,6 +364,7 @@ bool loadIniParameters(std::vector< GlobalInfoVectorMap_t >& infoMapVectors, Glo
     }
     infoMapVectors.push_back(infoMapVector);
   }
+  if (userInput.Flag.at("fitMC") && !contain(userInput.StrS, "allMC_CAT")) { userInput.StrS["allMC_CAT"] = {""}; }
   return true;
 }
 
@@ -382,7 +397,7 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
     std::string dir = "";
     bool fitDS = false;
     // If we have data, check if the user wants to fit data
-    for (const auto& pd : userInput.StrS.at("fitPD")) {
+    for (const auto& pd : userInput.StrS.at("allPD")) {
       if (FILETAG.rfind("DATA_"+pd+"_", 0)==0) {
 	if (userInput.Flag.at("fitData")) {
 	  dir = userInput.Par.at("localDSDir");
@@ -396,14 +411,19 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
     if (FILETAG.rfind("MC", 0)==0) {
       bool keep = false;
       if (userInput.Flag.at("fitMC")) {
-        for (const auto& obj : userInput.StrS.at("fitObject")) { if (userInput.Flag.at("fit"+obj) && FILETAG.find(obj)!=std::string::npos) { keep = true; fitDS = true; break; } }
+        for (const auto& obj : userInput.StrS.at("fitObject")) {
+	  for (const auto& cat : userInput.StrS.at("allMC_CAT")) {
+	    if (userInput.Flag.at("fit"+obj) && FILETAG.find(obj+cat+"_")!=std::string::npos) { keep = true; fitDS = true; break; }
+	  }
+	  if (keep) break;
+	}
       }
-      for(const auto& v : userInput.StrS.at("fitVarName")) {
+      for(const auto& v : userInput.StrS.at("fitCondVarName")) {
 	for(const auto& s : userInput.StrS.at("fitObject")) {
-	  if (userInput.Flag.at("incMCTemp_"+v+"_"+s)) {
-	    for (const auto& tmp : userInput.StrS.at("template_"+v)) {
+	  if (userInput.Flag.at("incAllMCTemp_"+v+"_"+s)) {
+	    for (const auto& tmp : userInput.StrS.at("allTemplate_"+v)) {
 	      auto n = tmp; if (n.rfind("Swap")!=std::string::npos) { n.erase(n.rfind("Swap"), 4); }
-	      if (userInput.Flag.at("incMCTemp_"+v+"_"+s+"_"+tmp) && FILETAG.find(n)!=std::string::npos) { keep = true; fitDS = false; break; }
+	      if (userInput.Flag.at("incAllMCTemp_"+v+"_"+s+"_"+tmp) && FILETAG.find(n)!=std::string::npos) { keep = true; fitDS = false; break; }
 	    }
 	  }
 	}
@@ -475,17 +495,17 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
   // set initial values of variables
   if (analysis.rfind("CandTo", 0)==0) {
     info.Var["Cand_Mass"]["Min"]    = 0.0;
-    info.Var["Cand_Mass"]["Max"]    = 100000.0;
+    info.Var["Cand_Mass"]["Max"]    = 1000.0;
     info.Var["Cand_Pt"]["Min"]      = 0.0;
-    info.Var["Cand_Pt"]["Max"]      = 100000.0;
-    info.Var["Cand_DLen"]["Min"]    = -100000.0;
-    info.Var["Cand_DLen"]["Max"]    = 100000.0;
+    info.Var["Cand_Pt"]["Max"]      = 10000.0;
+    info.Var["Cand_DLen"]["Min"]    = -1000.0;
+    info.Var["Cand_DLen"]["Max"]    = 1000.0;
     info.Var["Cand_DLenErr"]["Min"] = -1.0;
-    info.Var["Cand_DLenErr"]["Max"] = 100000.0;
-    info.Var["Cand_DLenRes"]["Min"] = -100000.0;
-    info.Var["Cand_DLenRes"]["Max"] = 100000.0;
-    info.Var["Cand_DLenGen"]["Min"] = -100000.0;
-    info.Var["Cand_DLenGen"]["Max"] = 100000.0;
+    info.Var["Cand_DLenErr"]["Max"] = 100.0;
+    info.Var["Cand_DLenRes"]["Min"] = -10000.0;
+    info.Var["Cand_DLenRes"]["Max"] = 10000.0;
+    info.Var["Cand_DLenGen"]["Min"] = -1.0;
+    info.Var["Cand_DLenGen"]["Max"] = 1000.0;
     info.Var["Cand_Rap"]["Min"]     = -2.5;
     info.Var["Cand_Rap"]["Max"]     = 2.5;
     info.Var["Cand_AbsRap"]["Min"]  = 0.0;
@@ -493,26 +513,29 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
     info.Var["Cand_APhi"]["Min"]    = -3.5;
     info.Var["Cand_APhi"]["Max"]    = 3.5;
     info.Var["Dau1_Pt"]["Min"]      = -1.;
-    info.Var["Dau1_Pt"]["Max"]      = 100000.0;
+    info.Var["Dau1_Pt"]["Max"]      = 10000.0;
     info.Var["Dau2_Pt"]["Min"]      = -1.;
-    info.Var["Dau2_Pt"]["Max"]      = 100000.0;
+    info.Var["Dau2_Pt"]["Max"]      = 10000.0;
     info.Var["Dau1_Eta"]["Min"]     = -2.5;
     info.Var["Dau1_Eta"]["Max"]     = 2.5;
     info.Var["Dau2_Eta"]["Min"]     = -2.5;
     info.Var["Dau2_Eta"]["Max"]     = 2.5;
-    info.Var["Centrality"]["Min"]   = -1.0;
-    info.Var["Centrality"]["Max"]   = 100000.0;
-    info.Var["NTrack"]["Min"]       = -1.0;
-    info.Var["NTrack"]["Max"]       = 1000000.0;
+    info.Var["Centrality"]["Min"]   = -10.0;
+    info.Var["Centrality"]["Max"]   = 1000.0;
+    info.Var["NTrack"]["Min"]       = -10.0;
+    info.Var["NTrack"]["Max"]       = 100000.0;
     info.Par["Cand_isSwap"] = "";
     info.Par["Cand_Qual"] = "";
   }
   for (auto& v : info.Var) {
     v.second["Default_Min"] = v.second.at("Min");
     v.second["Default_Max"] = v.second.at("Max");
+    v.second["DS_Min"] = v.second.at("Min");
+    v.second["DS_Max"] = v.second.at("Max");
   }
   info.Par["Cut"] = "";
   info.Par["PD"] = userInfo.Par.at("PD");
+  info.Par["MC_CAT"] = "";
   for (const auto& var : userInfo.StrS.at("incVarName")) { info.Par["Model"+var] = ""; }
   for (const auto& v : info.Var) { if (contain(row, v.first+"CM")) { info.Flag["use"+v.first+"CM"] = true; } }
   // set parameters from file
@@ -550,11 +573,15 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
 	var = (var=="" ? *userInfo.StrS.at("incVarName").begin() : var);
 	const auto& modelName = "Model"+var+colName.substr(colName.find("_"));
 	info.Par[modelName] = col.second;
-	for(const auto& s : userInfo.StrS.at("fitObject")) {
+	info.StrS["template_"+var].clear();
+	info.StrS["incObject_"+var].clear();
+	for(const auto& ss : userInfo.StrS.at("fitObject")) {
+	  const auto& s = userInfo.Par.at("objTag_"+var+"_"+ss);
 	  if (colName.find(s)!=std::string::npos) {
-	    const auto& mcTemp = "incMCTemp_"+var+"_"+s;
+	    const auto& mcTemp = "incAllMCTemp_"+var+"_"+s;
 	    const bool& incTemp = (userInfo.Flag.at("fitMC")==false && col.second.find("TEMP")!=std::string::npos);
 	    if (!contain(userInfo.Flag, mcTemp)) { userInfo.Flag[mcTemp] = incTemp; }
+	    info.Flag["incMCTemp_"+var+"_"+s] = incTemp;
 	    StringVector_t modV;
 	    splitString(modV, col.second, "+");
 	    for (const auto& mod : modV) {
@@ -568,13 +595,18 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
 	      for (const auto& o : modP) {
 		bool incObj = (modT!="TEMP");
 		if (modT=="TEMP" && userInfo.Flag.at(mcTemp)) {
-		  userInfo.StrS["template_"+var].insert(o);
-		  userInfo.Flag["incMCTemp_"+var+"_"+s+"_"+o] = true;
+		  userInfo.StrS["allTemplate_"+var].insert(o);
+		  userInfo.Flag["incAllMCTemp_"+var+"_"+s+"_"+o] = true;
+		  info.StrS["template_"+var].insert(o);
+		  info.Flag["incMCTemp_"+var+"_"+s+"_"+o] = true;
 		  incObj = true;
 		}
 		if (incObj) {
-		  userInfo.StrS["incObject_"+var].insert(o);
-		  userInfo.Flag["inc"+o] = true;
+		  userInfo.StrS["allObject_"+var].insert(o);
+		  info.StrS["incObject_"+var].insert(o);
+		  info.Flag["inc"+o] = true;
+		  const auto& oT = o.substr(0, o.find("Cat"));
+		  info.Flag["inc"+oT] = true;
 		}
 	      }
 	    }
@@ -591,7 +623,8 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
             std::cout << "[ERROR] Input column " << colName << " has empty value" << std::endl; return false;
           }
 	  info.Par[colName] = col.second;
-	  if (colName=="PD") { userInfo.StrS.at("fitPD").insert(col.second); }
+	  if (colName=="PD") { userInfo.StrS.at("allPD").insert(col.second); }
+	  else if (colName=="MC_CAT") { userInfo.StrS["allMC_CAT"].insert("Cat"+col.second); }
           found = true;
         }
       }
@@ -636,6 +669,13 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
         info.Par[col.first] = "";
       }
     }
+  }
+  // Store parameter range
+  for (auto& v : info.Var) {
+    v.second["Full_Min"] = v.second.at("Min");
+    v.second["Full_Max"] = v.second.at("Max");
+    v.second["Plot_Min"] = v.second.at("Min");
+    v.second["Plot_Max"] = v.second.at("Max");
   }
   return true;
 };
@@ -816,7 +856,7 @@ bool checkSettings(const GlobalInfo& userInput)
   for (const auto& s : userInput.StrV.at("sample")) { if (userInput.Flag.at("fit"+s)) { foundSample = true; break; } }
   if (!foundSample) { std::cout << "[ERROR] Neither data or MC were selected!" << std::endl; return false; }
   // Check dataset
-  if (userInput.StrS.at("fitPD").empty()) { std::cout << "[ERROR] No trigger dataset was selected!" << std::endl; return false; }
+  if (userInput.StrS.at("allPD").empty()) { std::cout << "[ERROR] No trigger dataset was selected!" << std::endl; return false; }
   // Check collision system
   bool foundSystem = false;
   for (const auto& s : userInput.StrV.at("system")) { if (userInput.Flag.at("fit"+s)) { foundSystem = true; break; } }

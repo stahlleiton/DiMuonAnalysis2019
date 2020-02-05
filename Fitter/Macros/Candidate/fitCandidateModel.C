@@ -61,8 +61,10 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
   if (!setModel(info)) { return false; }
 
   // Define all the datasets needed for the fit
-  bool doFit = false;
-  for (const auto& chg : info.StrS.at("fitCharge")) { info.Par["dsName"+chg] = ("d"+chg+"_"+DSTAG); }
+  for (const auto& chg : info.StrS.at("fitCharge")) {
+    info.Par["dsName"+chg] = ("d"+chg+"_"+DSTAG);
+    info.Par["dsNameFit"+chg] = ("d"+chg+"_"+DSTAG);
+  }
   // Add the main dataset to the list
   info.StrS["dsList"].insert(DSTAG);
 
@@ -75,6 +77,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
   }
 
   // Proceed to import the list of datasets
+  bool doFit = true;
   for (const auto& chg : info.StrS.at("fitCharge")) {
     const auto& dsName = info.Par.at("dsName"+chg);
     if ( !(myws[chg].data(dsName.c_str())) ) {
@@ -82,14 +85,25 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
       if (importID<0) { return false; }
       else if (importID==0) { doFit = false; }
     }
-    info.Var["numEntries"][chg] = myws.at(chg).data(dsName.c_str())->sumEntries();
-    myws.at(chg).factory(Form("numEntries_%s[%.0f]", dsName.c_str(), info.Var.at("numEntries").at(chg)));
-    if (info.Var.at("numEntries").at(chg)<=0) { doFit = false; }
+    info.Var["numEntries"][dsName] = myws.at(chg).data(dsName.c_str())->sumEntries();
+    if (info.Var.at("numEntries").at(dsName)<=0) { doFit = false; }
+  }
+  if (!doFit) { std::cout << "[ERROR] No entries to fit!" << std::endl; return false; }
+
+  // Proceed to import the sPlot datasets
+  if (userInput.Par.at("fitSampleType")=="SPLOT") {
+    for (const auto& chg : info.StrS.at("fitCharge")) { if (!importSPlotDataset(myws.at(chg), info, chg, true)) { return false; } }
   }
 
-  // Store the number of MC ontries passing analysis cuts
+  // Set fit parameter range in workspace
+  for (const auto& chg : info.StrS.at("fitCharge")) { if (!setFitParameterRange(myws.at(chg), info)) { return false; } }
+
+  // Update fit parameter range
+  for (const auto& chg : info.StrS.at("fitCharge")) { if (!updateFitRange(myws.at(chg), info, chg)) { return false; } }
+
+  // Store the number of MC entries passing analysis cuts
   for (const auto& col : info.StrS.at("fitSystem")) {
-    for (const auto& var : info.StrS.at("fitVarName")) {
+    for (const auto& var : info.StrS.at("fitCondVarName")) {
       for (const auto& obj : info.StrS.at("template_"+var)) {
 	const auto& dsLabel = "MC_" + obj + "_" + info.Par.at("channelDS") + "_" + col;
 	for (const auto& chg : info.StrS.at("fitCharge")) {
@@ -102,9 +116,6 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
       }
     }
   }
-
-  // Set fit parameter range in workspace
-  for (const auto& chg : info.StrS.at("fitCharge")) { if (!setFitParameterRange(myws.at(chg), info, chg)) { return false; } }
 
   // Build the fit model
   for (const auto& chg : info.StrS.at("fitCharge")) { if (!buildCandidateModel(myws.at(chg), info, chg))  { return false; } }
@@ -120,29 +131,26 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
       addString(myws.at(chg), "fitCharge", chg);
       addString(myws.at(chg), "PD", info.Par.at("PD"));
       defineSet(myws.at(chg), "fitVariable", info.StrS.at("fitVariable"));
+      defineSet(myws.at(chg), "condVariable", info.StrS.at("condVariable"));
       //
       // Define output file name
       std::string fileName = "";
       std::string outDir = outputDir;
       const auto& label = cha + chg + "_" + col;
       setFileName(fileName, outDir, label, info);
+      std::string fitVar = ""; for (const auto& var : info.StrS.at("fitVarName")) { fitVar += var+"_"; };
       //
       // Get dataset and PDF names
-      const auto& dsName  = info.Par.at("dsName"+chg);
+      auto dsName = info.Par.at("dsName"+chg);
+      auto dsNameFit = info.Par.at("dsNameFit"+chg);
       const auto& pdfName = info.Par.at("pdfName"+chg);
       addString(myws.at(chg), "dsName", dsName);
+      addString(myws.at(chg), "dsNameFit", dsNameFit);
       addString(myws.at(chg), "pdfName", pdfName);
       const bool& isData = (dsName.find("_DATA_")!=std::string::npos);
       //
-      // Check if the user wants to do binned fits and proceed to bin the data
-      if (contain(info.Flag, "doBinnedFit") && info.Flag.at("doBinnedFit")) { if (!createBinnedDataset(myws.at(chg))) { return false; } }
-      // Set the name of the dataset to fit
-      const auto& dsNameFit = ((myws.at(chg).data((dsName+"_FIT").c_str())!=NULL) ? (dsName+"_FIT") : dsName);
-      // Store the mean and RMS of each dataset variable
-      if (!storeDSStat(myws.at(chg), dsNameFit)) { return false; }
-      //
-      bool skipFit = false;
-      if (contain(info.StrS.at("fitVariable"), "Cand_DLenErr") && myws.at(chg).data((dsName+"_SPLOT").c_str())) skipFit = false;
+      // Skip fit for Cand_DLenErr
+      const bool& skipFit = contain(info.StrS.at("fitVariable"), "Cand_DLenErr");
       //
       if (!skipFit) {
 	// Check if we have already done this fit. If yes, continue.
@@ -150,21 +158,33 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 	std::unique_ptr<RooArgSet> newpars;
 	if (myws.at(chg).pdf(pdfName.c_str())) { newpars = std::unique_ptr<RooArgSet>(myws.at(chg).pdf(pdfName.c_str())->getParameters(*myws.at(chg).data(dsName.c_str()))); }
 	else { newpars = std::unique_ptr<RooArgSet>(new RooArgSet(myws.at(chg).allVars())); }
-	const auto& outFileName = (outDir+"result/FIT_"+fileName+".root");
+	const auto& outFileName = (outDir+"result/FIT_"+fitVar+fileName+".root");
 	found = found && isFitAlreadyFound(*newpars, outFileName);
 	if (found) {
 	  std::cout << "[INFO] This fit for " << pdfName << " was already done, so I'll just go to the next one." << std::endl;
 	  continue;
 	}
+      }
+      //
+      // Check if the user wants to do binned fits and proceed to bin the data
+      const auto& fitVars = info.StrS.at("fitVariable");
+      if (info.Flag["doBinnedFit"] && !createBinnedDataset(myws.at(chg), dsNameFit, *fitVars.begin())) { return false; }
+      //
+      // Store the mean and RMS of each dataset variable
+      if (!storeDSStat(myws.at(chg), dsNameFit)) { return false; }
+      // Store number of entries
+      for (const auto& v : info.Var.at("numEntries")) { myws.at(chg).factory(Form("numEntries_%s[%.0f]", v.first.c_str(), v.second)); }
+      //
+      if (!skipFit) {
 	// Fit the datasets
 	bool fitFailed = false;
 	std::unique_ptr<RooFitResult> fitResult;
         if (myws.at(chg).pdf(pdfName.c_str())) {
-          bool isWeighted = myws.at(chg).data(dsNameFit.c_str())->isWeighted();
-          if (isData) { isWeighted = false; } // BUG FIX
+          const bool& isWeighted = myws.at(chg).data(dsNameFit.c_str())->isWeighted();
           const auto& numCores = info.Int.at("numCores");
           const auto& pdfConstrains = dynamic_cast<RooArgList*>(myws.at(chg).genobj(("pdfConstr"+label).c_str()));
-          std::vector<RooCmdArg> cmdList = { RooFit::Extended(kTRUE), RooFit::SumW2Error(isWeighted), RooFit::InitialHesse(true), RooFit::Minos(false), RooFit::Minimizer("Minuit2"), RooFit::Strategy(2), RooFit::Range("FitWindow"), RooFit::NumCPU(numCores), RooFit::Save(), RooFit::PrintLevel(0) };
+          std::vector<RooCmdArg> cmdList = { RooFit::Extended(true), RooFit::SumW2Error(false), RooFit::InitialHesse(true), RooFit::Minos(false), RooFit::Strategy(2), /*RooFit::Minimizer("Minuit2"),*/
+	 				     RooFit::Optimize(false), RooFit::NumCPU(numCores, 1), RooFit::Save(true), RooFit::Timer(true), RooFit::PrintLevel(0) };
           if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
             std::cout << "[INFO] Using constrain PDFs to fit " << pdfName << " on " << dsNameFit << std::endl;
             cmdList.push_back(RooFit::ExternalConstraints(*pdfConstrains));
@@ -172,16 +192,16 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
           }
           else {
             std::cout << "[INFO] Fitting " << pdfName << " on " << dsNameFit << std::endl;
-            bool fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+            fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
 	    if (fitFailed) {
-	      cmdList[5] = RooFit::Strategy(1);
-              fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+              cmdList[4] = RooFit::Strategy(1);
+              fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit, "initialParameters");
             }
             if (fitFailed) {
-              cmdList[5] = RooFit::Strategy(0);
-              fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+              cmdList[4] = RooFit::Strategy(0);
+              fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit, "initialParameters");
             }
-	    if (isData && !fitFailed) {
+	    if (false && isData && !fitFailed && contain(fitVars, "Cand_Mass")) {
               cmdList[3] = RooFit::Minos(true);
               fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
 	    }
@@ -215,11 +235,11 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
       }
       //
       // Draw the plot
-      if (!drawCandidatePlot(myws.at(chg), ("PLOT_"+fileName), outDir, info.Flag.at("setLogScale"), -1., true, false)) { return false; }
+      if (!drawCandidatePlot(myws.at(chg), fileName, outDir, info.Flag.at("setLogScale"), -1., true, false)) { return false; }
       //
       // Save the fit results
       saveSnapshot(myws.at(chg), "fittedParameters", info.Par.at("dsName"+chg));
-      if (!saveWorkSpace(myws.at(chg), Form("%sresult/", outDir.c_str()), Form("%s.root", ("FIT_"+fileName).c_str()), saveAll)) { return false; }
+      if (!saveWorkSpace(myws.at(chg), Form("%sresult/", outDir.c_str()), Form("%s.root", ("FIT_"+fitVar+fileName).c_str()), saveAll)) { return false; }
     }
   }
   //
@@ -233,63 +253,71 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 void defineFitParameterRange(GlobalInfo& info)
 {
   for (const auto& var : info.StrV.at("variable")) {
-    if (var!="Cand_Mass" && !info.Flag.at("fit"+var)) continue;
+    if (var!="Cand_Mass" && !info.Flag.at("fit"+var) && !info.Flag.at("cond"+var)) { continue; }
     double varMin = 100000000., varMax = -100000000.;
+    double plotVarMin = 100000000., plotVarMax = -100000000.;
     if (var=="Cand_Mass") {
       if (info.Flag.at("fitMC")) {
-  	for (const auto& obj : info.StrS.at("incObject_CandMass")) {
-    	  if (contain(MASS, obj)) {
-      	    if (varMin > MASS.at(obj).at("Min")) { varMin = MASS.at(obj).at("Min"); }
-      	    if (varMax < MASS.at(obj).at("Max")) { varMax = MASS.at(obj).at("Max"); }
-    	  }
-  	}
+	const auto& vars = (contain(info.StrS, "incObject_CandMass") ? StringSet_t({"CandMass"}) : info.StrS.at("fitVarName"));
+	for (const auto& var : vars) {
+	  for (const auto& obj : info.StrS.at("incObject_"+var)) {
+	    if (contain(MASS, obj)) {
+	      varMin = std::min(varMin, MASS.at(obj).at("Min"));
+	      varMax = std::max(varMax, MASS.at(obj).at("Max"));
+	    }
+	  }
+	}
       }
       else {
+	std::vector<std::tuple<std::string, double, double>> objV =
+	  {
+	   {"D0",     1.75,   2.00},
+	   {"JPsi",   2.50,   3.50},
+	   {"Psi2S",  3.40,   4.20},
+	   {"Ups1S",  8.00,  10.50},
+	   {"Ups2S",  9.00,  11.00},
+	   {"Ups3S",  9.50,  14.00},
+	   {"Z",     70.00, 110.00}
+	  };
         // Define the Candidate Mass range
-        if (contain(info.Flag, "incD0") && info.Flag.at("incD0")) {
-	  if (varMin > 1.75) { varMin = 1.75; }
-	  if (varMax < 2.00) { varMax = 2.00; }
-        }
-        if (contain(info.Flag, "incJPsi") && info.Flag.at("incJPsi")) {
-	  if (varMin > 2.7) { varMin = 2.5; }
-	  if (varMax < 3.5) { varMax = 3.5; }
-        }
-        if (contain(info.Flag, "incPsi2S") && info.Flag.at("incPsi2S")) {
-  	  if (varMin > 3.4) { varMin = 3.4; }
-  	  if (varMax < 4.0) { varMax = 4.2; }
-        }
-        if (contain(info.Flag, "incUps1S") && info.Flag.at("incUps1S")) {
-	  if (varMin >  8.0) { varMin =  8.0; }
-	  if (varMax < 10.5) { varMax = 10.5; }
-        }
-        if (contain(info.Flag, "incUps2S") && info.Flag.at("incUps2S")) {
-	  if (varMin >  9.0) { varMin =  9.0; }
-	  if (varMax < 11.0) { varMax = 11.0; }
-        }
-        if (contain(info.Flag, "incUps3S") && info.Flag.at("incUps3S")) {
-	  if (varMin >  9.5) { varMin =  9.5; }
-	  if (varMax < 13.5) { varMax = 14.0; }
-        }
-        if (contain(info.Flag, "incZ") && info.Flag.at("incZ")) {
-	  if (varMin >  70.0) { varMin =  70.0; }
-	  if (varMax < 110.0) { varMax = 110.0; }
+	for (const auto& o : objV) {
+	  const auto& name = std::get<0>(o);
+	  const auto& vMin = std::get<1>(o);
+	  const auto& vMax = std::get<2>(o);
+	  if (contain(info.Flag, "inc"+name) && info.Flag.at("inc"+name)) {
+	    varMin = std::min(varMin, vMin);
+	    varMax = std::max(varMax, vMax);
+	  }
         }
       }
     }
     else if (var=="Cand_DLenErr") {
-      varMin = 0.0;
-      varMax = 10.0; 
+      plotVarMin = 0.0;
+      plotVarMax = 0.6;
     }
     else if (var=="Cand_DLenRes") {
-      varMin = -10.0;
-      varMax = (info.Flag.at("fitMC") ?  10.0 : 0.0);
+      plotVarMin = -12.0;
+      plotVarMax = 12.0;
+    }
+    else if (var=="Cand_DLenGen") {
+      plotVarMin = -1.0;
+      plotVarMax =  8.0;
+    }
+    else if (var=="Cand_DLen") {
+      plotVarMin = -6.0;
+      plotVarMax =  8.0;
     }
     if (varMax > varMin) {
       if (info.Var.at(var).at("Min") <= info.Var.at(var).at("Default_Min")) { info.Var.at(var).at("Min") = varMin; }
       if (info.Var.at(var).at("Max") >= info.Var.at(var).at("Default_Max")) { info.Var.at(var).at("Max") = varMax; }
     }
+    info.Var.at(var).at("Full_Min") = info.Var.at(var).at("Min");
+    info.Var.at(var).at("Full_Max") = info.Var.at(var).at("Max");
+    info.Var.at(var).at("Plot_Min") = ((plotVarMax > plotVarMin) ? plotVarMin : info.Var.at(var).at("Min"));
+    info.Var.at(var).at("Plot_Max") = ((plotVarMax > plotVarMin) ? plotVarMax : info.Var.at(var).at("Max"));
     // Print Information
-    std::cout << "[INFO] Setting " << var << " range to min: " << info.Var.at(var).at("Min") << " and max: " << info.Var.at(var).at("Max") << endl;
+    std::cout << "[INFO] Setting " << var << " fit range to min: " << info.Var.at(var).at("Min") << " and max: " << info.Var.at(var).at("Max");
+    std::cout << " and plot range to min: " << info.Var.at(var).at("Plot_Min") << " and max: " << info.Var.at(var).at("Plot_Max") << endl;
   }
 };
 

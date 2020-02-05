@@ -34,31 +34,36 @@
 void setFileName(std::string& fileName, std::string& outputDir, const std::string& lbl, const GlobalInfo& info, const StringSet_t& varV={})
 {
   const auto& cha = info.Par.at("channel");
-  const auto& label = lbl.substr(lbl.find(cha));
+  const auto& label = lbl.substr(lbl.rfind(cha));
   // Define plot label
   auto varS = info.StrS.at("fitVariable"); if (!varV.empty()) { varS = varV; }
   auto varT = info.StrS.at("fitVarName"); if (!varV.empty()) { varT.clear(); for (const auto& v : varV) { auto t = v; stringReplace(t, "_", ""); varT.insert(t); } }
   std::string plotLabel = "";
   for (const auto& var : varT) {
-    for (const auto& obj : info.StrS.at("fitObject")) {
+    for (const auto& o : info.StrS.at("fitObject")) {
+      const auto& obj = info.Par.at("objTag_"+var+"_"+o);
+      if (!contain(info.Par, "Model"+var+"_"+obj+label)) { std::cout << "[ERROR] Model tag: " << var+"_"+obj+label << " does not exist!" << std::endl; }
       std::string modelN = info.Par.at("Model"+var+"_"+obj+label);
       modelN.erase(std::remove(modelN.begin(), modelN.end(), ' '), modelN.end());
       stringReplace( modelN, "[", "" ); stringReplace( modelN, "]", "" ); stringReplace( modelN, "+", "_" ); stringReplace( modelN, ",", "_" ); stringReplace( modelN, ";", "_" );
-      plotLabel += obj + "Model"+var+"_" + modelN+"_";
+      plotLabel += "Mod"+var+"_" + modelN+"_";
     }
   }
+  for (const auto& m : ModelDictionary) { stringReplace(plotLabel, m.first, m.second.second); }; stringReplace(plotLabel, "Cat", ""); stringReplace(plotLabel, "Resolution", "Res");
   // Set file name
   const auto& DSTAG = info.Par.at("DSTAG");
-  auto dsTag = DSTAG.substr(0, DSTAG.rfind("_DIMUON")); if (info.Flag.at("fitMC")) { dsTag += "_"+info.Par.at("PD"); }
+  auto dsTag = DSTAG.substr(0, DSTAG.rfind("_"+info.Par.at("channelDS")));
+  if (info.Flag.at("fitMC")) { dsTag += "_"+info.Par.at("PD"); }
   const auto& colTag = DSTAG.substr(DSTAG.find_last_of("_")+1);
   std::string objTag = "";
   for (const auto& o : info.StrS.at("fitObject")) { objTag += o+"_"; }; objTag = objTag.substr(0, objTag.rfind("_"));
+  if (contain(info.StrS.at("fitObject"), "Bkg")) { objTag = info.Par.at("objTag_"+*varT.begin()+"_Bkg"); }
   std::string fitVar = "";
   for (const auto& var : varT) { fitVar += var+"_"; }; fitVar = fitVar.substr(0, fitVar.rfind("_"));
   outputDir = Form("%s%s/%s/%s/%s/", outputDir.c_str(), fitVar.c_str(), dsTag.c_str(), objTag.c_str(), colTag.c_str());
   std::string varLbl = "";
   for (const auto& var : info.StrS.at("cutPars")) {
-    if (var=="Cand_Mass" || var=="Cand_DLenErr") continue;
+    if (var=="Cand_Mass" || var=="Cand_DLenErr" || var=="Cand_DLenRes" || var=="Cand_DLenGen" || var=="Cand_DLen") continue;
     bool incVar = true; for (const auto& v : varS) { if (var==v) { incVar = false; break; } }
     if (!incVar || !contain(info.Var, var) || !contain(info.Var.at(var), "Min")) continue;
     if (info.Var.at(var).at("Min")==info.Var.at(var).at("Default_Min") && info.Var.at(var).at("Max")==info.Var.at(var).at("Default_Max")) continue;
@@ -76,68 +81,59 @@ void setFileName(std::string& fileName, std::string& outputDir, const std::strin
     else { varLbl += Form("%s_%.0f_%.0f_", varN.c_str(), varMin*100., varMax*100.); }
   }
   varLbl = varLbl.substr(0, varLbl.rfind("_"));
-  fileName = Form("%s_%s_%s%s", fitVar.c_str(), dsTag.c_str(), plotLabel.c_str(), varLbl.c_str());
+  fileName = Form("%s_%s%s", dsTag.c_str(), plotLabel.c_str(), varLbl.c_str());
 };
 
 
-void getRange(std::vector<double>& range, const TH1D& hist, const int& nMaxBins, const double& minEntries=5.0)
+void getRange(double& varMin, double& varMax, const TH1D& hist, const bool& ignoreNegW, const int& nMaxBins, const double& minEntries)
 {
   // 1) Find the bin with the maximum Y value
   const auto& binMaximum = hist.GetMaximumBin();
-  // 2) Loop backward and find the first bin
-  int binWithContent = -1;
-  int firstBin = 1;
-  for (int i = binMaximum; i > 0; i--) {
-    if (hist.GetBinContent(i) > 0.0) {
-      if ( (binWithContent > 0) && ((binWithContent-i) > nMaxBins) && (hist.GetBinContent(i) < minEntries) ) { firstBin = binWithContent; break; }
-      else { binWithContent = i; }
-    }
+  // 2) Find the start bin
+  int startBin = 1;
+  if (ignoreNegW) { for (int i = 1; i < hist.GetNbinsX(); i++) { if (hist.GetBinContent(i) > 0.0) { startBin = i; break; } } }
+  // 3) Loop backward from maximum Y bin and find the first bin
+  int firstBin = startBin;
+  for (int i = binMaximum; i >= startBin; i--) {
+    if (hist.GetBinContent(i) > 0.1) { firstBin = i; }
+    else if (((firstBin-i) > nMaxBins && (hist.GetBinContent(firstBin) < minEntries || hist.GetBinContent(i) < 0)) || (firstBin-i) > 10) break;
   }
-  // 3) Loop forward and find the last bin
-  binWithContent = -1;
-  int lastBin = hist.GetNbinsX();
-  for (int i = binMaximum; i < hist.GetNbinsX(); i++) {
-    if (hist.GetBinContent(i) > 0.0) {
-      if ( ( binWithContent > 0) && ((i - binWithContent) > nMaxBins) && (hist.GetBinContent(i) < minEntries) ) { lastBin = binWithContent+1; break; }
-      else { binWithContent = i; }
-    }
+  firstBin -= (ignoreNegW ? 0 : 1);
+  // 4) Find the end bin
+  int endBin = hist.GetNbinsX();
+  if (ignoreNegW) { for (int i = hist.GetNbinsX(); i > 0; i--) { if (hist.GetBinContent(i) > 0.0) { endBin = i; break; } } }
+  // 5) Loop forward from maximum Y bin and find the last bin
+  int lastBin = endBin;
+  for (int i = binMaximum; i <= endBin; i++) {
+    if (hist.GetBinContent(i) > 0.1) { lastBin = i; }
+    else if (((i-lastBin) > nMaxBins && (hist.GetBinContent(lastBin) < minEntries || hist.GetBinContent(i) < 0)) || (i-lastBin) > 10) break;
   }
-  // 4) Build the set of bins
-  const auto& startBin = ( (firstBin > 1) ? (firstBin - 1) : firstBin );
-  const auto& nNewBins = lastBin - startBin + 1;
-  double binning[nNewBins+2];
-  binning[0] = hist.GetXaxis()->GetXmin();
-  binning[nNewBins+1] = hist.GetXaxis()->GetXmax();
-  for (int i = 1; i <= nNewBins; i++) {
-    int iBin = startBin + i;
-    binning[i] = hist.GetBinLowEdge(iBin);
-  }
-  // 5) Save the bin range
-  range.push_back(binning[(firstBin>1)?1:0]);
-  range.push_back(binning[nNewBins]);
-  //
-  return;
+  // 6) Set the range
+  varMin = hist.GetBinLowEdge(firstBin);
+  varMax = hist.GetBinLowEdge(lastBin+1)+hist.GetBinWidth(lastBin+1);
 };
 
 
-bool getRange(GlobalInfo& info, const RooWorkspace& ws, const std::string& var, const std::string& chg, const int& nMaxBins, const double& minEntries=5.0)
+bool getRange(RooAbsData* ds, RooRealVar& var, double& varMin, double& varMax, const int& nMaxBins, const double& minEntries=5.)
 {
-  const auto& dsName = info.Par.at("dsName"+chg);
-  if (!ws.data(dsName.c_str())) { std::cout << "[ERROR] getRange: DataSet " << dsName << " was not found!" << std::endl; return false; }
-  if (!ws.var(var.c_str())) { std::cout << "[ERROR] getRange: Variable " << var << " was not found!" << std::endl; return false; }
-  double varMin, varMax;
-  ws.data(dsName.c_str())->getRange(*ws.var(var.c_str()), varMin, varMax);
-  if (varMin>=0.0) { varMin = 0.0; } else { varMin -= 0.005; roundValue(varMin, 2); }
-  if (varMax<=0.0) { varMax = 0.0; } else { varMax += 0.005; roundValue(varMax, 2); }
-  const auto& nBins = getNBins(varMin, varMax, ws.var(var.c_str())->getBinWidth(0));
-  auto hTot = std::unique_ptr<TH1D>(static_cast<TH1D*>(ws.data(dsName.c_str())->createHistogram("TMP", *ws.var(var.c_str()), RooFit::Binning(nBins, varMin, varMax))));
-  if (!hTot) { std::cout << "[ERROR] getRange: Histogram " << dsName << " was not created!" << std::endl; return false; }
-  std::vector<double> varRange; getRange(varRange, *hTot, nMaxBins, minEntries);
-  info.Var.at(var).at("Min") = std::max(varRange[0], info.Var.at(var).at("Min"));
-  info.Var.at(var).at("Max") = std::min(varRange[1], info.Var.at(var).at("Max"));
-  std::cout << "[INFO] " << var << " range set from data: [ " << info.Var.at(var).at("Min") << " , " << info.Var.at(var).at("Max") << " ]" << std::endl;
+  if (!ds) { std::cout << "[ERROR] getRange: DataSet is NULL!" << std::endl; return false; }
+  if (ds->getRange(var, varMin, varMax)) { std::cout << "[ERROR] getRange: Error in dataset range!" << std::endl; return false; }
+  if (nMaxBins>=0) {
+    const auto& varMaxPlot = var.getMax("PlotWindow");
+    varMin -= std::abs(varMin)*0.01; varMax += std::abs(varMax)*0.01;
+    varMin = varMaxPlot - std::ceil((varMaxPlot-varMin)/var.getBinWidth(0))*var.getBinWidth(0);
+    if (std::string(var.GetName())=="Cand_DLenErr" && varMin<=0.0) { varMin = var.getBinWidth(0); }
+    varMax = varMin + std::ceil((varMax-varMin)/var.getBinWidth(0))*var.getBinWidth(0);
+  }
+  if (nMaxBins>=1) {
+    const auto& nBins = getNBins(varMin, varMax, var.getBinWidth(0));
+    auto hTot = std::unique_ptr<TH1D>(static_cast<TH1D*>(ds->createHistogram("TMP", var, RooFit::Binning(nBins, varMin, varMax))));
+    if (!hTot) { std::cout << "[ERROR] getRange: Histogram " << ds->GetName() << " was not created!" << std::endl; return false; }
+    getRange(varMin, varMax, *hTot, ds->isWeighted(), nMaxBins, minEntries);
+  }
+  if (nMaxBins>=0) { std::cout << "[INFO] " << var.GetName() << " range set from data: [ " << varMin << " , " << varMax << " ]" << std::endl; }
   return true; 
-}
+};
 
 
 void addString(RooWorkspace& ws, const std::string& strName, const std::string& strVal, const bool& asObj=true)
@@ -151,7 +147,7 @@ void addString(RooWorkspace& ws, const std::string& strName, const std::string& 
     if (strVar) { strVar->setVal(strVal.c_str()); }
   }
   else {
-    RooStringVar strVar(strName.c_str(), strName.c_str(), strVal.c_str(), strVal.length()+2);
+    RooStringVar strVar(strName.c_str(), strName.c_str(), strVal.c_str(), strVal.length()+100);
     if (asObj) { ws.import(*dynamic_cast<TObject*>(&strVar), strVar.GetTitle()); }
     else { ws.import(strVar); }
   }
@@ -200,8 +196,10 @@ void setFixedVarsToContantVars(RooWorkspace& ws)
 };
 
 
-void defineSet(RooWorkspace& ws, const std::string& setName, const RooArgSet& set, const std::string& setGroup="SET")
+RooArgSet defineSet(RooWorkspace& ws, const std::string& setName, const RooArgSet& inSet, const std::string& setGroup="SET")
 {
+  auto set = inSet;
+  if (ws.set(setName.c_str())) { set.add(*ws.set(setName.c_str())); }
   if (ws.defineSet(setName.c_str(), set, kTRUE)) { std::cout << "[ERROR] Failed to define set " << setName << std::endl; std::exit(0); }
   if (!ws.arg(setName.c_str())) {
     addString(ws, setName, setName, false);
@@ -211,6 +209,7 @@ void defineSet(RooWorkspace& ws, const std::string& setName, const RooArgSet& se
     addString(ws, setGroup.c_str(), setGroup.c_str(), false);
     if (ws.extendSet("SET", setGroup.c_str())) { std::cout << "[ERROR] Failed to extend set SET" << std::endl; std::exit(0); }
   }
+  return set;
 };
 
 
@@ -222,11 +221,11 @@ void defineSet(RooWorkspace& ws, const std::string& setName, const StringSet_t& 
 };
 
 
-void saveSnapshot(RooWorkspace& ws, const RooArgSet& set, const std::string& snapName)
+void saveSnapshot(RooWorkspace& ws, const RooArgSet& inSet, const std::string& snapName)
 {
   if (snapName=="") { std::cout << "[ERROR] Snapshot name is empty!" << std::endl; std::exit(0); }
   // Register the snapshot in WS
-  defineSet(ws, snapName, set, "snapshots");
+  const auto& set = defineSet(ws, snapName, inSet, "snapshots");
   // Save snapshot
   ws.saveSnapshot(snapName.c_str(), set, kTRUE);
 };
@@ -380,12 +379,12 @@ void copyWorkspace(RooWorkspace& outWS, const RooWorkspace& inWS, const std::str
 };
 
 
-bool saveDataSet(const RooDataSet& ds, const std::string& outputDir, const std::string& fileName)
+bool saveDataSet(const RooDataSet& ds, const std::string& fileName)
 {
   // Create the output file
-  gSystem->mkdir((outputDir+"dataset/").c_str(), kTRUE);
-  const auto& inFileName = (outputDir+"dataset/SPLOT_"+fileName+".root");
-  auto file = std::unique_ptr<TFile>(new TFile(inFileName.c_str(), "RECREATE"));
+  const auto& outputDir = fileName.substr(0, fileName.rfind("/")+1);
+  gSystem->mkdir(outputDir.c_str(), kTRUE);
+  auto file = std::unique_ptr<TFile>(new TFile(fileName.c_str(), "RECREATE"));
   if (!file || !file->IsOpen() || file->IsZombie()) {
     std::cout << "[ERROR] Output root file with fit results could not be created!" << std::endl; if (file) { file->Close(); }; return false;
   }
@@ -394,7 +393,7 @@ bool saveDataSet(const RooDataSet& ds, const std::string& outputDir, const std::
   ds.Write(ds.GetName());
   // Write and close output file
   file->Write(); file->Close();
-  std::cout << "[INFO] RooDataSet " << ds.GetName() << " stored in: " << inFileName << std::endl;
+  std::cout << "[INFO] RooDataSet " << ds.GetName() << " stored in: " << fileName << std::endl;
   return true;
 };
 
@@ -562,38 +561,6 @@ RooRealVar getVar(const RooArgSet& set, const std::string& varName)
 };
 
 
-void updateParameterRange(RooWorkspace& ws, GlobalInfo&  info, const std::string& chg, const std::string& DSTAG, const std::string& var="Cand_Mass", const double& maxRange=-1.0)
-{
-  // Check if maxRange is the same as current range, otherwise return
-  if (maxRange==ws.var(var.c_str())->getMax()) { return; }
-  //
-  const std::string& dsName = ( "d" + chg + "_" + DSTAG );
-  //
-  double varMin , varMax;
-  varMin = ws.var(var.c_str())->getMin(); varMax = ws.var(var.c_str())->getMax();
-  if (maxRange > 0.0) { varMax = maxRange; }
-  else {
-    ws.data(dsName.c_str())->getRange(*ws.var(var.c_str()), varMin, varMax);
-  }
-  const std::string& varFitRange = Form("(%g <= %s && %s < %g)", varMin, var.c_str(), var.c_str(), varMax);
-  //
-  if (ws.data(dsName.c_str())->reduce(varFitRange.c_str())->numEntries() <= ws.data(dsName.c_str())->numEntries()) {
-    const auto& nBins = getNBins(varMin, varMax, ws.var(var.c_str())->getBinWidth(0));
-    ws.var(var.c_str())->setRange("FitWindow", varMin, varMax);
-    ws.var(var.c_str())->setBins(nBins, "FitWindow");
-    //
-    auto dataToFit = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())->reduce(varFitRange.c_str())->Clone((dsName+"_FIT").c_str())));
-    if (ws.import(*dataToFit)) { std::cout << "[ERROR] DataSet " << dsName+"_FIT" << " was not imported!" << std::endl; return; }
-    info.Var.at("numEntries").at(chg) = ws.data((dsName+"_FIT").c_str())->sumEntries();
-    ws.factory(Form("numEntries_%s_FIT[%.0f]", dsName.c_str(), info.Var.at("numEntries").at(chg)));
-    //
-    std::cout << Form("[INFO] %s range was updated to : %g <= %s < %g", var.c_str(), varMin, var.c_str(), varMax) << std::endl;
-  }
-  //
-  return;
-};
-
-
 bool loadParameterRange(GlobalInfo& info, const std::string& var, const std::string& fileName, const std::string& snap="fittedParameters")
 {
   RooWorkspace ws; if (!getWorkSpace(ws, fileName, "", true)) { return false; }
@@ -642,20 +609,8 @@ bool loadParameters(RooWorkspace& ws, const std::string& fileName, const std::st
 };
 
 
-bool loadSPlotDS(RooWorkspace& myws, const std::string& fileName, const std::string& dsName)
-{
-  RooWorkspace ws; if (!getWorkSpace(ws, fileName)) { return false; }
-  if (ws.data(dsName.c_str())) {
-    if (myws.import(*ws.data(dsName.c_str()), RooFit::Rename((dsName+"_INPUT").c_str()))) { std::cout << "[ERROR] DataSet " << dsName << " was not imported!" << std::endl; return false; }
-    if (myws.data((dsName+"_INPUT").c_str())) { std::cout << "[INFO] RooDataset " << (dsName+"_INPUT") << " was imported!" << std::endl; }
-    else { std::cout << "[ERROR] Importing RooDataset " << (dsName+"_INPUT") << " failed!" << std::endl; }
-  }
-  else { std::cout << "[ERROR] RooDataset " << dsName << " was not found!" << std::endl; return false; }
-  return true;
-};
-
-
-bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::string& pdfName, const std::string& snapName="fittedParameters")
+bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::string& pdfName,
+		   const bool& loadYield=true, const bool& fixPar=true, const std::string& snapName="fittedParameters")
 {
   std::cout << "[INFO] Loading parameters for " << pdfName << " from " << fileName << std::endl;
   // Extract the workspace
@@ -680,6 +635,7 @@ bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::str
   for (auto it = parIt->Next(); it!=NULL; it = parIt->Next()) {
     const std::string& name = it->GetName();
     if (!ws.var(name.c_str())) continue;
+    if (!loadYield && (name.rfind("N_",0)==0 || name.rfind("R_",0)==0)) continue;
     const auto& sPar = dynamic_cast<RooRealVar*>(snapPar->find(name.c_str()));
     double val = -99999.;
     if (!sPar && snapPar->find(("R_"+name.substr(2)).c_str())) {
@@ -696,7 +652,7 @@ bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::str
     }
     if (val!=-99999.) {
       ws.var(name.c_str())->setVal(val);
-      if (name.rfind("N_",0)!=0 && name.rfind("R_",0)!=0) ws.var(name.c_str())->setConstant(true);
+      if (name.rfind("N_",0)!=0 && name.rfind("R_",0)!=0 && fixPar) ws.var(name.c_str())->setConstant(true);
       res += Form("%s = %g, ", name.c_str(), val);
       loadSet.add(*ws.var(name.c_str()));
     }
@@ -707,26 +663,20 @@ bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::str
 };
 
 
-bool createBinnedDataset(RooWorkspace& ws, const std::string& var="Cand_Mass")
+bool createBinnedDataset(RooWorkspace& ws, const std::string& dsName, const std::string& var)
 {
-  //
-  const std::string& DSTAG = getString(ws, "DSTAG");
-  const std::string& chg   = getString(ws, "fitCharge");
-  const std::string& dsName = ( "d" + chg + "_" + DSTAG );
-  //
-  if (ws.data(dsName.c_str())==NULL) { std::cout << "[WARNING] DataSet " << dsName << " was not found!" << std::endl; return false; }
-  if (ws.data(dsName.c_str())->numEntries()<=10.0) { std::cout << "[WARNING] DataSet " << dsName << " has too few events!" << std::endl; return false; }
-  if (ws.var(var.c_str())==NULL) { std::cout << "[WARNING] Variable " << var << " was not found!" << std::endl; return false; }
+  if (ws.data(dsName.c_str())==NULL) { std::cout << "[ERROR] createBinnedDataset: DataSet " << dsName << " was not found!" << std::endl; return false; }
+  if (ws.data(dsName.c_str())->numEntries()<=10.0) { std::cout << "[ERROR] createBinnedDataset: DataSet " << dsName << " has too few events!" << std::endl; return false; }
+  if (ws.var(var.c_str())==NULL) { std::cout << "[ERROR] createBinnedDataset: Variable " << var << " was not found!" << std::endl; return false; }
   //
   const auto& min  = ws.var(var.c_str())->getMin();
   const auto& max  = ws.var(var.c_str())->getMax();
   const uint& nBin = ws.var(var.c_str())->getBins();
   //
   // Create the histogram
-  auto histName = dsName + "_" + var;
-  histName.replace(histName.find("d"), std::string("d").length(), "h");
+  auto histName = "h" + dsName + "_" + var;
   std::unique_ptr<TH1D> hist = std::unique_ptr<TH1D>(static_cast<TH1D*>(ws.data(dsName.c_str())->createHistogram(histName.c_str(), *ws.var(var.c_str()), RooFit::Binning(nBin, min, max))));
-  if (hist==NULL) { std::cout << "[WARNING] Histogram " << histName << " is NULL!" << std::endl; return false; }
+  if (hist==NULL) { std::cout << "[ERROR] createBinnedDataset: Histogram " << histName << " is NULL!" << std::endl; return false; }
   // Cleaning the input histogram
   // 1) Remove the Under and Overflow bins
   hist->ClearUnderflowAndOverflow();
@@ -734,13 +684,13 @@ bool createBinnedDataset(RooWorkspace& ws, const std::string& var="Cand_Mass")
   for (int i=0; i<=hist->GetNbinsX(); i++) { if (hist->GetBinContent(i)<0.0) { hist->SetBinContent(i, 0.0); } }
   // 2) Reduce the range of histogram and rebin it
   //hist.reset(static_cast<TH1D*>(rebinhist(*hist, range[1], range[2])));
-  if (hist==NULL) { std::cout << "[WARNING] Cleaned Histogram of " << histName << " is NULL!" << std::endl; return false; }
+  if (hist==NULL) { std::cout << "[ERROR] createBinnedDataset: Cleaned Histogram of " << histName << " is NULL!" << std::endl; return false; }
   const auto& dataName = (dsName +"_"+var+"_FIT");
   std::unique_ptr<RooDataHist> dataHist = std::unique_ptr<RooDataHist>(new RooDataHist(dataName.c_str(), "", *ws.var(var.c_str()), hist.get()));
-  if (dataHist==NULL) { std::cout << "[WARNING] DataHist used to create " << dsName << " failed!" << std::endl; return false; }
-  if (dataHist->sumEntries()==0) { std::cout << "[WARNING] DataHist used to create " << dsName << " is empty!" << std::endl; return false; }
-  if (std::abs(dataHist->sumEntries() - hist->GetSumOfWeights())>0.001) { std::cout << "[ERROR] DataHist used to create " << dsName << "  " << " is invalid!  " << std::endl; return false; }
-  if (ws.import(*dataHist)) { std::cout << "[ERROR] DataHist " << dataName << " was not imported!" << std::endl; return false; }
+  if (dataHist==NULL) { std::cout << "[ERROR] createBinnedDataset: DataHist used to create " << dsName << " failed!" << std::endl; return false; }
+  if (dataHist->sumEntries()==0) { std::cout << "[ERROR] createBinnedDataset: DataHist used to create " << dsName << " is empty!" << std::endl; return false; }
+  if (std::abs(dataHist->sumEntries() - hist->GetSumOfWeights())>0.001) { std::cout << "[ERROR] createBinnedDataset: DataHist used to create " << dsName << "  " << " is invalid!  " << std::endl; return false; }
+  if (ws.import(*dataHist)) { std::cout << "[ERROR] createBinnedDataset: DataHist " << dataName << " was not imported!" << std::endl; return false; }
   ws.var(var.c_str())->setBins(nBin); // Bug Fix
   return true;
 };
@@ -754,9 +704,10 @@ bool setModel(GlobalInfo&  info)
 {
   const auto& cha = info.Par.at("channel");
   for (const auto& col : info.StrS.at("fitSystem")) {
-    for (const auto& obj : info.StrS.at("fitObject")) {
+    for (const auto& oo : info.StrS.at("fitObject")) {
       for (const auto& chg : info.StrS.at("fitCharge")) {
 	for (const auto& var : info.StrS.at("incVarName")) {
+	  const auto& obj = info.Par.at("objTag_"+var+"_"+oo);
 	  const std::string& label = Form("Model%s_%s_%s", var.c_str(), (obj+cha+chg).c_str(), col.c_str());
 	  info.StrS["tags"].insert(obj+cha+chg+"_"+col);
 	  const std::string inputLabel = "Model"+findLabel("Model", var, obj, chg, col, cha, info);
@@ -783,7 +734,7 @@ bool setModel(GlobalInfo&  info)
 		if (info.Flag.at("fitMC") && ll!=obj && modelName=="TEMP") continue;
 		if (modelName=="TEMP") { modelName = "Template";    }
 		if (modelName=="MJET") { modelName = "MultiJetBkg"; }
-		if (!contain(ModelDictionary, modelName) || ModelDictionary.at(modelName)==0) {
+		if (!contain(ModelDictionary, modelName) || ModelDictionary.at(modelName).first==0) {
 		  std::cout << "[ERROR] The " << (ll+cha+chg) << " " << var << " model: " << modelName << " is invalid" << std::endl; return false;
 		}
 		info.Par[label+"_"+ll] = modelName;
@@ -805,6 +756,20 @@ bool setModel(GlobalInfo&  info)
 };
 
 
+bool storeDSRange(RooWorkspace& ws, RooAbsData* ds, const std::string& label="DSWindow")
+{
+  auto varIt = std::unique_ptr<TIterator>(ds->get()->createIterator());
+  for (auto itp = varIt->Next(); itp!=NULL; itp = varIt->Next()) {
+    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
+    double varMin, varMax; if (!getRange(ds, *it, varMin, varMax, -1)) { return false; }
+    const auto& var = ws.var(it->GetName());
+    if (!var) { std::cout << "[ERROR] Variable " << it->GetName() << " was not found!" << std::endl; return false; }
+    var->setRange(label.c_str(), varMin, varMax);
+  }
+  return true;
+};
+
+
 bool storeDSStat(RooWorkspace& ws, const std::string& dsName)
 {
   const auto& ds = dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()));
@@ -821,21 +786,28 @@ bool storeDSStat(RooWorkspace& ws, const std::string& dsName)
 };
 
 
-void setDSParamaterRange(RooWorkspace& ws, const std::string& dsName, const GlobalInfo& info)
+void setDSParamaterRange(RooDataSet& ds, const GlobalInfo& info, const std::string& tag="")
 {
-  const auto& ds = dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()));
-  if (!ds) { std::cout << "[ERROR] Dataset " << dsName << " was not found!" << std::endl; return; }
-  const auto& row = ds->get();
-  defineSet(ws, "SET_"+dsName, *row);
+  const std::string& dsName = ds.GetName();
+  const auto& row = ds.get();
   for (const auto& var : info.Var) {
     const bool& isAbs = (var.first.find("Abs")!=std::string::npos);
     auto varN = var.first; if (isAbs) { varN.erase(varN.find("Abs"), 3); }
-    if (row->find(varN.c_str()) && (contain(var.second, "Min"))) {
+    if (row->find(varN.c_str()) && (contain(var.second, tag+"Min"))) {
       const auto& v = dynamic_cast<RooRealVar*>(row->find(varN.c_str()));
-      v->setMin(isAbs ? -var.second.at("Max") : var.second.at("Min"));
-      v->setMax(var.second.at("Max"));
+      v->setMin(isAbs ? -var.second.at(tag+"Max") : var.second.at(tag+"Min"));
+      v->setMax(var.second.at(tag+"Max"));
     }
   }
+};
+
+
+void setDSParamaterRange(RooWorkspace& ws, const std::string& dsName, const GlobalInfo& info, const std::string& tag="")
+{
+  const auto& ds = dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()));
+  if (!ds) { throw std::runtime_error("[ERROR] Dataset "+dsName+" was not found!"); }
+  defineSet(ws, "SET_"+dsName, *ds->get());
+  setDSParamaterRange(*ds, info, tag);
 };
 
 
@@ -844,26 +816,146 @@ void setDefaultRange(RooWorkspace& ws, const GlobalInfo& info)
   for (const auto& v : info.Var) {
     if (!ws.var(v.first.c_str()) || !contain(v.second, "Default_Min")) continue;
     ws.var(v.first.c_str())->setRange("DEFAULT", v.second.at("Default_Min"), v.second.at("Default_Max"));
+    if (contain(v.second, "binWidth")) {
+      const auto& nBins = getNBins(v.second.at("Default_Min"), v.second.at("Default_Max"), v.second.at("binWidth"));
+      ws.var(v.first.c_str())->setBins(nBins, "DEFAULT");
+    }
   }
 };
 
 
-bool setFitParameterRange(RooWorkspace& ws, GlobalInfo& info, const std::string& chg)
+bool setFitParameterRange(RooWorkspace& ws, GlobalInfo& info)
 {
   // Store the default range
   setDefaultRange(ws, info);
   // Set the fit parameter range
-  for (const auto& var : info.StrS.at("fitVariable")) {
+  for (const auto& var : info.StrS.at("fitCondVariable")) {
     if (!ws.var(var.c_str())) { std::cout << "[ERROR] Parameter " << var << " does not exist, failed to set fit parameter range!" << std::endl; return false; }
-    if ((var=="Cand_DLenErr" || var=="Cand_DLenRes") && info.Flag.at("fit"+var)) {
-      if (!getRange(info, ws, var, chg, 2, 5.0)) { return false; }
-    }
-    ws.var(var.c_str())->setRange("FitWindow", info.Var.at(var).at("Min"), info.Var.at(var).at("Max"));
-    ws.var(var.c_str())->setBins(getNBins(var, info), "FitWindow");
+    const auto& varMin = info.Var.at(var).at("Min");
+    const auto& varMax = info.Var.at(var).at("Max");
+    const auto& varNBins = getNBins(varMin, varMax, info.Var.at(var).at("binWidth"));
+    ws.var(var.c_str())->setRange("FitWindow", varMin, varMax);
+    ws.var(var.c_str())->setBins(varNBins, "FitWindow");
+    const auto& varFullMin = info.Var.at(var).at("Full_Min");
+    const auto& varFullMax = info.Var.at(var).at("Full_Max");
+    const auto& varFullNBins = getNBins(varFullMin, varFullMax, info.Var.at(var).at("binWidth"));
+    ws.var(var.c_str())->setRange("FullWindow", varFullMin, varFullMax);
+    ws.var(var.c_str())->setBins(varFullNBins, "FullWindow");
+    const auto& varPlotMin = info.Var.at(var).at("Plot_Min");
+    const auto& varPlotMax = info.Var.at(var).at("Plot_Max");
+    const auto& varPlotNBins = getNBins(varPlotMin, varPlotMax, info.Var.at(var).at("binWidth"));
+    ws.var(var.c_str())->setRange("PlotWindow", varPlotMin, varPlotMax);
+    ws.var(var.c_str())->setBins(varPlotNBins, "PlotWindow");
     const auto& nBins = getNBins(ws.var(var.c_str())->getMin(), ws.var(var.c_str())->getMax(), info.Var.at(var).at("binWidth"));
     ws.var(var.c_str())->setBins(nBins);
   }
   return true;
+};
+
+
+bool updateFitRange(RooWorkspace& ws, GlobalInfo&  info, const std::string& chg)
+{
+  DoubleDiMap_t inVarList;
+  for (const auto& varN : info.StrS.at("fitCondVariable")) {
+    int emptyBins = -1;
+    double varMin = -99999.9, varMax = -99999.9;
+    if (info.Flag.at("fitData")) {
+      emptyBins = 5;
+      if (varN.rfind("Cand_DLen", 0)==0) {
+	varMin = -999.9;
+	varMax = -999.9;
+      }
+      if (varN=="Cand_DLenRes") {
+	varMin = (info.Flag.at("fitPsi2S") ? -999.9 : info.Var.at(varN).at("Plot_Min"));
+	varMax = 0.0;
+      }
+      if (varN=="Cand_DLen" && info.Flag.at("fitBkg")) {
+	varMin = info.Var.at(varN).at("Plot_Min");
+	varMax = info.Var.at(varN).at("Plot_Max");
+      }
+    }
+    else if (info.Flag.at("fitMC")) {
+      emptyBins = 5;
+      if (varN=="Cand_DLenErr" || varN=="Cand_DLen") {
+	varMin = -999.9;
+	varMax = -999.9;
+      }
+    }
+    inVarList[varN] = {{"Min", varMin}, {"Max", varMax}, {"EmptyBins", emptyBins}};
+  }
+  //
+  std::string cutDS = "";
+  DoubleDiMap_t varList;
+  const auto& dsName = info.Par.at("dsName"+chg);
+  const auto& ds = ws.data(dsName.c_str());
+  const auto& dsVars = ds->get();
+  for (const auto& v : inVarList) {
+    const auto& varN = v.first;
+    if (!dsVars->find(varN.c_str())) continue;
+    if (v.second.at("Min")==-99999.9 && v.second.at("Max")==-99999.9) continue;
+    double vMin=0., vMax=0.;
+    if ((v.second.at("Min")==-999.9 || v.second.at("Max")==-999.9) && !getRange(ds, *ws.var(varN.c_str()), vMin, vMax, v.second.at("EmptyBins"))) { return false; }
+    const double& varMin = ((v.second.at("Min") != -999.9) ? ((v.second.at("Min") != -99999.9) ? v.second.at("Min") : ws.var(varN.c_str())->getMin()) : vMin);
+    const double& varMax = ((v.second.at("Max") != -999.9) ? ((v.second.at("Max") != -99999.9) ? v.second.at("Max") : ws.var(varN.c_str())->getMax()) : vMax);
+    if (varMin==varMax) { cutDS += Form("(%s == %g) && ", varN.c_str(), varMax); }
+    else { cutDS += Form("(%g <= %s && %s < %g) && ", varMin, varN.c_str(), varN.c_str(), varMax); }
+    info.StrS.at("cutPars").insert(varN);
+    varList[varN] = {{"Min", varMin}, {"Max", varMax}};
+  }
+  if (varList.empty()) return true;
+  cutDS = cutDS.substr(0, cutDS.rfind(" && "));
+  addString(ws, "cutDSFit", cutDS); // Save the cut expression for bookkeeping
+  //
+  for (const auto& v : varList) {
+    const auto& nBins = getNBins(v.second.at("Min"), v.second.at("Max"), ws.var(v.first.c_str())->getBinWidth(0));
+    ws.var(v.first.c_str())->setRange("FitWindow", v.second.at("Min"), v.second.at("Max"));
+    ws.var(v.first.c_str())->setBins(nBins, "FitWindow");
+    ws.var(v.first.c_str())->setRange(v.second.at("Min"), v.second.at("Max"));
+    ws.var(v.first.c_str())->setBins(nBins);
+    info.Var.at(v.first.c_str()).at("Min") = v.second.at("Min");
+    info.Var.at(v.first.c_str()).at("Max") = v.second.at("Max");
+    std::cout << "[INFO] " << v.first << " range was updated to : " << ws.var(v.first.c_str())->getMin() << " <= " << v.first << " < " << ws.var(v.first.c_str())->getMax() << std::endl;
+  }
+  //
+  const auto& listData = ws.allData();
+  for (const auto& ds : listData) {
+    std::string dsN = ds->GetName();
+    const auto& tmpDS = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ds->reduce(RooFit::Cut(cutDS.c_str()))));
+    if (!tmpDS) { std::cout << "[ERROR] Reduced RooDataSet " << dsN << " was not created!" << std::endl; return false; }
+    if (tmpDS->numEntries() > 0 && tmpDS->numEntries() < ds->numEntries()) {
+      std::cout << "[INFO] Applying cut: " << cutDS << " on dataset: " << dsN << std::endl;
+      if (dsN==dsName) {
+	dsN += "_FIT";
+	info.Par.at("dsNameFit"+chg) = dsN;
+	if (contain(info.Par, "dsSPlotName"+chg) && info.Par.at("dsSPlotName"+chg)==dsName) { info.Par.at("dsSPlotNameFit"+chg) = dsN; }
+	if (ws.import(*tmpDS, RooFit::Rename(dsN.c_str()))) { std::cout << "[ERROR] RooDataSet " << dsN << " was not created!" << std::endl; return false; }
+	info.Var.at("numEntries")[dsN] = tmpDS->sumEntries();
+	ws.factory(Form("numEntries_%s[%.0f]", dsN.c_str(), tmpDS->sumEntries()));
+      }
+      else {
+	ws.RecursiveRemove(ds); if(ds) delete ds;
+	if (ws.import(*tmpDS, RooFit::Rename(dsN.c_str()))) { std::cout << "[ERROR] RooDataSet " << dsN << " was not created!" << std::endl; return false; }
+      }
+      std::cout << "[INFO] RooDataSet " << dsN << " reduced from " << ds->numEntries() << " to " << tmpDS->numEntries() << " events" << std::endl;
+      setDSParamaterRange(ws, dsN, info);
+    }
+    else if (tmpDS->numEntries() <= 0) {  std::cout << "[ERROR] Reduced RooDataSet " << dsN << " has 0 entries!" << std::endl; return false; }
+    else if (tmpDS->numEntries() > ds->numEntries()) { std::cout << "[ERROR] Reduced RooDataSet " << dsN << " has more entries than original!" << std::endl; return false; }
+  }
+  //
+  return true;
+};
+
+
+bool fitPDF(std::unique_ptr<RooFitResult>& fitResult, RooWorkspace& ws, const std::vector<RooCmdArg>& cmdList, const std::string& pdfName, const std::string& dsName, const std::string& snapshot="")
+{
+  if (snapshot!="") { ws.loadSnapshot(snapshot.c_str()); }
+  RooLinkedList fitConf; auto cmdL = cmdList; for (auto& cmd : cmdL) { fitConf.Add(dynamic_cast<TObject*>(&cmd)); };
+  const auto& tmp = ws.pdf(pdfName.c_str())->fitTo(*ws.data(dsName.c_str()), fitConf);
+  fitResult.reset(tmp);
+  bool fitPass = true; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitPass = false; break; } }
+  fitResult->Print("v");
+  return fitPass;
 };
 
 
@@ -899,7 +991,6 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
     break;
   }
   cutDS = cutDS.substr(0, cutDS.rfind(" && "));
-  addString(myws, "cutDS", cutDS); // Save the cut expression for bookkeeping
   //
   // Add the decay length input selection
   if (contain(info.Par, "Cut") && info.Par.at("Cut")!="") {
@@ -932,6 +1023,7 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
       addString(myws, "cutSelStr", cutLbl); // Save the cut label for bookkeeping
     }
   }
+  addString(myws, "cutDS", cutDS); // Save the cut expression for bookkeeping
   //
   std::cout << "[INFO] Importing local RooDataSets with cuts: " << cutDS << std::endl;
   //
@@ -969,43 +1061,30 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
           if (myws.import(*data)) { std::cout << "[ERROR] DataSet " << dsName << " was not imported!" << std::endl; return -1; }
 	  if (!myws.data(dsName.c_str())) { std::cout << "[ERROR] Importing RooDataSet " <<  dsName << " failed!" << std::endl; return -1; }
 	  copyWorkspace(myws, inputWS.at(label), "", false, false, true); // Copy the generic objects
+	  storeDSRange(myws, data.get());
         }
         std::cout << "[INFO] " << data->numEntries() << " entries imported from local RooDataSet " << dsName << std::endl;
         // Set the range of each global parameter in the local roodataset
 	if (myws.data(dsName.c_str())) { setDSParamaterRange(myws, dsName, info); }
       }
-      //
-      const auto& dsSPLOTInputName = (dsName+"_SPLOT_INPUT");
-      if (myws.data(dsSPLOTInputName.c_str())) {
-        auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(myws.data(dsSPLOTInputName.c_str())->reduce(cutDS.c_str())));
-        // Set the range of each global parameter in the local roodataset
-	setDSParamaterRange(myws, dsSPLOTInputName, info);
-        if (data->sumEntries()==0){ std::cout << "[ERROR] No events from dataset " <<  dsSPLOTInputName << " passed the kinematic cuts!" << std::endl; }
-        else if (!isCompatibleDataset(*data, *dynamic_cast<RooDataSet*>(myws.data(dsName.c_str())))) { cout << "[ERROR] sPlot and Original Datasets are inconsistent!" << std::endl; return -1; }
-        else {
-          const auto& dsSPLOTName = (dsName+"_SPLOT");
-          data->SetName(dsSPLOTName.c_str());
-          if (myws.import(*data, RooFit::Rename(dsSPLOTName.c_str()))) { std::cout << "[ERROR] DataSet " << dsSPLOTName << " was not imported!" << std::endl; return -1; }
-          if (myws.data(dsSPLOTName.c_str())) { std::cout << "[INFO] RooDataSet " << dsSPLOTName << " was imported!" << std::endl; }
-          else { std::cout << "[ERROR] Importing RooDataSet " << dsSPLOTName << " failed!" << std::endl; return -1; }
-          std::cout << "[INFO] SPlotDS Events: " << data->sumEntries() << " , origDS Events: " << myws.data(Form("dOS_%s", label.c_str()))->sumEntries() << std::endl;
-        }
-      }
     }
   }
-  // Check if the user wants to use the Center-of-Mass frame
+  // Check if user wants to use the Center-of-Mass frame
   for (auto& v : info.Var) {
     if (contain(info.Flag, "use"+v.first+"CM") && info.Flag.at("use"+v.first+"CM")) {
       myws.factory(Form("use%sCM[1.0]", v.first.c_str()));
     }
   }
   // Set the range of each global parameter in the local workspace
+  StringSet_t varSet;
   for (const auto& var : info.Var) {
     const bool& isAbs = (var.first.find("Abs")!=std::string::npos && contain(info.StrS.at("cutPars"), var.first));
     auto varN = var.first; if (isAbs) { varN.erase(varN.find("Abs"), 3); }
+    if (contain(varSet, varN)) continue;
     if (myws.var(varN.c_str()) && contain(var.second, "Min")) {
       myws.var(varN.c_str())->setMin(isAbs ? -var.second.at("Max") : var.second.at("Min"));
       myws.var(varN.c_str())->setMax(var.second.at("Max"));
+      varSet.insert(varN);
     }
     else if (!myws.var(var.first.c_str()) && contain(var.second, "Val")) {
       myws.factory(Form("%s[%.10f]", var.first.c_str(), var.second.at("Val")));
@@ -1020,12 +1099,10 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
     // Ignore if it is the fitting variable
     if (contain(info.StrS.at("fitVariable"), var)) continue;
     // Check if is an absolute value variable
-    const bool& isAbs = (var.find("Abs")!=std::string::npos);
-    auto varN = var; if (isAbs) { varN.erase(varN.find("Abs"), 3); }
     // Print the binning
-    if (myws.var(varN.c_str())) {
-      const auto& varMin = (isAbs ? info.Var.at(var).at("Min") : myws.var(varN.c_str())->getMin());
-      const auto& varMax = myws.var(varN.c_str())->getMax();
+    if (myws.var(var.c_str())) {
+      const auto& varMin = myws.var(var.c_str())->getMin();
+      const auto& varMax = myws.var(var.c_str())->getMax();
       if (contain(info.Flag, "use"+var+"CM")  && info.Flag.at("use"+var+"CM")) {
 	const bool& ispPb = (info.Flag.at("fitpPb8Y16") || info.Flag.at("fitPA8Y16"));
 	binInfo += Form(" %g <= %s < %g ,", pPb::EtaLABtoCM(varMin, ispPb), (var+"CM").c_str(), pPb::EtaLABtoCM(varMax, ispPb));
@@ -1042,18 +1119,6 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
   binInfo = binInfo.substr(0, binInfo.rfind(" ,"));
   std::cout << binInfo << std::endl;
   return 1;
-};
-
-
-bool fitPDF(std::unique_ptr<RooFitResult>& fitResult, RooWorkspace& ws, const std::vector<RooCmdArg>& cmdList, const std::string& pdfName, const std::string& dsName, const std::string& snapshot="")
-{
-  if (snapshot!="") { ws.loadSnapshot(snapshot.c_str()); }
-  RooLinkedList fitConf; for (auto cmd : cmdList) { fitConf.Add(dynamic_cast<TObject*>(&cmd)); }
-  const auto& tmp = ws.pdf(pdfName.c_str())->fitTo(*ws.data(dsName.c_str()), fitConf);
-  fitResult.reset(tmp);
-  bool fitPass = true; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitPass = false; break; } }
-  fitResult->Print("v");
-  return fitPass;
 };
 
 

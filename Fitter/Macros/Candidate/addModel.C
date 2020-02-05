@@ -19,26 +19,26 @@
 #include "../Utilities/rooDataUtils.h"
 
 
-RooAbsPdf*  getTotalPDF ( RooWorkspace& ws , const std::string& var , const std::string& label , const GlobalInfo& info   );
-bool        makeSPlotDS ( RooWorkspace& ws , GlobalInfo& info       , const std::string& var   , const std::string& label );
+bool makeSPlotDS ( RooWorkspace& ws , GlobalInfo& info       , const std::string& label );
 
 
 bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const StringSet_t& varV={})
 {
   //
   const auto& cha = info.Par.at("channel");
-  auto varS = info.StrS.at("fitVariable"); if (!varV.empty()) { varS = varV; }
-  auto varT = info.StrS.at("fitVarName"); if (!varV.empty()) { varT.clear(); for (const auto& v : varV) { auto t = v; stringReplace(t, "_", ""); varT.insert(t); } }
+  auto varS = info.StrS.at("fitCondVariable"); if (!varV.empty()) { varS = varV; }
+  auto varT = info.StrS.at("fitCondVarName"); if (!varV.empty()) { varT.clear(); for (const auto& v : varV) { auto t = v; stringReplace(t, "_", ""); varT.insert(t); } }
   std::string varTot = ""; for (const auto& v : varT) { varTot += v; }
   for (const auto& col : info.StrS.at("fitSystem")) {
     const auto& lbl = cha + chg + "_" + col;
     //
-    RooArgList pdfListTot;
+    std::map<std::string, RooArgList> pdfMapTot;
     for (const auto& mainObj : info.StrS.at("fitObject")) {
       const auto& mainTag = mainObj + cha + chg;
       const auto& mainLabel = mainTag + "_" + col;
       //
-      std::map<std::string, RooArgList> pdfListVar;
+      std::map<std::string, RooArgList> pdfListVar, condPdfListVar;
+      std::map<std::string,  std::map<std::string, RooArgList> > pdfMapVar;
       for (const auto& varName : varS) {
 	const std::string& varWindow   = "FitWindow";
 	const auto& varNormName = (varName+"Norm");
@@ -48,16 +48,14 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	StringVector_t objV;
 	if (contain(info.StrS.at("addObjectModel_"+varType+"_"+mainLabel), "DLenRes")) { objV.push_back("DLenRes"); }
 	if (contain(info.StrS.at("addObjectModel_"+varType+"_"+mainLabel), mainObj)) { objV.push_back(mainObj); }
-	for (const auto& m : info.StrS.at("addObjectModel_"+varType+"_"+mainLabel)) { if (m!="DLenRes" && m!=mainObj) { objV.push_back(m); } }
+	for (const auto& m : info.StrS.at("addObjectModel_"+varType+"_"+mainLabel)) { if (!contain(objV, m)) { objV.push_back(m); } }
 	std::map<std::string, RooArgList> pdfList;
 	for (const auto& obj : objV) {
 	  const auto& modelN = info.Par.at("Model"+varType+"_"+mainLabel+"_"+obj);
 	  const auto& tag = obj + cha + chg;
 	  const auto& label = tag + "_" + col;
-	  auto objI = obj;
-	  if (objI!="DLenRes" && !contain(info.StrV.at("variable"), objI)) {
-	    for (const auto& c : info.StrV.at("category")) { if (objI.rfind(c)!=std::string::npos) { stringReplace(objI, c, ""); break; } }
-	  }
+	  auto objI = obj.substr(0, obj.find("Cat"));
+	  const auto& labelI = objI + cha + chg + "_" + col;
 	  addString(ws, ("Model"+varType+"_"+label), modelN); // Save the model name for bookkeeping
 	  //
 	  const std::string& pdfName    = Form("pdf%s_%s",    varType.c_str(), label.c_str());
@@ -65,11 +63,12 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	  const std::string& pdf2Name   = Form("pdf%s2_%s",   varType.c_str(), label.c_str());
 	  const std::string& pdf3Name   = Form("pdf%s3_%s",   varType.c_str(), label.c_str());
 	  const std::string& pdf4Name   = Form("pdf%s4_%s",   varType.c_str(), label.c_str());
+	  const std::string& pdf5Name   = Form("pdf%s5_%s",   varType.c_str(), label.c_str());
 	  const std::string& pdfPolName = Form("pdf%sPol_%s", varType.c_str(), label.c_str());
 	  const std::string& pdfResName = Form("pdf%s_DLenRes%s", varType.c_str(), lbl.c_str());
 	  //
 	  // Create Models
-	  switch(ModelDictionary.at(modelN))
+	  switch(ModelDictionary.at(modelN).first)
 	    {
 	      //-------------------------------------------
 	      //
@@ -111,16 +110,27 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::SPLOT)):
 	      {
 		// create the sPlot DataSet
-		if (!makeSPlotDS(ws, info, varName, label)) { return false; }
+		if (!makeSPlotDS(ws, info, label)) { return false; }
 		// create the PDF
-		const auto& sPlotDS = info.Par.at("dsName"+chg)+"_SPLOT";
-		const auto& sPlotN = ("N_"+label+"_sw");
+		const auto& sPlotDS = info.Par.at("dsSPlotNameFit"+chg);
+		const auto& sPlotN = ("N_"+labelI+"_sw");
 		const auto& range = std::vector<double>({((double)getNBins(varName, info)), info.Var.at(varName).at("Min"), info.Var.at(varName).at("Max")});
 		auto dataw = std::unique_ptr<RooDataSet>(new RooDataSet("TMP","TMP", dynamic_cast<RooDataSet*>(ws.data(sPlotDS.c_str())), RooArgSet(*ws.var(varName.c_str()), *ws.var(sPlotN.c_str())), 0, sPlotN.c_str()));
 		if (!histToPdf(ws, pdfName, *dataw, varName, range)) { return false; }
 		// add PDF to list
 		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] " << tag << " sPlot " << varName << " Template in " << col << " added!" << std::endl; break;
+		std::cout << "[INFO] " << tag << " " << sPlotDS << " " << varName << " Template in " << col << " added!" << std::endl; break;
+	      }
+	    case (int(Model::FULL)):
+	      {
+		// create the PDF
+		const auto& dsName = info.Par.at("dsNameFit"+chg);
+		const auto& range = std::vector<double>({((double)getNBins(varName, info)), info.Var.at(varName).at("Min"), info.Var.at(varName).at("Max")});
+		auto dataw = std::unique_ptr<RooDataSet>(new RooDataSet("TMP","TMP", dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())), RooArgSet(*ws.var(varName.c_str()))));
+		if (!histToPdf(ws, pdfName, *dataw, varName, range)) { return false; }
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " " << dsName << " " << varName << " Template in " << col << " added!" << std::endl; break;
 	      }
 	      //-------------------------------------------
 	      //
@@ -168,6 +178,120 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		// add PDF to list
 		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
 		std::cout << "[INFO] " << tag << " Double Gaussian " << varName << " PDF in " << col << " added!" << std::endl; break;
+	      }
+	    case (int(Model::TripleGaussian)):
+	      {
+		// input variables
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f", "rSigma32", "Sigma3", "f2", "recf2"};
+		// create the variables for this model
+		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
+		// create the two PDFs
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf1Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma1_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma2_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf3Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma3_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
+		// Sum the PDFs to get the signal PDF
+		if (!ws.factory(Form("SUM::%s(%s*%s, %s*%s, %s)", pdfName.c_str(),
+				     ("f_"+label).c_str(), 
+				     pdf1Name.c_str(),
+				     ("recf2_"+label).c_str(),
+				     pdf2Name.c_str(),
+				     pdf3Name.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " Triple Gaussian " << varName << " PDF in " << col << " added!" << std::endl; break;
+	      }
+	    case (int(Model::QuadrupleGaussian)):
+	      {
+		// input variables
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f", "rSigma32", "Sigma3", "f2", "recf2", "rSigma43", "Sigma4", "f3", "recf3"};
+		// create the variables for this model
+		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
+		// create the two PDFs
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf1Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma1_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma2_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf3Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma3_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf4Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma4_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf4Name << std::endl; return false; }
+		// Sum the PDFs to get the signal PDF
+		if (!ws.factory(Form("SUM::%s(%s*%s, %s*%s, %s*%s, %s)", pdfName.c_str(),
+				     ("f_"+label).c_str(),
+				     pdf1Name.c_str(),
+				     ("recf2_"+label).c_str(),
+				     pdf2Name.c_str(),
+				     ("recf3_"+label).c_str(),
+				     pdf3Name.c_str(),
+				     pdf4Name.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " Quadruple Gaussian " << varName << " PDF in " << col << " added!" << std::endl; break;
+	      }
+	    case (int(Model::PentaGaussian)):
+	      {
+		// input variables
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f", "rSigma32", "Sigma3", "f2", "recf2", "rSigma43", "Sigma4", "f3", "recf3", "rSigma54", "Sigma5", "f4", "recf4"};
+		// create the variables for this model
+		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
+		// create the two PDFs
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf1Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma1_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma2_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf3Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma3_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf4Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma4_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf4Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf5Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma5_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf5Name << std::endl; return false; }
+		// Sum the PDFs to get the signal PDF
+		if (!ws.factory(Form("SUM::%s(%s*%s, %s*%s, %s*%s, %s*%s, %s)", pdfName.c_str(),
+				     ("f_"+label).c_str(),
+				     pdf1Name.c_str(),
+				     ("recf2_"+label).c_str(),
+				     pdf2Name.c_str(),
+				     ("recf3_"+label).c_str(),
+				     pdf3Name.c_str(),
+				     ("recf4_"+label).c_str(),
+				     pdf4Name.c_str(),
+				     pdf5Name.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " Penta Gaussian " << varName << " PDF in " << col << " added!" << std::endl; break;
 	      }
 	    case (int(Model::SingleCrystalBall)):
 	      {
@@ -863,14 +987,12 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		// create the PDF
 		if (!ws.factory(Form("TruthModel::%s(%s)", pdfName.c_str(), varName.c_str()))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
 		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
-		// add PDF to list
-		if (varName=="Cand_DLenRes") pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] " << tag << " Truth " << varName << " Model in " << col << " added!" << std::endl; break;
+		std::cout << "[INFO] " << tag << " Truth " << varName << " Resolution Model in " << col << " added!" << std::endl; break;
 	      }
 	    case (int(Model::SingleGaussianResolution)):
 	      {
 		// input variables
-		StringVector_t parNames = {"m", "Sigma1"};
+		const StringVector_t parNames = {"m", "Sigma1"};
 		// create the variables for this model
 		if (!ws.var("One")) { ws.factory("One[1.0]"); }
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
@@ -881,14 +1003,12 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 				     (varName=="Cand_DLenRes" ? "One" : "Cand_DLenErr")
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
 		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
-		// add PDF to list
-		if (varName=="Cand_DLenRes") pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] " << tag << " Single Gaussian " << varName << " Model in " << col << " added!" << std::endl; break;
+		std::cout << "[INFO] " << tag << " Single Gaussian " << varName << " Resolution Model in " << col << " added!" << std::endl; break;
 	      }
 	    case (int(Model::DoubleGaussianResolution)):
 	      {
 		// input variables
-		StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f"};
 		// create the variables for this model
 		if (!ws.var("One")) { ws.factory("One[1.0]"); }
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
@@ -910,14 +1030,12 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 				     ("f_"+label).c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
 		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
-		// add PDF to list
-		if (varName=="Cand_DLenRes") pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] " << tag << " Double Gaussian " << varName << " Model in " << col << " added!" << std::endl; break;
+		std::cout << "[INFO] " << tag << " Double Gaussian " << varName << " Resolution Model in " << col << " added!" << std::endl; break;
 	      }
 	    case (int(Model::TripleGaussianResolution)):
 	      {
 		// input variables
-		StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f", "rSigma32", "Sigma3", "f2"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f", "rSigma32", "Sigma3", "f2", "recf2"};
 		// create the variables for this model
 		if (!ws.var("One")) { ws.factory("One[1.0]"); }
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
@@ -943,17 +1061,15 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 				     pdf2Name.c_str(),
 				     pdf3Name.c_str(),
 				     ("f_"+label).c_str(),
-				     ("f2_"+label).c_str()
+				     ("recf2_"+label).c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
 		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
-		// add PDF to list
-		if (varName=="Cand_DLenRes") pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] " << tag << " Triple Gaussian " << varName << " Model in " << col << " added!" << std::endl; break;
+		std::cout << "[INFO] " << tag << " Triple Gaussian " << varName << " Resolution Model in " << col << " added!" << std::endl; break;
 	      }
 	    case (int(Model::QuadrupleGaussianResolution)):
 	      {
 		// input variables
-		StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f", "rSigma32", "Sigma3", "f2", "rSigma43", "Sigma4", "f3"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f", "rSigma32", "Sigma3", "f2", "recf2", "rSigma43", "Sigma4", "f3", "recf3"};
 		// create the variables for this model
 		if (!ws.var("One")) { ws.factory("One[1.0]"); }
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
@@ -985,13 +1101,59 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 				     pdf3Name.c_str(),
 				     pdf4Name.c_str(),
 				     ("f_"+label).c_str(),
-				     ("f2_"+label).c_str(),
-				     ("f3_"+label).c_str()
+				     ("recf2_"+label).c_str(),
+				     ("recf3_"+label).c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
 		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
-		// add PDF to list
-		if (varName=="Cand_DLenRes") pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] " << tag << " Quadruple Gaussian " << varName << " Model in " << col << " added!" << std::endl; break;
+		std::cout << "[INFO] " << tag << " Quadruple Gaussian " << varName << " Resolution Model in " << col << " added!" << std::endl; break;
+	      }
+	    case (int(Model::PentaGaussianResolution)):
+	      {
+		// input variables
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "f", "rSigma32", "Sigma3", "f2", "recf2", "rSigma43", "Sigma4", "f3", "recf3", "rSigma54", "Sigma5", "f4", "recf4"};
+		// create the variables for this model
+		if (!ws.var("One")) { ws.factory("One[1.0]"); }
+		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
+		// create the two PDFs
+		if (!ws.factory(Form("GaussModel::%s(%s, %s, %s, One, %s)", pdf1Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma1_"+label).c_str(),
+				     (varName=="Cand_DLenRes" ? "One" : "Cand_DLenErr")
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
+		if (!ws.factory(Form("GaussModel::%s(%s, %s, %s, One, %s)", pdf2Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma2_"+label).c_str(),
+				     (varName=="Cand_DLenRes" ? "One" : "Cand_DLenErr")
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
+		if (!ws.factory(Form("GaussModel::%s(%s, %s, %s, One, %s)", pdf3Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma3_"+label).c_str(),
+				     (varName=="Cand_DLenRes" ? "One" : "Cand_DLenErr")
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
+		if (!ws.factory(Form("GaussModel::%s(%s, %s, %s, One, %s)", pdf4Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma4_"+label).c_str(),
+				     (varName=="Cand_DLenRes" ? "One" : "Cand_DLenErr")
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf4Name << std::endl; return false; }
+		if (!ws.factory(Form("GaussModel::%s(%s, %s, %s, One, %s)", pdf5Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma5_"+label).c_str(),
+				     (varName=="Cand_DLenRes" ? "One" : "Cand_DLenErr")
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf5Name << std::endl; return false; }
+		// sum the PDFs to get the total PDF
+		if (!ws.factory(Form("AddModel::%s({%s, %s, %s, %s, %s}, {%s, %s, %s, %s})", pdfName.c_str(),
+				     pdf1Name.c_str(),
+				     pdf2Name.c_str(),
+				     pdf3Name.c_str(),
+				     pdf4Name.c_str(),
+				     pdf5Name.c_str(),
+				     ("f_"+label).c_str(),
+				     ("recf2_"+label).c_str(),
+				     ("recf3_"+label).c_str(),
+				     ("recf4_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+		std::cout << "[INFO] " << tag << " Penta Gaussian " << varName << " Resolution Model in " << col << " added!" << std::endl; break;
 	      }
 	      //-------------------------------------------
 	      //
@@ -1012,7 +1174,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::SingleSidedDecay)):
 	      {
 		// input variables
-		StringVector_t parNames = {"LambdaSS"};
+		const StringVector_t parNames = {"LambdaSS"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// create the PDF
@@ -1025,10 +1187,36 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
 		std::cout << "[INFO] " << tag << " Single Sided Decay " << varName << " PDF in " << col << " added!" << std::endl; break;
 	      }
+            case (int(Model::DoubleSingleSidedDecay)): 
+              { 
+                // input variables
+                const StringVector_t parNames = {"LambdaSS", "rLambdaSS21", "LambdaSS2", "f"};
+                // create the variables for this model
+                if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
+                // create the PDF
+                if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::SingleSided)", pdf1Name.c_str(), varName.c_str(),
+                                     ("LambdaSS_"+label).c_str(),
+                                     pdfResName.c_str() 
+                                     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
+                if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::SingleSided)", pdf2Name.c_str(), varName.c_str(),
+                                     ("LambdaSS2_"+label).c_str(),
+                                     pdfResName.c_str()
+                                     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
+                // sum the PDFs to get the total PDF
+                if (!ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
+                                     ("f_"+label).c_str(),
+                                     pdf1Name.c_str(),
+                                     pdf2Name.c_str()
+                                     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+                ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+                // add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+                std::cout << "[INFO] " << tag << " Double Single Sided Decay " << varName << " PDF in " << col << " added!" << std::endl; break;
+              }
 	    case (int(Model::TripleDecay)):
 	      {
 		// input variables
-		StringVector_t parNames = {"LambdaSS", "LambdaF", "LambdaDS", "f", "f2"};
+		const StringVector_t parNames = {"LambdaSS", "LambdaF", "LambdaDS", "f", "f2", "recf2"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// create the PDF
@@ -1036,21 +1224,21 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 				     ("LambdaSS_"+label).c_str(),
 				     pdfResName.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
-		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::Flipped)", pdf2Name.c_str(), varName.c_str(),
-				     ("LambdaF_"+label).c_str(),
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::DoubleSided)", pdf2Name.c_str(), varName.c_str(),
+				     ("LambdaDS_"+label).c_str(),
 				     pdfResName.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
-		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::DoubleSided)", pdfName.c_str(), varName.c_str(),
-				     ("LambdaDS_"+label).c_str(),
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::Flipped)", pdf3Name.c_str(), varName.c_str(),
+				     ("LambdaF_"+label).c_str(),
 				     pdfResName.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
 		// sum the PDFs to get the total PDF
-		if (!ws.factory(Form("SUM::%s({%s, %s, %s}, {%s, %s})", pdfName.c_str(),
-				     pdf1Name.c_str(),
-				     pdf2Name.c_str(),
-				     pdf3Name.c_str(),
+		if (!ws.factory(Form("SUM::%s(%s*%s, %s*%s, %s)", pdfName.c_str(),
 				     ("f_"+label).c_str(),
-				     ("f2_"+label).c_str()
+				     pdf1Name.c_str(),
+				     ("recf2_"+label).c_str(),
+				     pdf2Name.c_str(),
+				     pdf3Name.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
 		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
 		// add PDF to list
@@ -1060,7 +1248,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::QuadrupleDecay)):
 	      {
 		// input variables
-		StringVector_t parNames = {"LambdaSS", "LambdaSS2", "LambdaF", "LambdaDS", "f", "f2", "f3"};
+		const StringVector_t parNames = {"LambdaSS", "rLambdaSS21", "LambdaSS2", "LambdaF", "LambdaDS", "f", "f2", "recf2", "f3", "recf3"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// create the PDF
@@ -1068,27 +1256,103 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 				     ("LambdaSS_"+label).c_str(),
 				     pdfResName.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
-		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::SingleSided)", pdf2Name.c_str(), varName.c_str(),
-				     ("LambdaSS2_"+label).c_str(),
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::DoubleSided)", pdf2Name.c_str(), varName.c_str(),
+				     ("LambdaDS_"+label).c_str(),
 				     pdfResName.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
 		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::Flipped)", pdf3Name.c_str(), varName.c_str(),
 				     ("LambdaF_"+label).c_str(),
 				     pdfResName.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
-		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::DoubleSided)", pdf4Name.c_str(), varName.c_str(),
-				     ("LambdaDS_"+label).c_str(),
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::SingleSided)", pdf4Name.c_str(), varName.c_str(),
+				     ("LambdaSS2_"+label).c_str(),
 				     pdfResName.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf4Name << std::endl; return false; }
 		// sum the PDFs to get the total PDF
-		if (!ws.factory(Form("SUM::%s({%s, %s, %s, %s}, {%s, %s, %s})", pdfName.c_str(),
-				     pdf1Name.c_str(),
-				     pdf2Name.c_str(),
-				     pdf3Name.c_str(),
-				     pdf4Name.c_str(),
+		if (!ws.factory(Form("SUM::%s(%s*%s, %s*%s, %s*%s, %s)", pdfName.c_str(),
 				     ("f_"+label).c_str(),
-				     ("f2_"+label).c_str(),
-				     ("f3_"+label).c_str()
+				     pdf1Name.c_str(),
+				     ("recf2_"+label).c_str(),
+				     pdf2Name.c_str(),
+				     ("recf3_"+label).c_str(),
+				     pdf3Name.c_str(),
+				     pdf4Name.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " Quadruple Decay " << varName << " PDF in " << col << " added!" << std::endl; break;
+	      }
+	    case (int(Model::QuadrupleDecay2)):
+	      {
+		// input variables
+		const StringVector_t parNames = {"LambdaSS", "LambdaF", "rLambdaF21", "LambdaF2", "LambdaDS", "f", "f2", "recf2", "f3", "recf3"};
+		// create the variables for this model
+		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
+		// create the PDF
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::SingleSided)", pdf1Name.c_str(), varName.c_str(),
+				     ("LambdaSS_"+label).c_str(),
+				     pdfResName.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::DoubleSided)", pdf2Name.c_str(), varName.c_str(),
+				     ("LambdaDS_"+label).c_str(),
+				     pdfResName.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::Flipped)", pdf3Name.c_str(), varName.c_str(),
+				     ("LambdaF2_"+label).c_str(),
+				     pdfResName.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::Flipped)", pdf4Name.c_str(), varName.c_str(),
+				     ("LambdaF_"+label).c_str(),
+				     pdfResName.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf4Name << std::endl; return false; }
+		// sum the PDFs to get the total PDF
+		if (!ws.factory(Form("SUM::%s(%s*%s, %s*%s, %s*%s, %s)", pdfName.c_str(),
+				     ("f_"+label).c_str(),
+				     pdf1Name.c_str(),
+				     ("recf2_"+label).c_str(),
+				     pdf2Name.c_str(),
+				     ("recf3_"+label).c_str(),
+				     pdf3Name.c_str(),
+				     pdf4Name.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " Quadruple Decay " << varName << " PDF in " << col << " added!" << std::endl; break;
+	      }
+	    case (int(Model::QuadrupleDecay3)):
+	      {
+		// input variables
+		const StringVector_t parNames = {"LambdaSS", "LambdaF", "LambdaDS", "rLambdaDS21", "LambdaDS2", "f", "f2", "recf2", "f3", "recf3"};
+		// create the variables for this model
+		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
+		// create the PDF
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::SingleSided)", pdf1Name.c_str(), varName.c_str(),
+				     ("LambdaSS_"+label).c_str(),
+				     pdfResName.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::DoubleSided)", pdf2Name.c_str(), varName.c_str(),
+				     ("LambdaDS_"+label).c_str(),
+				     pdfResName.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::DoubleSided)", pdf3Name.c_str(), varName.c_str(),
+				     ("LambdaDS2_"+label).c_str(),
+				     pdfResName.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::Flipped)", pdf4Name.c_str(), varName.c_str(),
+				     ("LambdaF_"+label).c_str(),
+				     pdfResName.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf4Name << std::endl; return false; }
+		// sum the PDFs to get the total PDF
+		if (!ws.factory(Form("SUM::%s(%s*%s, %s*%s, %s*%s, %s)", pdfName.c_str(),
+				     ("f_"+label).c_str(),
+				     pdf1Name.c_str(),
+				     ("recf2_"+label).c_str(),
+				     pdf2Name.c_str(),
+				     ("recf3_"+label).c_str(),
+				     pdf3Name.c_str(),
+				     pdf4Name.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
 		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
 		// add PDF to list
@@ -1106,51 +1370,82 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	  if (p.second.getSize()>1) {
 	    const auto& pdfName = ("pdf"+varType+"_"+p.first+lbl);
 	    // create the parameters for the PDF sum
-	    StringVector_t parNames = {"b"}; for (int i=3; i<=p.second.getSize(); i++) { parNames.push_back(Form("b%d",i-1)); }
-	    if (!addModelPar(ws, info, parNames, varName, (p.first+lbl), ("SUM_"+p.first))) { return false; }
-	    RooArgList coefList; for (const auto& par : parNames) { if (ws.var(par.c_str())) { coefList.add(*ws.var(par.c_str())); } }
+	    StringVector_t parFullNames, parNames = {"b"};
+	    for (int i=3; i<=p.second.getSize(); i++) { parNames.push_back(Form("b%d",i-1)); }
+	    if (!addModelPar(ws, info, parNames, varName, (p.first+lbl), ("SUM_"+p.first), parFullNames)) { return false; }
+	    RooArgList coefList; for (const auto& par : parFullNames) { if (ws.var(par.c_str())) { coefList.add(*ws.var(par.c_str())); } }
 	    // Sum the PDFs
-	    auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), p.second, coefList, true));
+	    auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), p.second, coefList));
 	    if (ws.import(*themodel)) { std::cout << "[ERROR] Failed to import PDF " << pdfName << std::endl; return false; }
-	    pdfListVar[p.first].add(*ws.pdf(pdfName.c_str()));
+	    const bool& isCondPdf = (varType=="CandDLen" && info.Flag.at("condCand_DLenErr"));
+	    if (isCondPdf) { condPdfListVar[p.first].add(*ws.pdf(pdfName.c_str())); } else { pdfListVar[p.first].add(*ws.pdf(pdfName.c_str())); }
+	    if (!isCondPdf) { pdfMapVar[varType][p.first].add(*ws.pdf(pdfName.c_str())); }
 	  }
-	  else { pdfListVar[p.first].add(p.second); }
+	  else { pdfListVar[p.first].add(p.second); pdfMapVar[varType][p.first].add(p.second); }
 	}
       }
-      RooArgList pdfListVarTot;
-      for (const auto& p : pdfListVar) {
-	// Multiply the PDFs
-	std::string pdfName = p.second.at(0)->GetName();
-	if (p.second.getSize()>1) {
-	  pdfName = ("pdf"+varTot+"_"+p.first+lbl);
-	  auto themodel = std::unique_ptr<RooProdPdf>(new RooProdPdf(pdfName.c_str(), pdfName.c_str(), p.second));
-	  if (ws.import(*themodel)) { std::cout << "[ERROR] Failed to import PDF " << pdfName << std::endl; return false; }
+      StringSet_t varList = {varTot}; for (const auto& v : pdfMapVar) { varList.insert(v.first); }
+      for (const auto& var : varList) {
+	RooArgList pdfListVarTot;
+	for (const auto& p : (var==varTot ? pdfListVar : pdfMapVar[var])) {
+	  // Multiply the PDFs
+	  std::string pdfName = p.second.at(0)->GetName();
+	  const auto& condPdfSize = (var==varTot ? condPdfListVar[p.first].getSize() : 0);
+	  if ((p.second.getSize()+condPdfSize)>1) {
+	    pdfName = ("pdf"+var+"_"+p.first+lbl);
+	    std::unique_ptr<RooProdPdf> themodel;
+	    if (condPdfSize>0) {
+	      themodel.reset(new RooProdPdf(pdfName.c_str(), pdfName.c_str(), p.second, RooFit::Conditional(condPdfListVar[p.first], RooArgSet(*ws.var("Cand_DLen")))));
+	    }
+	    else { themodel.reset(new RooProdPdf(pdfName.c_str(), pdfName.c_str(), p.second)); }
+	    if (ws.import(*themodel)) { std::cout << "[ERROR] Failed to import PDF " << pdfName << std::endl; return false; }
+	  }
+	  // create the yield
+	  if (!addModelPar(ws, info, {"N"}, "Cand_Mass", (p.first+lbl), "")) { return false; }
+	  // extend the PDF
+	  const auto& pdfTotName = ("pdf"+var+"Tot_"+p.first+lbl);
+	  if (!ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
+			       pdfName.c_str(),
+			       ("N_"+p.first+lbl).c_str()
+			       ))) { std::cout << "[ERROR] Failed to create extended PDF " << pdfTotName << std::endl; return false; }
+	  pdfListVarTot.add(*ws.pdf(pdfTotName.c_str()));
 	}
-	// create the yield
-	if (!addModelPar(ws, info, {"N"}, "Cand_Mass", (p.first+lbl), "")) { return false; }
-	// extend the PDF
-	const auto& pdfTotName = ("pdf"+varTot+"Tot_"+p.first+lbl);
-	if (!ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
-			     pdfName.c_str(),
-			     ("N_"+p.first+lbl).c_str()
-			     ))) { std::cout << "[ERROR] Failed to create extended PDF " << pdfTotName << std::endl; return false; }
-	pdfListVarTot.add(*ws.pdf(pdfTotName.c_str()));
+	if (pdfListVarTot.getSize()>0) {
+	  const auto& pdfName = ("pdf"+var+"_Tot"+mainLabel);
+	  auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfListVarTot));
+	  ws.import(*themodel);
+	}
+	pdfMapTot[var].add(pdfListVarTot);
       }
-      if (pdfListVarTot.getSize()>0) {
-	const auto& pdfName = ("pdf"+varTot+"_Tot"+mainLabel);
-	auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfListVarTot));
+    }
+    for (const auto& v : pdfMapTot) {
+      if (v.second.getSize()>0) {
+	const auto& pdfName = ("pdf"+v.first+"_Tot"+lbl);
+	if (v.first==varTot) { info.Par["pdfName"+chg] = pdfName; }
+	auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), v.second));
 	ws.import(*themodel);
       }
-      pdfListTot.add(pdfListVarTot);
-    }
-    if (pdfListTot.getSize()>0) {
-      const auto& pdfName = ("pdf"+varTot+"_Tot"+lbl);
-      info.Par["pdfName"+chg] = pdfName;
-      auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfListTot));
-      ws.import(*themodel);
     }
   }
   //
+  return true;
+};
+
+
+bool loadPDFParameters(RooWorkspace& ws, const std::string& var, const std::string& label, const GlobalInfo& info,
+		       const bool& loadYield=false, const bool& fixPar=true)
+{
+  // Define input file name
+  std::string fileName = "";
+  auto dir = info.Par.at("outputDir");
+  setFileName(fileName, dir, label, info, {var});
+  auto varT = var; stringReplace(varT, "_", "");
+  const auto& inFileName = (dir+"result/FIT_"+varT+"_"+fileName+".root");
+  // Extract the previous PDF results
+  const auto& cha = info.Par.at("channel");
+  const auto& chg = label.substr(label.find(cha)+cha.size(), 2);
+  const auto& pdfName = info.Par.at("pdfName"+chg);
+  if (!loadFitResult(ws, inFileName, pdfName, loadYield, fixPar)) { return false; }
   return true;
 };
 
@@ -1161,21 +1456,21 @@ RooAbsPdf* getTotalPDF(RooWorkspace& ws, const std::string& var, const std::stri
   std::string fileName = "";
   auto dir = info.Par.at("outputDir");
   setFileName(fileName, dir, label, info, {var});
-  const auto& inFileName = (dir+"result/FIT_"+fileName+".root");
+  auto varT = var; stringReplace(varT, "_", "");
+  const auto& inFileName = (dir+"result/FIT_"+varT+"_"+fileName+".root");
   // Initialize the previous PDF
   const auto& cha = info.Par.at("channel");
   const auto& chg = label.substr(label.find(cha)+cha.size(), 2);
   GlobalInfo infoTMP(info);
   if (!addModel(ws, infoTMP, chg, {var})) { return NULL; }
   // Extract the previous PDF
-  auto varT = var; stringReplace(varT, "_", "");
   const auto& pdfName = ("pdf"+varT+"_Tot"+label);
   if (!loadFitResult(ws, inFileName, pdfName)) { return NULL; }
   return ws.pdf(pdfName.c_str());
 };
 
 
-bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& var, const std::string& label)
+bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& label)
 {
   //
   const auto& cha = info.Par.at("channel");
@@ -1183,27 +1478,43 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& var, con
   const auto& chg = label.substr(label.find(cha)+cha.size(), 2);
   // Check if sPlot DataSet has already been created
   const auto& dsName = info.Par.at("dsName"+chg);
-  if (ws.data((dsName+"_SPLOT").c_str())) { return true; }
-  const auto& obj = label.substr(0, label.find(cha));
-  const auto& col = label.substr(label.find("_")+1);
-  auto varT = var; stringReplace(varT, "_", "");
+  const auto& dsSPlotName = (dsName.rfind("_sPlot")==std::string::npos ? (dsName+"_sPlot") : dsName);
+  info.Par["dsSPlotName"+chg] = dsSPlotName;
+  if (ws.data(dsSPlotName.c_str())) { std::cout << "[INFO] sPlot dataset " << dsSPlotName << " already made!" << std::endl; return true; }
+  const auto& dsNameFit = info.Par.at("dsNameFit"+chg);
+  const auto& dsSPlotNameFit = (dsNameFit.rfind("_sPlot")==std::string::npos ? (dsNameFit!=dsName ? (dsName+"_sPlot_FIT") : (dsName+"_sPlot")) : dsNameFit);
+  info.Par["dsSPlotNameFit"+chg] = dsSPlotNameFit;
+  if (ws.data(dsSPlotNameFit.c_str())) { std::cout << "[INFO] sPlot dataset " << dsSPlotNameFit << " already made!" << std::endl; return true; }
+  const auto& col = label.substr(label.rfind("_")+1);
+  const auto& sumEntries = ws.data(dsName.c_str())->sumEntries();
+  const auto& numEntries = ws.data(dsName.c_str())->numEntries();
   //
   // Load the sPlot DataSet if already done
   std::string fileName = "";
   auto dir = info.Par.at("outputDir");
   setFileName(fileName, dir, label, info, {"Cand_Mass"});
-  const auto& inFileName = (dir+"dataset/SPLOT_"+fileName+".root");
-  const auto& foundDS = getDataSet(ws, dsName+"_SPLOT", inFileName);
+  const auto& outDir = (dir+"dataset/");
+  const auto& inFileName = (outDir+"SPlot_CandMass_"+fileName+".root");
+  const auto& foundDS = getDataSet(ws, dsSPlotName, inFileName);
   //
   if (!foundDS) {
-    std::cout << "[INFO] Building the sPlot DataSets using the fitted mass PDF results!" << std::endl;
+    std::cout << "[INFO] Building the sPlot datasets using the fitted mass PDF results!" << std::endl;
     //
-    // Initialize the yields
-    std::cout << "[INFO] Initializing " << var << " model yields for SPLOT" << std::endl;
-    for (const auto& o : info.StrS.at("addObjectModel_"+varT+"_"+label)) {
-      const auto& lbl = (o + cha + chg + "_" + col);
-      if (!addModelPar(ws, info, {"N"}, var, lbl, "")) { return false; }
-    }
+    // Extract the RooDataSet
+    if (!ws.data(dsName.c_str())) { std::cout << "[ERROR] RooDataSet " << dsName << " was not found!" << endl; return false; }
+    auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())->Clone("TMP_DATA")));
+    if (!data) { std::cout << "[ERROR] RooDataSet " << dsName << " was not cloned!" << endl; return false; }
+    //
+    // Extract the mass PDF
+    info.Flag["notConstrainYields"] = true;
+    const auto& massPDF = getTotalPDF(ws, "Cand_Mass", label, info);
+    if (!massPDF) { std::cout << "[ERROR] makeSPlotDS: Cand_Mass PDF was not loaded!" << endl; return false; }
+    auto cloneSet = std::unique_ptr<RooArgSet>(dynamic_cast<RooArgSet*>(RooArgSet(*massPDF, massPDF->GetName()).snapshot(kTRUE)));
+    if (!cloneSet) { std::cout << "[ERROR] Couldn't deep-clone " << massPDF->GetName() << std::endl; return false; }
+    const auto& clonePDF = dynamic_cast<RooAbsPdf*>(cloneSet->find(massPDF->GetName()));
+    if (!clonePDF) { cout << "[ERROR] Couldn't deep-clone " << massPDF->GetName() << endl; return false; }
+    clonePDF->setOperMode(RooAbsArg::ADirty, kTRUE);
+    //
     // Extract the yields
     RooArgList yieldList;
     if (ws.components().getSize()>0) {
@@ -1215,24 +1526,40 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& var, con
     }
     if (yieldList.getSize()==0) { std::cout << "[ERROR] makeSPlotDS: Workspace has no yields!" << endl; return false; }
     //
-    // Extract the RooDataSet
-    auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())->Clone("TMP_DATA")));
-    if (!data) { std::cout << "[ERROR] RooDataSet " << dsName << " was not found!" << endl; return false; }
-    //
-    // Extract the mass PDF
-    const auto& massPDF = getTotalPDF(ws, "Cand_Mass", label, info);
-    if (!massPDF) { std::cout << "[ERROR] makeSPlotDS: Cand_Mass PDF was not loaded!" << endl; return false; }
-    auto cloneSet = std::unique_ptr<RooArgSet>(dynamic_cast<RooArgSet*>(RooArgSet(*massPDF, massPDF->GetName()).snapshot(kTRUE)));
-    if (!cloneSet) { std::cout << "[ERROR] Couldn't deep-clone " << massPDF->GetName() << std::endl; return false; }
-    const auto& clonePDF = dynamic_cast<RooAbsPdf*>(cloneSet->find(massPDF->GetName()));
-    if (!clonePDF) { cout << "[ERROR] Couldn't deep-clone " << massPDF->GetName() << endl; return false; }
-    clonePDF->setOperMode(RooAbsArg::ADirty, kTRUE);
-    //
-    // Create the sPlot DataSet
-    std::cout << "[INFO] Creating the sPlot DataSets!" << std::endl;
+    // Create sPlot dataset
+    std::cout << "[INFO] Creating the sPlot datasets!" << std::endl;
     const auto& sData = RooStats::SPlot("sData", "An SPlot", *data, clonePDF, yieldList);
-    if (ws.import(*data, RooFit::Rename((dsName+"_SPLOT").c_str()))) { std::cout << "[ERROR] sPlot DataSets were not imported!" << std::endl; return false; }
-    else { std::cout << "[INFO] sPlot DataSets created succesfully!" << std::endl; }
+    // Remove extra variables
+    auto skimVars = *data->get();
+    auto varIt = std::unique_ptr<TIterator>(data->get()->createIterator());
+    for (auto itp = varIt->Next(); itp!=NULL; itp = varIt->Next()) {
+      const std::string& name = itp->GetName();
+      if (name.rfind("L_N_", 0)==0) { const auto& var = skimVars.find(name.c_str()); if (var) { skimVars.remove(*var); } }
+    }
+    auto skimData = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(data->reduce(RooFit::SelectVars(skimVars))));
+    auto skimDataFit = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(skimData->reduce(RooFit::Cut(getString(ws, "cutDSFit").c_str()))));
+    // Import sPlot dataset
+    if (ws.import(*skimData, RooFit::Rename(dsSPlotName.c_str()))) { std::cout << "[ERROR] sPlot datasets were not imported!" << std::endl; return false; }
+    else {
+      if (ws.data(dsName.c_str())) { ws.RecursiveRemove(ws.data(dsName.c_str())); }
+      info.Var.at("numEntries")[dsSPlotName] = ws.data(dsSPlotName.c_str())->sumEntries();
+      info.Par.at("dsName"+chg) = dsSPlotName;
+      setDSParamaterRange(ws, dsSPlotName, info, "Full_");
+      std::cout << "[INFO] sPlot datasets created succesfully!" << std::endl;
+    }
+    if (skimDataFit->numEntries()>0 && skimDataFit->numEntries()<skimData->numEntries()) {
+      if (ws.import(*skimDataFit, RooFit::Rename(dsSPlotNameFit.c_str()))) { std::cout << "[ERROR] sPlot fit datasets were not imported!" << std::endl; return false; }
+      else {
+	if (ws.data(dsNameFit.c_str())) { ws.RecursiveRemove(ws.data(dsNameFit.c_str())); }
+	info.Var.at("numEntries")[dsSPlotNameFit] = ws.data(dsSPlotNameFit.c_str())->sumEntries();
+	info.Par.at("dsNameFit"+chg) = dsSPlotNameFit;
+	setDSParamaterRange(ws, dsSPlotNameFit, info);
+	std::cout << "[INFO] sPlot fit datasets created succesfully!" << std::endl;
+      }
+    }
+    else if (skimDataFit->numEntries()<=0) { std::cout << "[ERROR] No events from dataset " <<  dsSPlotNameFit << " passed kinematic cuts!" << std::endl; return false; }
+    else { info.Par.at("dsNameFit"+chg) = dsSPlotName; }
+    // Check sPlot results
     ws.loadSnapshot("loadedParameters");
     auto yIt = std::unique_ptr<TIterator>(yieldList.createIterator());
     for (auto it = yIt->Next(); it!=NULL; it = yIt->Next()) {
@@ -1241,9 +1568,175 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& var, con
       const auto& sVal = sData.GetYieldFromSWeight(name.c_str());
       if (std::abs(fitVal - sVal)>0.1) { std::cout << "[ERROR] Variable " << name << " has different fitted (" << fitVal << ") and sPlot (" << sVal << ") results!" << std::endl; return false; }
     }
-    // Store the sPlot DataSet
-    const auto& dsSPlot = dynamic_cast<RooDataSet*>(ws.data((dsName+"_SPLOT").c_str()));
-    if (!saveDataSet(*dsSPlot, dir, fileName)) { return false; }
+    // Store the sPlot dataset
+    const auto& sPlotDS = dynamic_cast<RooDataSet*>(ws.data(dsSPlotName.c_str()));
+    if (!saveDataSet(*sPlotDS, inFileName)) { return false; }
+    else { std::cout << "[INFO] Created " << dsSPlotName << " with " << sPlotDS->numEntries() << " events (" << numEntries << " origDS events)" << " and " << sPlotDS->sumEntries() << " wevents (" << sumEntries << " origDS wevents)" << std::endl; }
+  }
+  else {
+    std::cout << "[INFO] SPlot dataset " << dsSPlotName << " found!" << std::endl;
+    auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ws.data(dsSPlotName.c_str())->reduce(RooFit::Cut(getString(ws, "cutDS").c_str()))));
+    setDSParamaterRange(*data, info, "Full_");
+    if (data->numEntries()<=0) { std::cout << "[ERROR] No events from dataset " <<  dsSPlotName << " passed kinematic cuts!" << std::endl; return false; }
+    else if (!isCompatibleDataset(*data, *dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())))) { std::cout << "[ERROR] sPlot and original datasets are inconsistent!" << std::endl; return false; }
+    else {
+      if (ws.data(dsSPlotName.c_str())) { ws.RecursiveRemove(ws.data(dsSPlotName.c_str())); }
+      if (ws.import(*data, RooFit::Rename(dsSPlotName.c_str()))) { std::cout << "[ERROR] RooDataSet " << dsSPlotName << " was not imported!" << std::endl; return false; }
+      else {
+	if (ws.data(dsName.c_str())) { ws.RecursiveRemove(ws.data(dsName.c_str())); }
+	info.Var.at("numEntries")[dsSPlotName] = ws.data(dsSPlotName.c_str())->sumEntries();
+	info.Par.at("dsName"+chg) = dsSPlotName;
+	defineSet(ws, "SET_"+dsSPlotName, *data->get());
+	std::cout << "[INFO] Imported " << dsSPlotName << " with " << data->numEntries() << " events (" << ws.data(dsName.c_str())->numEntries() << " origDS events)" << " and " << data->sumEntries() << " wevents (" << ws.data(dsName.c_str())->sumEntries() << " origDS wevents)" << std::endl;
+      }
+    }
+    auto dataFit = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(data->reduce(RooFit::Cut(getString(ws, "cutDSFit").c_str()), RooFit::Name(dsSPlotNameFit.c_str()))));
+    setDSParamaterRange(*dataFit, info);
+    if (dataFit->numEntries()<=0) { std::cout << "[ERROR] No events from dataset " <<  dsSPlotNameFit << " passed kinematic cuts!" << std::endl; return false; }
+    else if (dataFit->numEntries()>data->numEntries()) { std::cout << "[ERROR] Dataset " <<  dsSPlotNameFit << " has more events than original!" << std::endl; return false; }
+    else if (dataFit->numEntries()==data->numEntries()) { info.Par.at("dsNameFit"+chg) = dsSPlotName; }
+    else if (!isCompatibleDataset(*dataFit, *dynamic_cast<RooDataSet*>(ws.data(dsNameFit.c_str())))) { std::cout << "[ERROR] sPlot and original fit datasets are inconsistent!" << std::endl; return false; }
+    else {
+      if (ws.import(*dataFit, RooFit::Rename(dsSPlotNameFit.c_str()))) { std::cout << "[ERROR] RooDataSet " << dsSPlotNameFit << " was not imported!" << std::endl; return false; }
+      else {
+	if (ws.data(dsNameFit.c_str())) { ws.RecursiveRemove(ws.data(dsNameFit.c_str())); }
+	info.Var.at("numEntries")[dsSPlotNameFit] = ws.data(dsSPlotNameFit.c_str())->sumEntries();
+	info.Par.at("dsNameFit"+chg) = dsSPlotNameFit;
+	defineSet(ws, "SET_"+dsSPlotNameFit, *dataFit->get());
+	std::cout << "[INFO] Imported " << dsSPlotNameFit << " with " << dataFit->numEntries() << " events (" << ws.data(dsNameFit.c_str())->numEntries() << " origDS events)" << " with " << dataFit->sumEntries() << " wevents (" << ws.data(dsNameFit.c_str())->sumEntries() << " origDS wevents)" << std::endl;
+      }
+    }
+  }
+  //
+  return true;
+};
+
+
+bool addSPlotWeight(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const std::string& dsLbl)
+{
+  const auto& dsName = info.Par.at(dsLbl+chg);
+  if (dsLbl=="dsSPlotName" || dsName!=info.Par.at("dsSPlotName"+chg)) {
+    const auto& ds = ws.data(dsName.c_str());
+    if (!ds) { std::cout << "[ERROR] RooDataSet " << dsName << " was not found!" << endl; return false; }
+    //
+    // Create temporary dataset
+    auto vars = *ds->get();
+    const auto& wVar = RooRealVar("Weight", "Weight", -100000000.0, 100000000.0, "");
+    if (!vars.find("Weight")) { vars.add(wVar); }
+    const auto& weight = dynamic_cast<RooRealVar*>(vars.find("Weight"));
+    auto tmpDS = std::unique_ptr<RooDataSet>(new RooDataSet(ds->GetName(), ds->GetTitle(), vars, RooFit::WeightVar(*weight)));
+    //
+    // Extract the sPlot weight variables
+    StringSet_t objList;
+    for (const auto& varN : info.StrS.at("fitCondVarName")) {
+      for (const auto& obj : info.StrS.at("incObject_"+varN)) { objList.insert(obj); }
+    }
+    if (contain(objList, "DLenRes") && objList.size()==1) { objList.insert("JPsi"); }
+    StringSet_t wVars;
+    auto varIt = std::unique_ptr<TIterator>(vars.createIterator());
+    for (auto itp = varIt->Next(); itp!=NULL; itp = varIt->Next()) {
+      const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
+      const std::string& name = it->GetName();
+      for (const auto& obj : objList) {
+	auto objI = obj.substr(0, obj.find("Cat"));
+	if (name.rfind("N_"+objI, 0)==0 && name.rfind("_sw")!=std::string::npos) { wVars.insert(name); }
+      }
+    }
+    if (wVars.empty()) { std::cout << "[ERROR] SPlot weight variables were not found in " << dsName << " !" << endl; return false; }
+    std::cout << "[INFO] Using sPlot weight variables on " << dsName << " : "; for (const auto& wVar : wVars) { std::cout << wVar << " , "; }; std::cout << std::endl;
+    //
+    // Loop over the entries
+    for (int i = 0; i < ds->numEntries(); i++) {
+      ds->get(i);
+      double w = 0.0;
+      for (const auto& wVarN : wVars) { w += vars.getRealValue(wVarN.c_str(), 0.0); }
+      weight->setVal(w * ds->weight());
+      const auto& N = dynamic_cast<RooRealVar*>(vars.find("N_JPsiToMuMuOS_PA8Y16_sw"));
+      tmpDS->addFast(vars, weight->getVal());
+    }
+    //
+    // Import to RooWorkspace
+    ws.RecursiveRemove(ds); if(ds) delete ds;
+    if (ws.import(*tmpDS)) { std::cout << "[ERROR] addSPlotWeight: Failed to import " << tmpDS->GetName() << std::endl; }
+  }
+  //
+  info.Var.at("numEntries")[dsName] = ws.data(dsName.c_str())->sumEntries();
+  //
+  return true;
+};
+
+
+bool importSPlotDataset(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const bool& setWeight=false)
+{
+  //
+  std::cout << "[INFO] Importing sPlot datasets" << std::endl;
+  //
+  const auto& cha = info.Par.at("channel");
+  for (const auto& col : info.StrS.at("fitSystem")) {
+    if (chg!="" && !makeSPlotDS(ws, info, (cha+chg+"_"+col))) { return false; }
+    if (setWeight && !addSPlotWeight(ws, info, chg, "dsSPlotName")) { return false; }
+    if (setWeight && !addSPlotWeight(ws, info, chg, "dsSPlotNameFit")) { return false; }
+  }
+  return true;
+};
+
+
+bool loadFitResults(RooWorkspace& ws, const GlobalInfo& info, const std::string& chg)
+{
+  //
+  const auto& cha = info.Par.at("channel");
+  for (const auto& col : info.StrS.at("fitSystem")) {
+    const auto& label = (cha+chg+"_"+col);
+    // Load mass fit
+    if (info.Flag.at("fitCand_DLenErr") && info.StrS.at("incObject_CandDLenErr").size()>1) {
+      if (!loadPDFParameters(ws, "Cand_Mass", label, info, true, true)) { std::cout << "[ERROR] loadFitResults: Cand_Mass PDF was not loaded!" << endl; return false; }
+    }
+    // Load mass fit
+    if (info.Flag.at("fitCand_DLen") && info.Flag.at("fitCand_Mass")) {
+      if (!loadPDFParameters(ws, "Cand_Mass", label, info, true, true)) { std::cout << "[ERROR] loadFitResults: Cand_Mass PDF was not loaded!" << endl; return false; }
+    }
+    // Load decay length resolution fit
+    if (info.Flag.at("fitCand_DLen")) {
+      GlobalInfo infoTMP(info);
+      const auto& o = *info.StrS.at("fitObject").begin();
+      const auto& obj = info.Par.at("objTag_CandDLenRes_"+o);
+      infoTMP.Par["objTag_CandDLenRes_"+o] = obj;
+      const bool& setConst = !(info.Flag.at("fitMC") && info.Par.at("MC_CAT")=="PR");
+      infoTMP.Par["ModelCandDLenRes_"+obj+label] = info.Par.at("ModelCandDLen_"+o+label+"_DLenRes")+"[DLenRes] + Delta["+obj+"CatPR]";
+      if (!loadPDFParameters(ws, "Cand_DLenRes", label, infoTMP, false, setConst)) { std::cout << "[ERROR] loadFitResults: Cand_DLenRes PDF was not loaded!" << endl; return false; }
+    }
+    // Load background decay length fit
+    if (info.Flag.at("fitCand_DLen") && !info.Flag.at("fitBkg")) {
+      for (const auto& objN : info.StrS.at("incObject_CandDLen")) {
+	if (objN=="BkgCatNoPR") {
+	  GlobalInfo infoTMP(info);
+	  infoTMP.StrS.at("fitObject") = {"Bkg"};
+	  infoTMP.Par["objTag_CandDLen_Bkg"] = "Bkg";
+	  const auto& o = *info.StrS.at("fitObject").begin();
+	  infoTMP.Par["ModelCandDLen_Bkg"+label] = info.Par.at("ModelCandDLen_"+o+label+"_DLenRes")+"[DLenRes] + Delta[BkgCatPR] + "+info.Par.at("ModelCandDLen_"+o+label+"_"+objN)+"["+objN+"]";
+	  if (!loadPDFParameters(ws, "Cand_DLen", label, infoTMP, false, true)) { std::cout << "[ERROR] loadFitResults: " << objN << " Cand_DLen PDF was not loaded!" << endl; return false; }
+	}
+      }
+    }
+    // Load signal truth decay length fit
+    if (info.Flag.at("fitCand_DLen")) {
+      for (const auto& objN : info.StrS.at("incObject_CandDLen")) {
+	if (objN.rfind("Bkg", 0)!=0 && objN.rfind("CatNoPR")!=std::string::npos) {
+	  GlobalInfo infoTMP(info);
+	  infoTMP.Flag.at("fitMC") = true;
+	  infoTMP.Par.at("DSTAG") = "MC_"+objN+"_"+info.Par.at("channelDS")+"_"+col;
+	  const auto& objI = objN.substr(0, objN.find("Cat"));
+	  infoTMP.StrS.at("fitObject") = {objI};
+	  infoTMP.Par["objTag_CandDLenGen_"+objI] = objI;
+	  const auto& o = *info.StrS.at("fitObject").begin();
+	  infoTMP.Par["ModelCandDLenGen_"+objI+label] = "DeltaResolution[DLenRes] + "+info.Par.at("ModelCandDLen_"+o+label+"_"+objN)+"["+objN+"]";
+	  const bool& setConst = !info.Flag.at("fit"+objI);
+	  if (!loadPDFParameters(ws, "Cand_DLenGen", label, infoTMP, false, setConst)) { std::cout << "[ERROR] loadFitResults: " << objN << " Cand_DLenGen PDF was not loaded!" << endl; return false; }
+	  //if (ws.var(("f_"+objN+label).c_str())) { ws.var(("f_"+objN+label).c_str())->setConstant(true); }
+	  if (ws.var(("rLambdaSS21_"+objN+label).c_str())) { ws.var(("rLambdaSS21_"+objN+label).c_str())->setConstant(true); }
+	}
+      }
+    }
   }
   //
   return true;

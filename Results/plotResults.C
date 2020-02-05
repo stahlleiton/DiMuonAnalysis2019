@@ -20,7 +20,7 @@ void plotResults(
   //
   // Get the Result
   std::map<std::string , VarBinTriMap_t> inputVar;
-  const auto& workDirNames = std::vector<std::string>({"Prompt", "NonPrompt"});
+  const auto& workDirNames = std::vector<std::string>({"Nominal_JJ_Prompt", "Nominal_JJ_NonPrompt"});
   for (const auto& ws : workDirNames) {
     if (ws!="") {
       std::cout << "[INFO] Adding results for: " << ws << std::endl;
@@ -35,7 +35,7 @@ void plotResults(
   }
   //
   // Extract the prompt and non-prompt results
-  if (!extractPromptResults(inputVar["Nominal"], inputVar.at("Prompt"), inputVar.at("NonPrompt"))) { return; }
+  if (!extractPromptResults(inputVar["Nominal"], inputVar.at("Nominal_JJ_Prompt"), inputVar.at("Nominal_JJ_NonPrompt"))) { return; }
   //
   // Process the results
   BinSextaMap_t var;

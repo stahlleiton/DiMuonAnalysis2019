@@ -20,6 +20,9 @@ bool buildCandidateModel(RooWorkspace& ws, GlobalInfo&  info, const std::string&
   // Set Fixed parameters to constant (clean up)
   setFixedVarsToContantVars(ws);
   //
+  // Load previous fit results if needed
+  if (!loadFitResults(ws, info, chg)) { return false; }
+  //
   // save the initial values of the model we've just created
   saveSnapshot(ws, "initialParameters", info.Par.at("dsName"+chg));
   //

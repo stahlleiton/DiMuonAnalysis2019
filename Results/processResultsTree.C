@@ -25,9 +25,11 @@ bool processResults(
   //
   // Extract the Acceptance and Efficiency container
   BinSextaMap_t eff;
+  std::cout << "Extracting the acceptance and efficiency" << std::endl;
   if (!getAcceptanceAndEfficiency(eff, inputVar)) { return false; }
   //
   // Proceed to correct the Raw Yields
+  std::cout << "Correcting the raw yields" << std::endl;
   if (!correctRawYields(inputVar, eff)) { return false; }
   //
   // Compute the Ratio
@@ -74,48 +76,52 @@ bool getAcceptanceAndEfficiency(BinSextaMap_t& eff, const VarBinTriMap_t& inputV
 {
   //
   const StringVector_t lbl = {"Val", "Err_Stat_High", "Err_Stat_Low", "Err_Syst_High", "Err_Syst_Low", "Err_Tot_High", "Err_Tot_Low"};
-  StringMap_t effFile =
-    {
-     {"JPsiNoPR" , "JPsiEff"},
-     {"JPsiPR"   , "JPsiEff"},
-     {"Psi2SNoPR", "Psi2SEff"},
-     {"Psi2SPR"  , "Psi2SEff"}
-    };
+  StringVector_t effObj = { "JPsiNoPR", "JPsiPR", "Psi2SNoPR", "Psi2SPR" };
+  StringVector_t effTyp = { "Efficiency", "Acceptance" };
   //
-  for (const auto& o : effFile) {
-    // Extract efficiency
-    const auto& fileName = (o.second+".root");
-    const std::string& dirName = "Efficiency/MC/";
-    if (!existFile(dirName+fileName)) continue;
-    TFile file((dirName+fileName).c_str(), "READ");
-    if (!file.IsOpen() || file.IsZombie()) { std::cout << "[ERROR] File " << (dirName+fileName) << " was not found!" << std::endl; return false; }
-    const auto& effName = (o.second.substr(0,o.second.find("Eff"))+"_Efficiency");
-    const auto& effP = dynamic_cast<TEfficiency*>(file.Get(effName.c_str()));
-    if (!effP) { std::cout << "[ERROR] Efficiency " << effName << " in " << (dirName+fileName) << " was not found!" << std::endl; file.Close(); return false; }
-    //
-    for (const auto& c : inputVar.begin()->second) {
-      for (const auto& pd : c.second) {
-	for (const auto& b : pd.second) {
-	  const auto& rap = b.first.getbin("Cand_Rap"); // x-axis
-	  const auto& pt  = b.first.getbin("Cand_Pt"); // y-axis
-	  const auto& iBin = effP->FindFixBin(rap.mean(), pt.mean());
-	  if (effP->GetEfficiency(iBin)<=0) {
-	    b.first.print();
-	    std::cout << iBin << "  " << pt.mean() << "  " << rap.mean() << "  " << effP->GetEfficiency(iBin) << "  " << o.first << std::endl;
-	    return false;
+  for (const auto& t : effTyp) {
+    for (const auto& o : effObj) {
+      for (const auto& c : inputVar.begin()->second) {
+	for (const auto& pd : c.second) {
+	  //
+	  const std::string& pdT = (pd.first.rfind("MUON")!=std::string::npos ? "WT" : "NT");
+	  std::map< binF , TEfficiency > effM;
+	  for (const auto& r : std::vector< binF >({binF("Cand_AbsRap", 0.0, 1.4),binF("Cand_AbsRap", 1.4, 2.4)})) {
+	    const std::string& rapS = (r==binF("Cand_AbsRap", 0.0, 1.4) ? "0_1.4" : (r==binF("Cand_AbsRap", 1.4, 2.4) ? "1.4_2.4" : ""));
+	    const std::string& objT = std::string(o.rfind("NoPR")!=std::string::npos ? "NonPrompt" : "Prompt") + (pd.first.rfind("MUON")!=std::string::npos ? "WT" : "NT");
+	    const std::string& objP = (o.rfind("Psi2S",0)==0 ? "Psi2S" : "JPsi");
+	    const std::string& effL = (t=="Acceptance" ? "acc" : "eff_comb");
+	    const std::string& dirName = ("Efficiency/MC/" + objT + "/" + objP + "/" + rapS + "/");
+	    const auto& fileName = (objT+objP+rapS+"_"+effL+".root");
+	    if (!existFile(dirName+fileName)) { std::cout << "[ERROR] File " << (dirName+fileName) << " does not exist!" << std::endl; return false; }
+	    TFile file((dirName+fileName).c_str(), "READ");
+	    if (!file.IsOpen() || file.IsZombie()) { std::cout << "[ERROR] File " << (dirName+fileName) << " was not found!" << std::endl; return false; }
+	    const auto& effP = dynamic_cast<TEfficiency*>(file.Get(effL.c_str()));
+	    if (!effP) { std::cout << "[ERROR] Efficiency " << effL << " in " << (dirName+fileName) << " was not found!" << std::endl; file.Close(); return false; }
+            effM[r] = *effP;
+          }
+	  //
+	  // Extract efficiency
+          for (const auto& b : pd.second) {
+	    const auto& rap = b.first.getbin("Cand_Rap"); // x-axis
+	    const auto& pt  = b.first.getbin("Cand_Pt"); // y-axis
+	    const binF absrap("Cand_AbsRap", std::min(fabs(rap.low()), fabs(rap.high())), std::max(fabs(rap.low()), fabs(rap.high())));
+	    //
+            const auto& effP = effM.at(absrap);
+	    const auto& iBin = effP.FindFixBin(pt.mean());
+	    if (effP.GetEfficiency(iBin)<=0.) {
+	      b.first.print();
+	      std::cout << "[ERROR] Negative efficiency in: bin: " << iBin << ", pT: " << pt.mean() << ", rap: " << rap.mean() << ", eff: " << effP.GetEfficiency(iBin) << ", obj: " << o << std::endl;
+	      return false;
+	    }
+	    eff[o][c.first][pd.first][t+"_MC"]["Val"][b.first] = effP.GetEfficiency(iBin);
+	    eff[o][c.first][pd.first][t+"_MC"]["Err_Stat_High"][b.first] = effP.GetEfficiencyErrorUp(iBin);
+	    eff[o][c.first][pd.first][t+"_MC"]["Err_Stat_Low"][b.first] = effP.GetEfficiencyErrorLow(iBin);
+	    eff[o][c.first][pd.first][t+"_MC"]["Err_Syst_High"][b.first] = 0.0;
+	    eff[o][c.first][pd.first][t+"_MC"]["Err_Syst_Low"][b.first] = 0.0;
+	    eff[o][c.first][pd.first][t+"_MC"]["Err_Tot_High"][b.first] = effP.GetEfficiencyErrorUp(iBin);
+	    eff[o][c.first][pd.first][t+"_MC"]["Err_Tot_Low"][b.first] = effP.GetEfficiencyErrorLow(iBin);
 	  }
-	  for (const auto& l : lbl) {
-	    // For MC Acceptance
-	    eff[o.first][c.first][pd.first]["Acceptance_MC"][l][b.first] = ((l=="Val") ? 1.0 : 0.0);
-	  }
-	  // For MC Efficiency
-	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Val"][b.first] = effP->GetEfficiency(iBin);
-	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Stat_High"][b.first] = effP->GetEfficiencyErrorUp(iBin);
-	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Stat_Low"][b.first] = effP->GetEfficiencyErrorLow(iBin);
-	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Syst_High"][b.first] = 0.0;
-	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Syst_Low"][b.first] = 0.0;
-	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Tot_High"][b.first] = effP->GetEfficiencyErrorUp(iBin);
-	  eff[o.first][c.first][pd.first]["Efficiency_MC"]["Err_Tot_Low"][b.first] = effP->GetEfficiencyErrorLow(iBin);
 	}
       }
     }
@@ -146,13 +152,14 @@ bool correctRawYields(VarBinTriMap_t& inputVar, const BinSextaMap_t& effMap)
   const std::string& accName = "Acceptance_MC";
   const std::string& effName = "Efficiency_MC";
   //
-  for (const auto& o : inputVar) {
+  const auto tmpVar = inputVar;
+  for (const auto& o : tmpVar) {
     for (const auto& c : o.second) {
       for (const auto& pd : c.second) {
 	for (const auto& b : pd.second) {
 	  auto& var = inputVar.at(o.first).at(c.first).at(pd.first).at(b.first);
 	  // Loop over the variables
-	  for (const auto& v : var) {
+	  for (const auto& v : b.second) {
 	    if (v.first.rfind("N_",0)!=0 || v.first.find("To")==std::string::npos) continue;
 	    if (v.first.rfind("N_Bkg",0)==0 || v.first.find("SS")!=std::string::npos) continue;
 	    const auto& vN = v.first;

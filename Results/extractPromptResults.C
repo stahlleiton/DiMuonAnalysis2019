@@ -11,12 +11,14 @@
 
 typedef std::map< binF        , std::string > StrBinMap_t;
 typedef std::map< std::string , StrBinMap_t > StrBinDiMap_t;
+typedef std::map< std::string , StrBinDiMap_t > StrBinTriMap_t;
 typedef std::map< binF        , TEfficiency > EffMap_t;
 typedef std::map< std::string , EffMap_t    > EffDiMap_t;
+typedef std::map< std::string , EffDiMap_t  > EffTriMap_t;
 
 
-bool extractEfficiency   ( EffDiMap_t& effM , const StrBinDiMap_t& effFiles );
-bool extractPromptYields ( VarBinTriMap_t& nom , const VarBinTriMap_t& prCut , const VarBinTriMap_t& nonPrCut , const EffDiMap_t& effM );
+bool extractEfficiency   ( EffTriMap_t& effM , const StrBinTriMap_t& effFiles );
+bool extractPromptYields ( VarBinTriMap_t& nom , const VarBinTriMap_t& prCut , const VarBinTriMap_t& nonPrCut , const EffTriMap_t& effM );
 
 
 bool extractPromptResults(
@@ -27,22 +29,40 @@ bool extractPromptResults(
 {
   //
   // Extract the prompt and non-prompt decayLen-cut efficiencies
-  StrBinDiMap_t effFile =
+  StrBinTriMap_t effFile =
     {
-     {"JPsiNoPR" , {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_NonpromptJPsi"},
-		    {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_NonpromptJPsi"}}},
-     {"JPsiPR"   , {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_PromptJPsi"},
-		    {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_PromptJPsi"}}},
-     {"Psi2SNoPR", {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_NonpromptPsi2S"},
-		    {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_NonpromptPsi2S"}}},
-     {"Psi2SPR"  , {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_PromptPsi2S"},
-		    {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_PromptPsi2S"}}}
+     {"NT" ,
+      {
+       {"JPsiNoPR" , {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_0.9NT_NonpromptJPsi"},
+		      {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_0.9NT_NonpromptJPsi"}}},
+       {"JPsiPR"   , {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_0.9NT_PromptJPsi"},
+		      {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_0.9NT_PromptJPsi"}}},
+       {"Psi2SNoPR", {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_0.9NT_NonpromptPsi2S"},
+		      {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_0.9NT_NonpromptPsi2S"}}},
+       {"Psi2SPR"  , {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_0.9NT_PromptPsi2S"},
+		      {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_0.9NT_PromptPsi2S"}}}
+      }
+     },
+     {"WT" ,
+      {
+       {"JPsiNoPR" , {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_0.9WT_NonpromptJPsi"},
+		      {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_0.9WT_NonpromptJPsi"}}},
+       {"JPsiPR"   , {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_0.9WT_PromptJPsi"},
+		      {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_0.9WT_PromptJPsi"}}},
+       {"Psi2SNoPR", {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_0.9WT_NonpromptPsi2S"},
+		      {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_0.9WT_NonpromptPsi2S"}}},
+       {"Psi2SPR"  , {{binF("Cand_AbsRap", 0.0, 1.4), "0_1.4_0.9WT_PromptPsi2S"},
+		      {binF("Cand_AbsRap", 1.4, 2.4), "1.4_2.4_0.9WT_PromptPsi2S"}}}
+      }
+     }
     };
   
-  EffDiMap_t eff;
+  EffTriMap_t eff;
+  std::cout << "Extracting the Decay Length cut efficiency" << std::endl;
   if (!extractEfficiency(eff, effFile)) { return false; }
   //
   // Compute the prompt and non-prompt yields
+  std::cout << "Extracting the prompt and non-prompt yields" << std::endl;
   if (!extractPromptYields(inputVar_Nominal, inputVar_Prompt, inputVar_NonPrompt, eff)) { return false; }
   //
   // return
@@ -75,7 +95,7 @@ double derivePromptUnc(const bool& doPr, const double& yPrCut, const double& yNo
 };
 
 
-bool extractPromptYields(VarBinTriMap_t& nom, const VarBinTriMap_t& prCut, const VarBinTriMap_t& nonPrCut, const EffDiMap_t& effM)
+bool extractPromptYields(VarBinTriMap_t& nom, const VarBinTriMap_t& prCut, const VarBinTriMap_t& nonPrCut, const EffTriMap_t& effM)
 {
   for (const auto& o : prCut) {
     for (const auto& c : o.second) {
@@ -91,10 +111,12 @@ bool extractPromptYields(VarBinTriMap_t& nom, const VarBinTriMap_t& prCut, const
 	    const auto& rap = b.first.getbin("Cand_Rap");
 	    const auto& pT = b.first.getbin("Cand_Pt");
 	    const binF absrap("Cand_AbsRap", std::min(fabs(rap.low()), fabs(rap.high())), std::max(fabs(rap.low()), fabs(rap.high())));
-	    if (!contain(effM, obj+"PR") && !contain(effM, obj+"NoPR")) { std::cout << "[ERROR] Efficiency for " << obj << " was not found!" << std::endl; return false; }
-	    if (!contain(effM.at(obj+"PR"), absrap)) { std::cout << "[ERROR] Efficiency does not contain bin "; absrap.print(); return false; }
-	    const auto& effPr = effM.at(obj+"PR").at(absrap);
-	    const auto& effNonPr = effM.at(obj+"NoPR").at(absrap);
+	    const std::string& pdT = (pd.first.rfind("MUON")!=std::string::npos ? "WT" : "NT");
+	    if (!contain(effM, pdT)) { std::cout << "[ERROR] Efficiency for " << pdT << " was not found!" << std::endl; return false; }
+	    if (!contain(effM.at(pdT), obj+"PR") && !contain(effM.at(pdT), obj+"NoPR")) { std::cout << "[ERROR] Efficiency for " << obj << " was not found!" << std::endl; return false; }
+	    if (!contain(effM.at(pdT).at(obj+"PR"), absrap)) { std::cout << "[ERROR] Efficiency does not contain bin "; absrap.print(); return false; }
+	    const auto& effPr = effM.at(pdT).at(obj+"PR").at(absrap);
+	    const auto& effNonPr = effM.at(pdT).at(obj+"NoPR").at(absrap);
 	    const auto& iBinPr = effPr.FindFixBin(pT.mean());
 	    const auto& iBinNonPr = effNonPr.FindFixBin(pT.mean());
 	    // Extract the yields with decayLen cuts
@@ -139,20 +161,22 @@ bool extractPromptYields(VarBinTriMap_t& nom, const VarBinTriMap_t& prCut, const
 };
 
 
-bool extractEfficiency(EffDiMap_t& effM, const StrBinDiMap_t& effFiles)
+bool extractEfficiency(EffTriMap_t& effM, const StrBinTriMap_t& effFiles)
 {
-  for (const auto& o : effFiles) {
-    for (const auto& fN : o.second) {
-      const auto& bin = fN.first;
-      const auto& fileName = (fN.second+".root");
-      const std::string& dirName = "Efficiency/DecayLenCut/";
-      TFile file((dirName+fileName).c_str(), "READ");
-      if (!file.IsOpen() || file.IsZombie()) { std::cout << "[ERROR] File " << (dirName+fileName) << " was not found!" << std::endl; return false; }
-      const auto& effName = (fN.second.substr(fN.second.rfind("t")+1)+"_Efficiency");
-      const auto& effP = dynamic_cast<TEfficiency*>(file.Get(effName.c_str()));
-      if (!effP) { std::cout << "[ERROR] Efficiency " << effName << " in " << (dirName+fileName) << " was not found!" << std::endl; file.Close(); return false; }
-      effM[o.first][bin] = *effP;
-      file.Close();
+  for (const auto& t : effFiles) {
+    for (const auto& o : t.second) {
+      for (const auto& fN : o.second) {
+	const auto& bin = fN.first;
+	const auto& fileName = (fN.second+".root");
+	const std::string& dirName = "Efficiency/DecayLenCut/";
+	TFile file((dirName+fileName).c_str(), "READ");
+	if (!file.IsOpen() || file.IsZombie()) { std::cout << "[ERROR] File " << (dirName+fileName) << " was not found!" << std::endl; return false; }
+	const auto& effName = (fN.second.substr(fN.second.rfind("t")+1)+"_Efficiency");
+	const auto& effP = dynamic_cast<TEfficiency*>(file.Get(effName.c_str()));
+	if (!effP) { std::cout << "[ERROR] Efficiency " << effName << " in " << (dirName+fileName) << " was not found!" << std::endl; file.Close(); return false; }
+	effM[t.first][o.first][bin] = *effP;
+	file.Close();
+      }
     }
   }
   return true;

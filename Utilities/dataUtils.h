@@ -206,16 +206,32 @@ typedef struct GlobalInfo {
 template<class C, class T>
 inline auto contain_impl(const C& c, const T& x, int)
 -> decltype(c.find(x), true)
-{ return end(c) != c.find(x); }
+{ return std::end(c) != c.find(x); }
 
 template<class C, class T>
 inline bool contain_impl(const C& v, const T& x, long)
-{ return end(v) != std::find(begin(v), end(v), x); }
+{ return std::end(v) != std::find(std::begin(v), std::end(v), x); }
 
 template<class C, class T>
 auto contain(const C& c, const T& x)
--> decltype(end(c), true)
+-> decltype(std::end(c), true)
 { return contain_impl(c, x, 0); }
+
+template <typename  T>
+std::vector<T> merge(const std::vector<T>& s, const std::vector<T>& e)
+{
+  auto v = s;
+  v.insert(s.end(), e.begin(), e.end());
+  return v;
+}
+
+template <typename  T>
+std::set<T> merge(const std::set<T>& s, const std::set<T>& e)
+{
+  auto v = s;
+  std::merge(s.begin(), s.end(), e.begin(), e.end(), std::inserter(v, v.begin()));
+  return v;
+}
 
 
 bool fileList(std::vector< std::string >& fileNames, const std::string& dirPath, const bool& verb=false)
@@ -399,7 +415,7 @@ void roundValue(double& value , const uint& nDecimals)
 int getNBins(const double& min, const double& max, const double& binW)
 {
   const auto& nBins = std::round((max - min)/binW);
-  return std::min(int(nBins), 2000);
+  return int(nBins);
 };
 
 

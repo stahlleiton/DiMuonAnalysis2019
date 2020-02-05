@@ -150,7 +150,7 @@ void getPoint(const RooHist& rH, const uint& i, double& x, double& y, double& ex
 };
 
 
-bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool& useAverage = true, const int& sBinFit=1)
+bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool& useAverage = true, const int& sBinFit=1, const bool& limit=true)
 {
   // Find curve object
   const auto& rFit = dynamic_cast<RooCurve*>(frame.findObject(0, RooCurve::Class()));
@@ -163,16 +163,17 @@ bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool& use
   rFit->GetPoint(0, xstart, yDummy);
   rFit->GetPoint((rFit->GetN()-1), xstop, yDummy);
   // Get Binning
-  std::vector<double> binDataV, binFitV;
+  std::vector<double> binDataN, binDataV, binFitV;
   for (int i = 0; i < rData->GetN(); i++) {
     double x, y; rData->GetPoint(i, x, y);
     // Only consider bins inside curve range
-    if (x<xstart || x>xstop) continue;
+    if (limit && (x<xstart || x>xstop)) continue;
     const double& binW = rData->getNominalBinWidth();
     for (int j = 0; j < sBinFit; j++) { binFitV.push_back(x - (binW*0.5) + j*(binW/sBinFit)); }
     binDataV.push_back(x - (binW*0.5));
     if (i==(rData->GetN()-1)) { binFitV.push_back(x + (binW*0.5)); }
     if (i==(rData->GetN()-1)) { binDataV.push_back(x + (binW*0.5)); }
+    binDataN.push_back(i);
   }
   const uint& nBinFit = (binFitV.size()-1), nBinData = (binDataV.size()-1);
   double binFit[nBinFit+1], binData[nBinData+1];
@@ -184,7 +185,7 @@ bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool& use
   // Set Histogram entries
   for (uint i = 0; i < nBinData; i++) {
     double x, dataVal, exl, exh, eyl, eyh;
-    getPoint(*rData, i, x, dataVal, exl, exh, eyl, eyh);
+    getPoint(*rData, binDataN[i], x, dataVal, exl, exh, eyl, eyh);
     hData.SetBinContent((i+1), dataVal);
     hData.SetBinError((i+1), std::sqrt((eyl*eyl + eyh*eyh)/2.0));
     for (int j = 0; j < sBinFit; j++) {
@@ -207,7 +208,7 @@ void setPlotRange(RooPlot& frame, const RooWorkspace& ws, const std::string& var
   double YMax = std::max(hData.GetBinContent(hData.GetMaximumBin()), hFit.GetBinContent(hFit.GetMaximumBin()));
   double YMin = 1e99;
   for (int i=1; i<=hData.GetNbinsX(); i++) if (hData.GetBinContent(i)>0) YMin = std::min(YMin, hData.GetBinContent(i));
-  double Yup(0.), Ydown(0.), rDown=0.05, rUp=0.4;
+  double Yup(0.), Ydown(0.), rDown=0.05, rUp=0.45;
   if(setLogScale)
   {
     YMin = std::max(YMin, 0.1); YMax = std::max(YMax, 0.1);
@@ -223,17 +224,21 @@ void setPlotRange(RooPlot& frame, const RooWorkspace& ws, const std::string& var
   std::cout << "[INFO] Setting plot y-axis range to: " << Ydown << " - " << Yup << std::endl;
   //
   // Draw Lines for the var range if cut
-  if (dsName.find("_FIT")!=std::string::npos) {
+  if (dsName.rfind("_FIT")!=std::string::npos || ws.data((dsName+"_FIT").c_str())) {
     const auto& varMin = ws.var(varName.c_str())->getMin("FitWindow");
-    if (varMin > 0.0) {
+    const auto& varPlotMin = ws.var(varName.c_str())->getMin("PlotWindow");
+    if (varMin >= ws.var(varName.c_str())->getMin("DSWindow") && varMin >= varPlotMin) {
       auto minline = new TLine(varMin, 0.0, varMin, (setLogScale?(Ydown*TMath::Power((Yup/Ydown),0.5)):(Ydown + (Yup-Ydown)*0.5)));
       minline->SetLineStyle(2); minline->SetLineColor(1); minline->SetLineWidth(3);
       frame.addObject(minline);
     }
     const auto& varMax = ws.var(varName.c_str())->getMax("FitWindow");
-    auto maxline = new TLine(varMax, 0.0, varMax, (setLogScale?(Ydown*TMath::Power((Yup/Ydown),0.5)):(Ydown + (Yup-Ydown)*0.5)));
-    maxline->SetLineStyle(2); maxline->SetLineColor(1); maxline->SetLineWidth(3);
-    frame.addObject(maxline);
+    const auto& varPlotMax = ws.var(varName.c_str())->getMax("PlotWindow");
+    if (varMax <= ws.var(varName.c_str())->getMax("DSWindow") && varMax <= varPlotMax) {
+      auto maxline = new TLine(varMax, 0.0, varMax, (setLogScale?(Ydown*TMath::Power((Yup/Ydown),0.5)):(Ydown + (Yup-Ydown)*0.5)));
+      maxline->SetLineStyle(2); maxline->SetLineColor(1); maxline->SetLineWidth(3);
+      frame.addObject(maxline);
+    }
   }
   //
   return;
@@ -301,7 +306,7 @@ bool printGoF(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& v
   //
   RooFit::RooGoF GoF_Binned(rData, rFit);
   GoF_Binned.setRange(varP->getMin(), varP->getMax());
-  GoF_Binned.setRebin(5, false); // We use 5 in approval plots
+  GoF_Binned.setRebin(5, false);
   //
   // Determine the number of free parameters
   auto parList = std::unique_ptr<RooArgSet>(ws.pdf(pdfLabel.c_str())->getParameters(*ws.data(dataLabel.c_str())));
@@ -512,11 +517,10 @@ RooAbsCollection* skimSet(const RooArgSet& set, const std::string& varStr="*", c
 };
   
 
-std::vector<RooRealVar> getModelVar(const RooWorkspace& ws, const std::string& name="*")
+std::vector<RooRealVar> getModelVar(const RooWorkspace& ws, const std::string& pdfName, const std::string& name="*")
 {
   // Get information from workspace
   const std::string& cha     = (ws.obj("channel") ? dynamic_cast<RooStringVar*>(ws.obj("channel"))->getVal() : "");
-  const std::string& pdfName = (ws.obj("pdfName") ? dynamic_cast<RooStringVar*>(ws.obj("pdfName"))->getVal() : "");
   const std::string& dsName  = (ws.obj("dsName")  ? dynamic_cast<RooStringVar*>(ws.obj("dsName") )->getVal() : "");
   // Define the var name
   const auto& label = (pdfName.find("_")!=std::string::npos ? pdfName.substr(pdfName.find(cha)) : "");
@@ -543,11 +547,13 @@ std::vector<RooRealVar> getModelVar(const RooWorkspace& ws, const std::string& n
   std::vector<RooRealVar> varVec;
   for (const auto& v : varV) { if (std::string(v.GetName()).rfind("N_",0)==0) { varVec.push_back(v); } }
   for (const auto& v : varV) { if (std::string(v.GetName()).rfind("R_",0)==0) { varVec.push_back(v); } }
+  for (const auto& v : varV) { if (std::string(v.GetName()).rfind("b_",0)==0) { varVec.push_back(v); } }
   for (const auto& p : PDFMAP_) {
     if (p.first=="Bkg") continue;
-    for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.rfind("R_",0)!=0 && vv.find(p.first)!=std::string::npos) { varVec.push_back(v); } }
+    for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.rfind("R_",0)!=0 && vv.rfind("b_",0)!=0 && vv.find(p.first)!=std::string::npos) { varVec.push_back(v); } }
   }
-  for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.find("Bkg")!=std::string::npos) { varVec.push_back(v); } }
+  for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.rfind("b_",0)!=0 && vv.find("Bkg")!=std::string::npos) { varVec.push_back(v); } }
+  for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.find("DLenRes")!=std::string::npos) { varVec.push_back(v); } }
   return varVec;
 };
 
@@ -558,7 +564,9 @@ std::string formatCut(const std::string& cut)
   auto str = cut;
   str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
   // Format the variable string
-  const auto& varL = StringMap_t({{"Cand_DLen", "#font[12]{l}_{J/#psi}"}, {"Cand_DLenErr", "#sigma_{#font[12]{l}_{J/#psi}}"}, {"Cand_DLenGen", "#font[12]{l}^{gen}_{J/#psi}"}});
+  const auto& objN = "J/#psi";
+  const auto& varL = StringMap_t({{"Cand_DLen", Form("#font[12]{l}_{%s}", objN)}, {"Cand_DLenErr", Form("#sigma_{#font[12]{l}_{%s}}", objN)},
+				  {"Cand_DLenGen", Form("#font[12]{l}^{gen}_{%s}", objN)}, {"Cand_DLenRes", Form("#font[12]{l}_{%s}/#sigma_{#font[12]{l}_{%s}}", objN, objN)}});
   for (const auto& vL : varL) { stringReplace(str, vL.first, vL.second); }
   // Format the observables
   for (const auto& elem : VARLABEL_) { stringReplace(str, elem.first, elem.second); }
@@ -578,8 +586,10 @@ std::string formatPar(const std::string& name, const std::string& cha)
 {
   auto label = cha;
   if (label=="ToMuMu") { label = "#mu^{+}#mu^{#font[122]{\55}} "; }
-  const auto& parL = StringMap_t({{"Cand_Mass", "Mass GeV/c^{2}"}, {"Cand_Pt", "p_{T} GeV/c"}, {"Cand_DLen", "#font[12]{l}_{J/#psi} mm"},
-				  {"Cand_DLenErr", "#font[12]{l}_{J/#psi} Error mm"}, {"Cand_DLenGen", "GEN #font[12]{l}_{J/#psi} mm"}});
+  const auto& objN = "J/#psi";
+  const auto& parL = StringMap_t({{"Cand_Mass", "Mass [GeV/c^{2}]"}, {"Cand_Pt", "p_{T} [GeV/c]"}, {"Cand_DLen", Form("#font[12]{l}_{%s} [mm]", objN)},
+				  {"Cand_DLenErr", Form("#font[12]{l}_{%s} Error [mm]", objN)}, {"Cand_DLenGen", Form("GEN #font[12]{l}_{%s} [mm]", objN)},
+				  {"Cand_DLenRes", Form("#font[12]{l}_{%s}/#sigma_{#font[12]{l}}", objN)}});
   for (const auto& pL : parL) { if (name==pL.first) { label += pL.second; break; } }
   return label;
 };
@@ -601,13 +611,16 @@ std::string parseVarName(const std::string& name)
   stringstream ss(name); std::string s1, s2, s3;
   getline(ss, s1, '_'); getline(ss, s2, '_'); getline(ss, s3, '_');
   // Format model parameters
-  const auto& varL = StringMap_t({{"Alpha", "#alpha"}, {"Beta", "#beta"}, {"Lambda", "#lambda"}, {"Sigma", "#sigma"}, {"rSigma21","#sigma2/#sigma1"},
+  const auto& varL = StringMap_t({{"Alpha", "#alpha"}, {"Beta", "#beta"}, {"Lambda", "#lambda"}, {"Sigma", "#sigma"},
+                                  {"rSigma21","#sigma2/#sigma1"}, {"rSigma32","#sigma3/#sigma2"}, {"rSigma43","#sigma4/#sigma3"},
+				  {"rLambdaSS21","#lambda2/#lambdaSS"}, {"rLambdaDS21","#lambda2/#lambdaDS"}, {"rLambdaF21","#lambda2/#lambdaF"},
 				  {"XSection","#sigma"}, {"AccXEff","#alphax#epsilon"}});
   for (const auto& vL : varL) { if (s1.rfind(vL.first, 0)==0) { stringReplace(s1, vL.first, vL.second); break; } }
   // Format Object name
-  const auto& objL = StringMap_t({{"Bkg", "Bkg"}, {"Z", "Z"}, {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+  const auto& objL = StringMap_t({{"Z", "Z"}, {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
 				  {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
-				  {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
+				  {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"},
+				  {"Bkg", "Bkg"}, {"DLenRes", "#font[12]{l}Res"}});
   for (const auto& oL : objL) { if (s2.find(oL.first)!=std::string::npos) { s2 = oL.second; break; } }
   // Format System name
   const auto& s3V = parseColStr(s3);
@@ -627,32 +640,43 @@ std::string parseObject(const std::string& inObj)
 };
 
 
-std::string parseProcess(const std::string& obj, const std::string& cha)
+std::string parseProcess(const std::string& obj, const std::string& cha, const std::string& dsName)
 {
   // Format Object name
   std::string proc = obj;
   if (proc=="") return proc;
-  const auto& objL = StringMap_t({{"To", " #rightarrow "}, {"El", "e"}, {"Mu", "#mu"}, {"Tau","#tau"},
+  if (dsName.find("CatNoPR_")!=std::string::npos) { proc = "b#rightarrow " + proc; }
+  const auto& objL = StringMap_t({{"To", "#rightarrow "}, {"El", "e"}, {"Mu", "#mu"}, {"Tau","#tau"},
 				  {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
 				  {"PsinS", "#psi(nS)"}, {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
 				  {"UpsnS", "#Upsilon(nS)"}, {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
   for (const auto& oL : objL) { stringReplace(proc, oL.first, oL.second); }
   // Format the channel
   proc += cha;
-  const auto& chaL = StringMap_t({{"ToMuMu", " #rightarrow #mu^{+} + #mu^{#font[122]{\55}}"}});
+  const auto& chaL = StringMap_t({{"ToMuMu", "#rightarrow #mu^{+} #mu^{#font[122]{\55}}"}});
   for (const auto& cL : chaL) { stringReplace(proc, cL.first, cL.second); }
   proc = ("#font[62]{#scale[1.1]{"+proc+"}}");
   return proc;
 };
 
 
-std::string parseProcess(const std::set<std::string>& objV, const std::string& cha)
+std::string parseProcess(const std::set<std::string>& inObjV, const std::string& cha, const std::string& dsName)
 {
   std::string obj="";
+  auto objV = inObjV;
+  if (objV.size()>1) {
+    objV.clear();
+    for (const auto& o : inObjV) { if (o.rfind("Bkg",0)!=0 && o!="DLenRes") { objV.insert(o); } }
+    if (objV.empty()) { objV.insert("Bkg"); }
+    else if (objV.size()>1) {
+      auto objS = objV; objV.clear();
+      for (const auto& o : objS) { objV.insert(o.substr(0,o.rfind("Cat"))); }
+    }
+  }
   if (objV.size()==1) { obj = *objV.begin(); }
   else if (objV.find("Ups1S")!=objV.end()) { obj = "UpsnS"; }
   else if (objV.find("JPsi")!=objV.end()) { obj = "PsinS"; }
-  return parseProcess(obj, cha);
+  return parseProcess(obj, cha, dsName);
 };
 
 
