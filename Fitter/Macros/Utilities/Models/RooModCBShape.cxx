@@ -82,11 +82,11 @@ Double_t RooModCBShape::analyticalIntegral(Int_t code, const char* rangeName) co
     result += sig*sqrtPiOver2*( ApproxErf(tmax/sqrt2) - ApproxErf(tmin/sqrt2) );
   }
   else if (tmax < -absAlphaL) {
-    result += (exp(0.5*absAlphaL*absAlphaL)/absAlphaL)*( exp(absAlphaL*tmax) - exp(absAlphaL*tmin) );
+    result += (sig/absAlphaL)*exp(0.5*absAlphaL*absAlphaL)*( exp(absAlphaL*tmax) - exp(absAlphaL*tmin) );
   }
   else {
     const double& term1 = sig*sqrtPiOver2*( ApproxErf(tmax/sqrt2) - ApproxErf(-absAlphaL/sqrt2) );
-    const double& term2 = (exp(0.5*absAlphaL*absAlphaL)/absAlphaL)*( exp(-absAlphaL*absAlphaL) - exp(absAlphaL*tmin) );
+    const double& term2 = (sig/absAlphaL)*exp(0.5*absAlphaL*absAlphaL)*( exp(-absAlphaL*absAlphaL) - exp(absAlphaL*tmin) );
     result += term1 + term2;
   }
     

@@ -297,6 +297,7 @@ void fitter(
               //
 	      if (DSTAG.rfind("DATA_",0)==0 && DSTAG.rfind("DATA_"+infoVector.Par.at("PD")+"_DIMUON")==std::string::npos) continue;
 	      if (DSTAG.rfind("MC_",0)==0 && DSTAG.rfind("Cat"+infoVector.Par.at("MC_CAT")+"_DIMUON")==std::string::npos) continue;
+	      if (DSTAG.rfind("MC_",0)==0 && userInput.Par.at("PD")!=infoVector.Par.at("PD")) continue;
 	      std::cout << "[INFO] Proceed to fit the dataset " << DSTAG << std::endl;
               if (userInput.Par.at("analysis").rfind("CandTo", 0)==0) {
                 if (!fitCandidateModel( iniWorkspaces, infoVector,
@@ -759,9 +760,10 @@ bool readFile(StringDiVector_t& content, const std::string& fileName, const int&
   char delimiter = ' ';
   if (myfile.is_open()){ 
     std::string line, CHAR;
-    while (getline(myfile, line)) {
+    while (getlineSafe(myfile, line)) {
       std::stringstream row(line), tmp(line); tmp >> CHAR;
       if ((!tmp) || (CHAR.find('#')!=std::string::npos) || (CHAR.find("//")!=std::string::npos)) continue;
+      if (line.rfind("InitialParam_", 0)==0) continue;
       if (delimiter == ' ' && line.find(',')!=std::string::npos) { delimiter = ','; }
       if (delimiter == ' ' && line.find(';')!=std::string::npos) { delimiter = ';'; }
       if (delimiter == ' ') { std::cout << "[ERROR] File: " << fileName << " has unknown delimiter!" << std::endl; return false; }

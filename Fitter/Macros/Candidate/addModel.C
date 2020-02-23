@@ -369,10 +369,44 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
 		std::cout << "[INFO] " << tag << " Gaussian and Crystal Ball " << varName << " PDF in " << col << " added!" << std::endl; break;
 	      }
+	    case (int(Model::DoubleGaussianAndCrystalBall)):
+	      {
+		// input variables
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "rSigma32", "Sigma3", "Alpha", "n", "f", "f2", "recf2"};
+		// create the variables for this model
+		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
+		// create the two PDFs
+		if (!ws.factory(Form("CBShape::%s(%s, %s, %s, %s, %s)", pdf1Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma1_"+label).c_str(),
+				     ("Alpha_"+label).c_str(),
+				     ("n_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma2_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf3Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma3_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
+		// Sum the PDFs to get the signal PDF
+		if (!ws.factory(Form("SUM::%s(%s*%s, %s*%s, %s)", pdfName.c_str(),
+				     ("f_"+label).c_str(), 
+				     pdf1Name.c_str(),
+				     ("recf2_"+label).c_str(),
+				     pdf2Name.c_str(),
+				     pdf3Name.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " Double Gaussian and Crystal Ball " << varName << " PDF in " << col << " added!" << std::endl; break;
+	      }
 	    case (int(Model::SingleExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "Alpha", "n", "AlphaR", "nR"};
+		const StringVector_t parNames = {"m", "Sigma1", "Alpha", "n", "rAlphaR", "AlphaR", "nR"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -394,7 +428,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::DoubleExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "nR", "Alpha2", "n2", "AlphaR2", "nR2", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "rAlphaR", "AlphaR", "nR", "Alpha2", "n2", "AlphaR2", "nR2", "f"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -430,7 +464,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::GaussianAndExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "nR", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "rAlphaR", "AlphaR", "rnR", "nR", "f"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -459,6 +493,42 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
 		std::cout << "[INFO] " << tag << " Gaussian and Extended Crystal Ball " << varName << " PDF in " << col << " added!" << std::endl; break;
 	      }
+	    case (int(Model::DoubleGaussianAndExtCrystalBall)):
+	      {
+		// input variables
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "rSigma32", "Sigma3", "Alpha", "n", "rAlphaR", "AlphaR", "nR", "f", "f2", "recf2"};
+		// create the variables for this model
+		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
+		// create the two PDFs
+		if (!ws.factory(Form("RooExtCBShape::%s(%s, %s, %s, %s, %s, %s, %s)", pdf1Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma1_"+label).c_str(),
+				     ("Alpha_"+label).c_str(),
+				     ("n_"+label).c_str(),
+				     ("AlphaR_"+label).c_str(),
+				     ("nR_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma2_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
+		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf3Name.c_str(), varName.c_str(),
+				     ("m_"+label).c_str(),
+				     ("Sigma3_"+label).c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
+		// Sum the PDFs to get the signal PDF
+		if (!ws.factory(Form("SUM::%s(%s*%s, %s*%s, %s)", pdfName.c_str(),
+				     ("f_"+label).c_str(), 
+				     pdf1Name.c_str(),
+				     ("recf2_"+label).c_str(),
+				     pdf2Name.c_str(),
+				     pdf3Name.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " Double Gaussian and Extended Crystal Ball " << varName << " PDF in " << col << " added!" << std::endl; break;
+	      }
 	    case (int(Model::SingleModCrystalBall)):
 	      {
 		// input variables
@@ -478,69 +548,10 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
 		std::cout << "[INFO] " << tag << " Single Modified Crystal Ball " << varName << " PDF in " << col << " included" << std::endl; break;
 	      }
-	    case (int(Model::DoubleModCrystalBall)):
-	      {
-		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "Alpha2", "f"};
-		// create the variables for this model
-		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
-		// import the model class
-		if (!importModelClass(ws, "RooModCBShape")) { std::cout << "[ERROR] Could not import the class RooModCBShape!" << std::endl; return false; }
-		// create the two PDFs
-		if (!ws.factory(Form("RooModCBShape::%s(%s,%s,%s,%s)", pdf1Name.c_str(), varName.c_str(),
-				     ("m_"+label).c_str(),
-				     ("Sigma1_"+label).c_str(),
-				     ("Alpha_"+label).c_str()
-				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
-		if (!ws.factory(Form("RooModCBShape::%s(%s,%s,%s,%s)", pdf2Name.c_str(), varName.c_str(),
-				     ("m_"+label).c_str(),
-				     ("Sigma2_"+label).c_str(),
-				     ("Alpha2_"+label).c_str()
-				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
-		// sum the PDFs to get the signal PDF
-		if (!ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
-				     ("f_"+label).c_str(),
-				     pdf1Name.c_str(),
-				     pdf2Name.c_str()
-				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
-		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
-		// add PDF to list
-		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] " << tag << " Double Modified Crystal Ball " << varName << " PDF in " << col << " added!" << std::endl; break;
-	      }
-	    case (int(Model::GaussianAndModCrystalBall)):
-	      {
-		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "f"};
-		// create the variables for this model
-		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
-		// import the model class
-		if (!importModelClass(ws, "RooModCBShape")) { std::cout << "[ERROR] Could not import the class RooModCBShape!" << std::endl; return false; }
-		// create the two PDFs
-		if (!ws.factory(Form("RooModCBShape::%s(%s,%s,%s,%s)", pdf1Name.c_str(), varName.c_str(),
-				     ("m_"+label).c_str(),
-				     ("Sigma1_"+label).c_str(),
-				     ("Alpha_"+label).c_str()
-				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
-		if (!ws.factory(Form("Gaussian::%s(%s, %s, %s)", pdf2Name.c_str(), varName.c_str(),
-				     ("m_"+label).c_str(),
-				     ("Sigma2_"+label).c_str()
-				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
-		// sum the PDFs to get the signal PDF
-		if (!ws.factory(Form("SUM::%s(%s*%s, %s)", pdfName.c_str(),
-				     ("f_"+label).c_str(),
-				     pdf1Name.c_str(),
-				     pdf2Name.c_str()
-				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
-		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
-		// add PDF to list
-		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] " << tag << " Gaussian and Modified Crystal Ball " << varName << " PDF in " << col << " added!" << std::endl; break;
-	      }
 	    case (int(Model::SingleModExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "Alpha", "n", "AlphaR"};
+		const StringVector_t parNames = {"m", "Sigma1", "Alpha", "n", "rAlphaR", "AlphaR"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -561,7 +572,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::DoubleModExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "Alpha2", "n2", "AlphaR2", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "rAlphaR", "AlphaR", "Alpha2", "n2", "AlphaR2", "f"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -595,7 +606,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::GaussianAndModExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "rAlphaR", "AlphaR", "f"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class

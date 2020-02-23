@@ -306,7 +306,7 @@ bool printGoF(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& v
   //
   RooFit::RooGoF GoF_Binned(rData, rFit);
   GoF_Binned.setRange(varP->getMin(), varP->getMax());
-  GoF_Binned.setRebin(5, false);
+  GoF_Binned.setRebin(2, true);
   //
   // Determine the number of free parameters
   auto parList = std::unique_ptr<RooArgSet>(ws.pdf(pdfLabel.c_str())->getParameters(*ws.data(dataLabel.c_str())));
@@ -614,6 +614,7 @@ std::string parseVarName(const std::string& name)
   const auto& varL = StringMap_t({{"Alpha", "#alpha"}, {"Beta", "#beta"}, {"Lambda", "#lambda"}, {"Sigma", "#sigma"},
                                   {"rSigma21","#sigma2/#sigma1"}, {"rSigma32","#sigma3/#sigma2"}, {"rSigma43","#sigma4/#sigma3"},
 				  {"rLambdaSS21","#lambda2/#lambdaSS"}, {"rLambdaDS21","#lambda2/#lambdaDS"}, {"rLambdaF21","#lambda2/#lambdaF"},
+				  {"rAlphaR","#alphaR/#alpha"}, {"rnR","nR/n"},
 				  {"XSection","#sigma"}, {"AccXEff","#alphax#epsilon"}});
   for (const auto& vL : varL) { if (s1.rfind(vL.first, 0)==0) { stringReplace(s1, vL.first, vL.second); break; } }
   // Format Object name

@@ -144,7 +144,7 @@ Double_t RooModExtCBShape::analyticalIntegral(Int_t code, const char* rangeName)
     }
   }
   else if( tmin >= absAlpha2 ) {
-    result += (exp(0.5*absAlpha2*absAlpha2)/absAlpha2)*( exp(-absAlpha2*tmin) - exp(-absAlpha2*tmax) );
+    result += (sig/absAlpha2)*exp(0.5*absAlpha2*absAlpha2)*( exp(-absAlpha2*tmin) - exp(-absAlpha2*tmax) );
   }
   else if( tmax < absAlpha2 ) {
     double a = TMath::Power(n/absAlpha,n)*exp(-0.5*absAlpha*absAlpha);
@@ -166,7 +166,7 @@ Double_t RooModExtCBShape::analyticalIntegral(Int_t code, const char* rangeName)
   }
   else if( tmin >= -absAlpha ) {
     double term1 = sig*sqrtPiOver2*( ApproxErf(absAlpha2/sqrt2) - ApproxErf(tmin/sqrt2) );
-    double term2 = (exp(0.5*absAlpha2*absAlpha2)/absAlpha2)*( exp(-absAlpha2*absAlpha2) - exp(-absAlpha2*tmax) );
+    double term2 = (sig/absAlpha2)*exp(0.5*absAlpha2*absAlpha2)*( exp(-absAlpha2*absAlpha2) - exp(-absAlpha2*tmax) );
     result += term1 + term2;
   }
   else {
@@ -185,7 +185,7 @@ Double_t RooModExtCBShape::analyticalIntegral(Int_t code, const char* rangeName)
     double term2 = sig*sqrtPiOver2*(   ApproxErf(absAlpha2/sqrt2)
                                        - ApproxErf(-absAlpha/sqrt2) );
 
-    double term3 = (exp(0.5*absAlpha2*absAlpha2)/absAlpha2)*( exp(-absAlpha2*absAlpha2) - exp(-absAlpha2*tmax) );
+    double term3 = (sig/absAlpha2)*exp(0.5*absAlpha2*absAlpha2)*( exp(-absAlpha2*absAlpha2) - exp(-absAlpha2*tmax) );
     
     result += term1 + term2 + term3;
   }
