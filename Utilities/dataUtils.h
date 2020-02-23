@@ -530,4 +530,33 @@ void printCPUInfo()
 };
 
 
+std::istream& getlineSafe(std::istream& is, std::string& t)
+{
+  t.clear();
+  std::istream::sentry se(is, true);
+  std::streambuf* sb = is.rdbuf();
+  for (;;) {
+    int c = sb->sbumpc();
+    switch (c)
+      {
+      case '\n':
+	return is;
+      case '\r':
+	if (sb->sgetc() == '\n') {
+	  sb->sbumpc();
+	}
+	return is;
+      case EOF:
+	// Also handle the case when the last line has no line ending
+	if (t.empty()) {
+	  is.setstate(std::ios::eofbit);
+	}
+	return is;
+      default:
+	t += (char)c;
+      }
+  }
+};
+
+
 #endif /* DATAUTILS_H_ */
