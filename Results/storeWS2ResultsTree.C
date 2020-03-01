@@ -15,6 +15,7 @@
 #include "RooFormulaVar.h"
 #include "RooFitResult.h"
 #include "RooStringVar.h"
+#include "RooCategory.h"
 // c++ headers
 #include <iostream>
 #include <string>
@@ -41,7 +42,7 @@ bool storeWS2ResultsTree(
   // Define the output file info
   const std::string& CWD = getcwd(NULL, 0);
   const std::string& outputFileName = "tree_allvars.root";
-  const auto& dsTag = (dataTag+"_"+(dataTag=="DATA" ? "" : (objTag+"_"))+trgTag);
+  const auto& dsTag = (dataTag+"_"+(dataTag=="DATA" ? "" : (objTag+(trgTag.rfind("Cat",0)==0?"":"_")))+trgTag);
   auto vTag = varTag; if (vTag.find("_")!=std::string::npos) { vTag.erase(vTag.find("_"), 1); }
   const auto& outputDirPath  = (CWD+"/Tree/"+workDirName+"/"+vTag+"/"+dsTag+"/"+objTag+"/"+colTag);
   const auto& outputFilePath = (outputDirPath+"/"+outputFileName);
@@ -101,7 +102,10 @@ bool storeWS2ResultsTree(
     // Check the information
     const StringSet_t checkStr = { "DSTAG" , "channel", "fitSystem", "PD", "dsName", "pdfName" };
     for (const auto& s : checkStr) { if (!contain(info.Par, s)) { std::cout << "[ERROR] " << s << " was not found in workspace!" << std::endl; inputFile.Close(); return false; } }
-    if (info.Par.at("DSTAG").find(dsTag)==std::string::npos) { std::cout << "[ERROR] Workspace DSTAG " << info.Par.at("DSTAG") << " is not consistent with input dsTag " << dsTag << std::endl; inputFile.Close(); return false; }
+    if (dsTag.rfind("DATA_",0)==0 && info.Par.at("DSTAG").find(dsTag)==std::string::npos) {
+      std::cout << "[ERROR] Workspace DSTAG " << info.Par.at("DSTAG") << " is not consistent with input dsTag " << dsTag << std::endl; inputFile.Close(); return false;
+    }
+    if (info.Par.at("fitSystem")!=colTag) { std::cout << "[ERROR] Workspace COL " << info.Par.at("fitSystem") << " is not consistent with input colTag " << colTag << std::endl; inputFile.Close(); return false; }
     if (info.Par.at("fitSystem")!=colTag) { std::cout << "[ERROR] Workspace COL " << info.Par.at("fitSystem") << " is not consistent with input colTag " << colTag << std::endl; inputFile.Close(); return false; }
     if (info.Par.at("channel")!="ToMuMu") { std::cout << "[ERROR] Only dimuon channel is currently supported in result macros!" << std::endl; return false; }
     //
@@ -129,8 +133,8 @@ bool storeWS2ResultsTree(
       if (contain(v.second, "Max")) { v.second.at("Max") = var  ? var->getMax()   : -99.0; }
       if (contain(v.second, "Val")) { v.second.at("Val") = mean ? mean->getVal()  : -99.0; }
       if (contain(v.second, "Err")) { v.second.at("Err") = rms  ? rms->getVal() : -99.0; }
-      if (contain(v.second, "Min")) { v.second.at("DefaultMin") = var ? var->getMin("DEFAULT") : -99.0; }
-      if (contain(v.second, "Max")) { v.second.at("DefaultMax") = var ? var->getMax("DEFAULT") : -99.0; }
+      if (contain(v.second, "DefaultMin")) { v.second.at("DefaultMin") = var ? var->getMin("DEFAULT") : -99.0; }
+      if (contain(v.second, "DefaultMax")) { v.second.at("DefaultMax") = var ? var->getMax("DEFAULT") : -99.0; }
     }
     //
     // Get the snapshots
@@ -237,24 +241,31 @@ void iniResultsTreeInfo(GlobalInfo& info , const RooWorkspace& ws)
   const auto& dsStr = dynamic_cast<RooStringVar*>(ws.obj("dsName"));
   const std::string& dsName = (dsStr ? dsStr->getVal() : "");
   // Find the observable names
-  StringSet_t obsNames;
+  StringSet_t obsNames, catNames;
   const auto& listObs = const_cast<RooWorkspace*>(&ws)->set(("SET_"+dsName).c_str());
   if (listObs) {
     auto obsIt = std::unique_ptr<TIterator>(listObs->createIterator());
-    for (auto it = obsIt->Next(); it!=NULL; it = obsIt->Next()) { obsNames.insert(it->GetName()); }
-  }
-  else { obsNames = StringSet_t({"Cand_Mass", "Cand_APhi", "Cand_Pt", "Cand_Rap", "Cand_Len", "Centrality", "NTrack"}); } // BUG FIX
-  const auto& listVar = ws.allVars();
-  auto varIt = std::unique_ptr<TIterator>(listVar.createIterator());
-  if (varIt) {
-    for (auto it = varIt->Next(); it!=NULL; it = varIt->Next()) {
-      std::string name = it->GetName(); if (name.find("Abs")!=std::string::npos) { name.erase(name.find("Abs"),3); }
-      if (contain(obsNames, name)) { obsNames.erase(obsNames.find(name)); obsNames.insert(it->GetName()); }
+    for (auto it = obsIt->Next(); it!=NULL; it = obsIt->Next()) {
+      if (dynamic_cast<RooRealVar*>(it)) { obsNames.insert(it->GetName()); }
+      else if (dynamic_cast<RooCategory*>(it)) { catNames.insert(it->GetName()); }
     }
   }
-  const StringSet_t obsType = { "Min" , "Max" , "DefaultMin" , "DefaultMax" , "Val" , "Err" };
+  else { obsNames = StringSet_t({"Cand_Mass", "Cand_APhi", "Cand_Pt", "Cand_Rap", "Cand_Len", "Centrality", "NTrack"}); } // BUG FIX
+  // Add CM and abs variables
+  for (const auto& obs : obsNames) {
+    bool found = false;
+    const auto varAbs = ("Cand_Abs")+obs.substr(obs.rfind("_")+1);
+    if (ws.var((obs+"CM").c_str())) {  obsNames.insert(obs+"CM"); found = true; }
+    else if (ws.var(varAbs.c_str())) { obsNames.insert(varAbs); obsNames.insert(obs+"CM"); found = true; }
+    if (found) { obsNames.erase(obsNames.find(obs)); }
+  }
   // Initialize the observables
+  const StringSet_t obsType = { "Min" , "Max" , "DefaultMin" , "DefaultMax" , "Val" , "Err" };
   for (const auto& o : obsNames) { for (const auto& t : obsType) { info.Var["OBS_"+o][t] = -99.0; } }
+  //
+  // Initialize the categories
+  const StringSet_t catType = { "Val" };
+  for (const auto& o : catNames) { for (const auto& t : catType) { info.Var["CAT_"+o][t] = -99.0; } }
   //
   // Define the parameter names
   StringSet_t parNames;

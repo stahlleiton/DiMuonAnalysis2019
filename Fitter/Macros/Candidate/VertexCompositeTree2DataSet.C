@@ -301,7 +301,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           dau1Eta.setVal    ( d1Eta );
           dau2Eta.setVal    ( d2Eta );
           cent.setVal       ( centV );
-          nTrk.setVal       ( candOSTree->Ntrkoffline() );
+          nTrk.setVal       ( candOSTree->NTracks()[iC] );
           weight.setVal     ( 1.0   );
           isSwap.setLabel   ( "None");
 	  candDLenGen.setVal( -1.0  );
@@ -405,7 +405,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           dau1Eta.setVal    ( d1Eta );
           dau2Eta.setVal    ( d2Eta );
           cent.setVal       ( centV );
-          nTrk.setVal       ( candSSTree->Ntrkoffline() );
+          nTrk.setVal       ( candSSTree->NTracks()[iC] );
           weight.setVal     ( 1.0   );
           isSwap.setLabel   ("None" );
 	  candDLenGen.setVal( -1.0  );

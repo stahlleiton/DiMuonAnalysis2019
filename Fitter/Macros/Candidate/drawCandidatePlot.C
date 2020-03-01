@@ -161,9 +161,9 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
 	      if (norm==99999999.999) { norm = addPDF.expectedEvents(fitSet); }
 	      if (!ws.pdf(pdfPlotName.c_str()) && ws.import(addPDF)) { return false; }
 	      // Plot the sum of PDFs
-	      ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PDFPlotWindow"), RooFit::NormRange("PDFPlotWindow"),
-						  RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent),// RooFit::Precision(1e-6),
-						  RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("F"),
+	      ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PDFPlotWindow"),
+						  RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
+						  RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("B")
 						  RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
 	    }
 	    norm -= yield->getVal();
@@ -176,9 +176,9 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
 	  const std::string& pName = pdf->GetName();
 	  std::string obj = pName; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find("To"));
 	  // Plot the PDF
-	  ws.pdf(pName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PDFPlotWindow"), RooFit::NormRange("PDFPlotWindow"),
-					RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent),// RooFit::Precision(1e-6),
-					RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("F"),
+	  ws.pdf(pName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PDFPlotWindow"),
+					RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
+					RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("B"),
 					RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
 	}
 	// Loop over the non-stacked PDFs
@@ -447,11 +447,14 @@ void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string
     if (varN==fitVar || varN=="Cand_Mass" || varN.rfind("Cand_DLen",0)==0) continue;
     if (varN=="Centrality" && col.rfind("PbPb",0)!=0) continue;
     auto absVarN = varN; if (absVarN.find("_")!=std::string::npos) { absVarN.insert(absVarN.find("_")+1, "Abs"); }
-    dsVar.push_back(ws.var(absVarN.c_str()) ? *ws.var(absVarN.c_str()) : *it);
+    auto varCM = varN+"CM";
+    if (ws.var(varCM.c_str())) { dsVar.push_back(*ws.var(varCM.c_str())); }
+    if (ws.var(absVarN.c_str())) { dsVar.push_back(*ws.var(absVarN.c_str())); }
+    if (!ws.var(varCM.c_str()) && !ws.var(absVarN.c_str())) { dsVar.push_back(*it); }
   }
   // Draw the dataset binning
   for (const auto& var : dsVar) {
-    const std::string& varName = var.GetName();
+    std::string varName = var.GetName();
     if (varName.rfind("N_", 0)==0 || varName.rfind("L_N_", 0)==0) continue;
     // Get the default range
     const auto& defaultMin = var.getMin("DEFAULT");
@@ -519,7 +522,7 @@ TLegend* printCandidateLegend(TPad& pad, const RooPlot& frame, const StringMap_t
     const auto& objFrame = frame.findObject(plotN.c_str()); if (!objFrame) continue;
     // Find the draw option
     const std::string& drawOpt = frame.getDrawOptions(plotN.c_str()).Data();
-    std::string legOpt = "pe"; if (drawOpt=="L") { legOpt = "l"; } else if (drawOpt=="F") { legOpt = "f"; }
+    std::string legOpt = "pe"; if (drawOpt=="L") { legOpt = "l"; } else if (drawOpt=="F" || drawOpt=="B") { legOpt = "f"; }
     // Add the legend
     formatLegendEntry(*leg->AddEntry(objFrame, parseObject(legInfo.at(plotN)).c_str(), legOpt.c_str()), legSize);
   }

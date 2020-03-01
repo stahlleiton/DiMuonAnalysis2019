@@ -60,7 +60,7 @@ void fitter(
             // Select the fitting options
             const std::bitset<5> fitVar   = 3,            // Fit Variable: (bit 0 (1)) Cand_Mass    , (bit 1 (2)) Cand_DLen ,
 	                                                  //               (bit 2 (4)) Cand_DLenErr , (bit 3 (8)) Cand_DLenRes , (bit 4 (16)) Cand_DLenGen
-            const unsigned int   numCores = 20,           // Number of cores used for fitting
+            const unsigned int   numCores = 32,           // Number of cores used for fitting
             const std::string    analysis = "CandToMuMu", // Type of analysis: CandToXX (Mass Resonance)
             // Select the drawing options
             const bool setLogScale  = true                // Draw plot with log scale
@@ -187,7 +187,7 @@ void fitter(
     userInput.StrS["allTemplate_"+var].clear();
   }
   //
-  const auto& defObj = (workDirName.rfind("Psi2S")!=std::string::npos ? "Psi2S" : "JPsi");
+  const auto& defObj = (workDirName.rfind("Psi2S_Fit")!=std::string::npos ? "Psi2S" : "JPsi");
   for (const auto& v : userInput.StrV.at("variable")) {
     auto var = v; stringReplace(var, "_", "");
     for (const auto& o : userInput.StrV.at("object")) {
@@ -509,6 +509,8 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
     info.Var["Cand_DLenGen"]["Max"] = 1000.0;
     info.Var["Cand_Rap"]["Min"]     = -2.5;
     info.Var["Cand_Rap"]["Max"]     = 2.5;
+    info.Var["Cand_RapCM"]["Min"]   = -2.9;
+    info.Var["Cand_RapCM"]["Max"]   = 2.9;
     info.Var["Cand_AbsRap"]["Min"]  = 0.0;
     info.Var["Cand_AbsRap"]["Max"]  = 2.5;
     info.Var["Cand_APhi"]["Min"]    = -3.5;
@@ -538,12 +540,11 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
   info.Par["PD"] = userInfo.Par.at("PD");
   info.Par["MC_CAT"] = "";
   for (const auto& var : userInfo.StrS.at("incVarName")) { info.Par["Model"+var] = ""; }
-  for (const auto& v : info.Var) { if (contain(row, v.first+"CM")) { info.Flag["use"+v.first+"CM"] = true; } }
+  for (const auto& v : info.Var) { if (contain(row, v.first+"CM") && row.at(v.first+"CM")!="NONE") { info.Flag["use"+v.first+"CM"] = true; } }
   // set parameters from file
   for (const auto& col : row) {
-    std::string colName = col.first; stringReplace(colName, "CM", "");
-    if (contain(info.Flag, "use"+col.first+"CM") && info.Flag.at("use"+col.first+"CM")) continue;
     bool found = false;
+    const auto& colName = col.first;
     for (const auto& var : info.Var) {
       const auto& varName = var.first;
       if (colName==varName) {

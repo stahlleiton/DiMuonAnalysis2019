@@ -34,7 +34,7 @@ bool extractResultsTree(
   // Define the input file info
   const std::string& CWD = getcwd(NULL, 0);
   const std::string& inputFileName = "tree_allvars.root";
-  const auto& dsTag = (dataTag+"_"+(dataTag=="DATA" ? "" : (objTag+"_"))+trgTag);
+  const auto& dsTag = (dataTag+"_"+(dataTag=="DATA" ? "" : (objTag+(trgTag.rfind("Cat",0)==0?"":"_")))+trgTag);
   auto vTag = varTag; if (vTag.find("_")!=std::string::npos) { vTag.erase(vTag.find("_"), 1); }
   const auto& inputDirPath  = (CWD+"/Tree/"+workDirName+"/"+vTag+"/"+dsTag+"/"+objTag+"/"+colTag);
   const auto& inputFilePath = (inputDirPath+"/"+inputFileName);
@@ -80,7 +80,7 @@ bool extractResultsTree(
       auto min = var.at("Min");
       auto max = var.at("Max");
       // Check if bin was properly set
-      if (min==-99. || max==-99.) { std::cout << "[ERROR] The bin was not set properly!" << std::endl; return false; }
+      if (min==-99. || max==-99.) { std::cout << "[WARNING] The bin of " << v.first << " was not set properly!" << std::endl; continue; }
       // Ignore fit variable
       if (name=="Cand_Mass") continue;
       // Check if bin is set to default values
@@ -104,8 +104,8 @@ bool extractResultsTree(
       if (v.first.rfind("PAR_",0)==0) {
 	auto name = v.first; name.erase(0, 4);
         if (contain(v.second, "Val")) { inputVar[obj][col][PD][bin][name]["Val"] = v.second.at("Val"); }
-        if (contain(v.second, "ErrHi")) { inputVar[obj][col][PD][bin][name]["Err_Stat_High"] = v.second.at("ErrHi"); }
-        if (contain(v.second, "ErrLo")) { inputVar[obj][col][PD][bin][name]["Err_Stat_Low" ] = v.second.at("ErrLo"); }
+        inputVar[obj][col][PD][bin][name]["Err_Stat_High"] = contain(v.second, "ErrHi") ? v.second.at("ErrHi") : 0.0;
+        inputVar[obj][col][PD][bin][name]["Err_Stat_Low" ] = contain(v.second, "ErrLo") ? v.second.at("ErrLo") : 0.0;
         inputVar[obj][col][PD][bin][name]["Err_Syst_High"] = 0.0;
 	inputVar[obj][col][PD][bin][name]["Err_Syst_Low" ] = 0.0;
       }

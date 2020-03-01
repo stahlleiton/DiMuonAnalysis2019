@@ -1263,20 +1263,20 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// create the PDF
-		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::SingleSided)", pdf1Name.c_str(), varName.c_str(),
-				     ("LambdaSS_"+label).c_str(),
-				     pdfResName.c_str()
-				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
-		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::DoubleSided)", pdf2Name.c_str(), varName.c_str(),
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::DoubleSided)", pdf1Name.c_str(), varName.c_str(),
 				     ("LambdaDS_"+label).c_str(),
 				     pdfResName.c_str()
+				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf1Name << std::endl; return false; }
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::SingleSided)", pdf2Name.c_str(), varName.c_str(),
+				     ("LambdaSS2_"+label).c_str(),
+				     pdfResName.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf2Name << std::endl; return false; }
-		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::Flipped)", pdf3Name.c_str(), varName.c_str(),
-				     ("LambdaF_"+label).c_str(),
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::SingleSided)", pdf3Name.c_str(), varName.c_str(),
+				     ("LambdaSS_"+label).c_str(),
 				     pdfResName.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf3Name << std::endl; return false; }
-		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::SingleSided)", pdf4Name.c_str(), varName.c_str(),
-				     ("LambdaSS2_"+label).c_str(),
+		if (!ws.factory(Form("Decay::%s(%s, %s, %s, RooDecay::Flipped)", pdf4Name.c_str(), varName.c_str(),
+				     ("LambdaF_"+label).c_str(),
 				     pdfResName.c_str()
 				     ))) { std::cout << "[ERROR] Failed to create PDF " << pdf4Name << std::endl; return false; }
 		// sum the PDFs to get the total PDF
@@ -1412,7 +1412,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    if (ws.import(*themodel)) { std::cout << "[ERROR] Failed to import PDF " << pdfName << std::endl; return false; }
 	  }
 	  // create the yield
-	  if (!addModelPar(ws, info, {"N"}, "Cand_Mass", (p.first+lbl), "")) { return false; }
+	  if (!addModelPar(ws, info, {"N"}, "Cand_Mass", (p.first+lbl), "", true)) { return false; }
 	  // extend the PDF
 	  const auto& pdfTotName = ("pdf"+var+"Tot_"+p.first+lbl);
 	  if (!ws.factory(Form("RooExtendPdf::%s(%s,%s)", pdfTotName.c_str(),
@@ -1435,6 +1435,12 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	if (v.first==varTot) { info.Par["pdfName"+chg] = pdfName; }
 	auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), v.second));
 	ws.import(*themodel);
+      }
+    }
+    // Add N for other objects not used in the PDF fit if mass PDF info has been loaded
+    if (contain(info.StrS, "incObject_CandMass")) {
+      for (const auto& o : info.StrS.at("incObject_CandMass")) {
+	if (!addModelPar(ws, info, {"N"}, "", o+lbl, "")) { return false; }
       }
     }
   }
@@ -1663,7 +1669,7 @@ bool addSPlotWeight(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, 
       for (const auto& wVarN : wVars) { w += vars.getRealValue(wVarN.c_str(), 0.0); }
       weight->setVal(w * ds->weight());
       const auto& N = dynamic_cast<RooRealVar*>(vars.find("N_JPsiToMuMuOS_PA8Y16_sw"));
-      tmpDS->addFast(vars, weight->getVal());
+      tmpDS->add(vars, weight->getVal());
     }
     //
     // Import to RooWorkspace

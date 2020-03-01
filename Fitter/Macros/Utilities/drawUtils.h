@@ -306,7 +306,8 @@ bool printGoF(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& v
   //
   RooFit::RooGoF GoF_Binned(rData, rFit);
   GoF_Binned.setRange(varP->getMin(), varP->getMax());
-  GoF_Binned.setRebin(2, true);
+  GoF_Binned.setRebin(5, true);
+  //GoF_Binned.setRebin(2, true);
   //
   // Determine the number of free parameters
   auto parList = std::unique_ptr<RooArgSet>(ws.pdf(pdfLabel.c_str())->getParameters(*ws.data(dataLabel.c_str())));

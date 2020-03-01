@@ -190,11 +190,11 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
 
 
 bool addModelPar(RooWorkspace& ws, GlobalInfo& info, const StringVector_t& parNames, const std::string& fitVar,
-		 const std::string& label, const std::string& modelN, StringVector_t& parFullNames)
+		 const std::string& label, const std::string& modelN, StringVector_t& parFullNames, const bool& reset=false)
 {
   // Check if parameters are already added
   bool addPar = false; for (const auto& v : parNames) { addPar = addPar || !ws.arg((v+"_"+label).c_str()); };
-  if (!addPar) { return true; }
+  if (!addPar && !reset) { return true; }
   // initialize all input parameters
   if (!setModelPar(info, parNames, label, fitVar, modelN, parFullNames)) { return false; }
   // Constrain Quarkonium excited states to 1S state
@@ -208,9 +208,20 @@ bool addModelPar(RooWorkspace& ws, GlobalInfo& info, const StringVector_t& parNa
   // create the variables for this model
   RooArgList pdfConstrains;
   for (const auto& v : parNames) {
-    if (ws.arg((v+"_"+label).c_str()) || v=="Cut") continue;
-    if (contain(info.Par, v+"_"+label)) {
-      if (!ws.factory(info.Par.at(v+"_"+label).c_str())) { std::cout << "[ERROR] Failed to create variable " << v+"_"+label << " defined as " << info.Par.at(v+"_"+label) << std::endl; return false; }
+    const auto& varName = v+"_"+label;
+    if (ws.arg(varName.c_str()) || v=="Cut") continue;
+    if (contain(info.Par, varName)) {
+      if (!ws.var(varName.c_str())) {
+	if (!ws.factory(info.Par.at(varName).c_str())) { std::cout << "[ERROR] Failed to create variable " << varName << " defined as " << info.Par.at(varName) << std::endl; return false; }
+      }
+      else if (reset) {
+	RooWorkspace tmpWS;
+	if (!tmpWS.factory(info.Par.at(varName).c_str())) { std::cout << "[ERROR] Failed to create variable " << varName << " defined as " << info.Par.at(varName) << std::endl; return false; }
+	ws.var(varName.c_str())->setVal(tmpWS.var(varName.c_str())->getVal());
+	ws.var(varName.c_str())->setMin(tmpWS.var(varName.c_str())->getMin());
+	ws.var(varName.c_str())->setMax(tmpWS.var(varName.c_str())->getMax());
+	continue;
+      }
     }
     // create the Gaussian PDFs for Constrain fits
     if (contain(info.Par, "val"+v+"_"+label) && contain(info.Par, "sig"+v+"_"+label)) {
@@ -231,10 +242,10 @@ bool addModelPar(RooWorkspace& ws, GlobalInfo& info, const StringVector_t& parNa
 
 
 bool addModelPar(RooWorkspace& ws, GlobalInfo& info, const StringVector_t& parNames, const std::string& fitVar,
-		 const std::string& label, const std::string& modelN)
+		 const std::string& label, const std::string& modelN, const bool& reset=false)
 {
   StringVector_t parFullNames = {"NULL"};
-  return addModelPar(ws, info, parNames, fitVar, label, modelN, parFullNames);
+  return addModelPar(ws, info, parNames, fitVar, label, modelN, parFullNames, reset);
 };
 
 

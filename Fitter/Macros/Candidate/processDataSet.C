@@ -92,9 +92,9 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   const std::string& ZAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=15.0) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=15.0))";
   //
   // Define the muon quality cuts
-  const std::string& useSoftMuons = "(Cand_Qual & 1)";
-  const std::string& useHybridMuons = "(Cand_Qual & 2)";
-  const std::string& useTightMuons = "(Cand_Qual & 4)";
+  const std::string& useSoftMuons = "(int(Cand_Qual) & 1)";
+  const std::string& useHybridMuons = "(int(Cand_Qual) & 2)";
+  const std::string& useTightMuons = "(int(Cand_Qual) & 4)";
   //
   // Define the dimuon cuts
   const std::string& vtxPCut = "(Cand_VtxP > 0.0001)";
@@ -121,7 +121,7 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
     else if (evtCol.rfind("8Y16")!=std::string::npos) { trigIdx = pPb::R8TeV::Y2016::HLTBitsFromPD(PD); }
     if (trigIdx.empty()) { std::cout << "[ERROR] Could not determine the trigger index for the " << PD << " sample" << std::endl; return false; }
     std::string trigCut = "";
-    for (const auto& idx : trigIdx) { trigCut += Form("(Cand_Trig & %.0f) ||", std::pow(2.0, idx)); }
+    for (const auto& idx : trigIdx) { trigCut += Form("(int(Cand_Trig) & %.0f) ||", std::pow(2.0, idx)); }
     trigCut = trigCut.substr(0, trigCut.rfind(" ||")); if (trigIdx.size()>1) { trigCut = "("+trigCut+")"; }
     //
     // Determine the cut string

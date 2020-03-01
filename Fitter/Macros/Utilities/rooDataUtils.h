@@ -528,6 +528,15 @@ bool isCompatibleDataset(const RooDataSet& ds, const RooDataSet& ref, const bool
 
 bool compareSnapshots(const RooArgSet& pars1, const RooArgSet& pars2)
 {
+  auto parIt2 = std::unique_ptr<TIterator>(pars1.createIterator());
+  for (auto itp = parIt2->Next(); itp!=NULL; itp = parIt2->Next() ) {
+    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
+    const auto& val = pars2.getRealValue(it->GetName(),-1e99);
+    if (val != it->getVal() || ((RooRealVar&)pars2[it->GetName()]).getMin() != it->getMin() || ((RooRealVar&)pars2[it->GetName()]).getMax() != it->getMax()){
+      std::cout << "OLD: " << it->GetName() << "  " << ((RooRealVar&)pars2[it->GetName()]).getVal() << "  " << ((RooRealVar&)pars2[it->GetName()]).getMin() << "  " << ((RooRealVar&)pars2[it->GetName()]).getMax() << std::endl;
+      std::cout << "NEW: " << it->GetName() << "  " << it->getVal() << "  " << it->getMin() << "  " << it->getMax() << std::endl;
+    }
+  }
   auto parIt = std::unique_ptr<TIterator>(pars1.createIterator());
   for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next() ) {
     const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
@@ -1073,6 +1082,9 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
   for (auto& v : info.Var) {
     if (contain(info.Flag, "use"+v.first+"CM") && info.Flag.at("use"+v.first+"CM")) {
       myws.factory(Form("use%sCM[1.0]", v.first.c_str()));
+      const auto& var = info.Var.at(v.first+"CM");
+      myws.factory(Form("%sCM[%.10f,%.10f,%.10f]", v.first.c_str(), 0.0, var.at("Min"), var.at("Max")));
+      myws.var((v.first+"CM").c_str())->setRange("DEFAULT", -2.965, 2.035);
     }
   }
   // Set the range of each global parameter in the local workspace

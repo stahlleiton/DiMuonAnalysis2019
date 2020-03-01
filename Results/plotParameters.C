@@ -9,10 +9,10 @@
 
 void plotParameters(
 		    const std::string& workDirName = "Test",
-		    const StringVector_t& trgTags  = { "DIMUON" },   //"MUON", "DIMUON", "DIMUONPERI", "HIGHMULT", "HIGHMULT2", "MINBIAS", "UPC"
-		    const StringVector_t& colTags  = { "PbPb5Y18" }, //"PP5Y17", "PP13Y18", "pPb8Y16", "Pbp8Y16", "PA8Y16", "PbPb5Y15"
-		    const StringVector_t& objTags  = { "Ups1S" },    //"Bkg", "JPsi", "Psi2S", "Ups1S", "Ups2S", "Ups3S", "Z", "D0"
-		    const std::string&    dataTag  = "DATA",         //"DATA", "MC" 
+		    const StringVector_t& objTags  = { "JPsi" },    //"Bkg", "JPsi", "Psi2S", "Ups1S", "Ups2S", "Ups3S", "Z", "D0"
+		    const StringVector_t& trgTags  = { "CatPR_DIMUON" },   //"MUON", "DIMUON", "DIMUONPERI", "HIGHMULT", "HIGHMULT2", "MINBIAS", "UPC"
+		    const StringVector_t& colTags  = { "PA8Y16" }, //"PP5Y17", "PP13Y18", "pPb8Y16", "Pbp8Y16", "PA8Y16", "PbPb5Y15"
+		    const std::string&    dataTag  = "MC",         //"DATA", "MC" 
 		    const std::string&    varTag   = "Cand_Mass"     //"Cand_Mass"
 		    )
 {
