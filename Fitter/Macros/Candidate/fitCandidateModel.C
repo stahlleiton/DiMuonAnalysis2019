@@ -187,7 +187,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
           const bool& isWeighted = myws.at(chg).data(dsNameFit.c_str())->isWeighted();
           const auto& numCores = info.Int.at("numCores");
           const auto& pdfConstrains = dynamic_cast<RooArgList*>(myws.at(chg).genobj(("pdfConstr"+label).c_str()));
-	  int opt = 2; if (info.Flag.at("fitBkg")) { opt = 0; }
+	  uint opt = 2; if (info.Flag.at("fitBkg")) { opt = 0; }
           std::vector<RooCmdArg> cmdList = { RooFit::Extended(true), RooFit::AsymptoticError(false), RooFit::InitialHesse(true), RooFit::Minos(false), RooFit::Strategy(opt), RooFit::Minimizer("Minuit2"),
 					     RooFit::Optimize(false), RooFit::NumCPU(numCores, 1), RooFit::Save(true), RooFit::Timer(true), RooFit::PrintLevel(1), RooFit::BatchMode(true)};
           if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
@@ -198,11 +198,13 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
           else {
             std::cout << "[INFO] Fitting " << pdfName << " on " << dsNameFit << std::endl;
             fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
-	    for (uint iTry=1; iTry<=opt; iTry++) {
-              cmdList[4] = RooFit::Strategy(opt-iTry);
-              fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit, "initialParameters");
-	      if (!fitFailed) break;
-            }
+	    if (fitFailed) {
+	      for (uint iTry=1; iTry<=opt; iTry++) {
+		cmdList[4] = RooFit::Strategy(opt-iTry);
+		fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit, "initialParameters");
+		if (!fitFailed) break;
+	      }
+	    }
 	    if (false && isData && !fitFailed && contain(fitVars, "Cand_Mass")) {
               cmdList[3] = RooFit::Minos(true);
               fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);

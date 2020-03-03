@@ -80,8 +80,8 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   //
   std::string PsiAcceptance_2016_Tight = "((abs(Dau1_Eta)<1.2 && Dau1_Pt>=3.3) || (1.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.1 && Dau1_Pt>=3.93-1.11*abs(Dau1_Eta)) || (2.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.3))";
   PsiAcceptance_2016_Tight += " && ((abs(Dau2_Eta)<1.2 && Dau2_Pt>=3.3) || (1.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.1 && Dau2_Pt>=3.93-1.11*abs(Dau2_Eta)) || (2.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.3))";
-  std::string PsiAcceptance_2016_Loose = "((abs(Dau1_Eta)<0.8 && Dau1_Pt>=3.3) || (0.8<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.5 && Dau1_Pt>=5.81-3.14*abs(Dau1_Eta)) || (1.5<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.89-0.526*abs(Dau1_Eta) && Dau1_Pt>=0.8))";
-  PsiAcceptance_2016_Loose += " && ((abs(Dau2_Eta)<0.8 && Dau2_Pt>=3.3) || (0.8<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.5 && Dau2_Pt>=5.81-3.14*abs(Dau2_Eta)) || (1.5<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.89-0.526*abs(Dau2_Eta) && Dau2_Pt>=0.8))";
+  std::string PsiAcceptance_2016_Loose = "((abs(Dau1_Eta)<1.0 && Dau1_Pt>=3.3) || (1.0<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.5 && Dau1_Pt>=7.5-4.2*abs(Dau1_Eta)) || (1.5<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=max(2.4-0.8*abs(Dau1_Eta), 0.8)))";
+  PsiAcceptance_2016_Loose += " && ((abs(Dau2_Eta)<1.0 && Dau2_Pt>=3.3) || (1.0<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.5 && Dau2_Pt>=7.5-4.2*abs(Dau2_Eta)) || (1.5<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=max(2.4-0.8*abs(Dau2_Eta), 0.8)))";
   //
   std::string PsiAcceptance_2018_Tight = "((abs(Dau1_Eta)<1.2 && Dau1_Pt>=3.5) || (1.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.1 && Dau1_Pt>=5.47-1.89*abs(Dau1_Eta)) || (2.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.5))";
   PsiAcceptance_2018_Tight += " && ((abs(Dau2_Eta)<1.2 && Dau2_Pt>=3.5) || (1.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.1 && Dau2_Pt>=5.47-1.89*abs(Dau2_Eta)) || (2.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.5))";

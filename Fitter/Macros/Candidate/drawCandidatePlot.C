@@ -163,7 +163,7 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
 	      // Plot the sum of PDFs
 	      ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PDFPlotWindow"),
 						  RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
-						  RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("B")
+						  RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("B"),
 						  RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
 	    }
 	    norm -= yield->getVal();

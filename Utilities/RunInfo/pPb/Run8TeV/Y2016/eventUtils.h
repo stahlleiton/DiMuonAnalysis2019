@@ -144,9 +144,9 @@ namespace pPb {
       bool muonAcceptance(const double& pt, const double& eta)
       {
 	return ( fabs(eta) < 2.4 &&
-		 (    ( fabs(eta) < 0.8 && pt >= 3.3 ) ||
-		      (  0.8 <= fabs(eta) && fabs(eta) < 1.5 && pt >= 5.81-3.14*fabs(eta)) ||
-		      (  1.5 <= fabs(eta) && fabs(eta) < 2.4 && pt >= 0.8 && 1.89-0.526*fabs(eta) )
+		 (    ( fabs(eta) < 1.0 && pt >= 3.3 ) ||
+		      (  1.0 <= fabs(eta) && fabs(eta) < 1.5 && pt >= 7.5-4.2*fabs(eta)) ||
+		      (  1.5 <= fabs(eta) && fabs(eta) < 2.4 && pt >= std::max(2.4-0.8*fabs(eta), 0.8) )
 		      )
 		 );
       };
