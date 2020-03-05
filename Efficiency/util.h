@@ -93,7 +93,8 @@ BinMapMap_t BINMAP_Psi2S =
      {
       {"Cand_Pt", 6.5, 50.0},
       {
-       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.2, 1.93}},
+       {"Cand_RapCM", "VAR", {-2.86, -2.4, -1.93, -1.6, -1.2, -0.8, -0.4, 0.0, 0.4, 0.8, 1.2, 1.6, 1.93}},
+       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.93}},
        {"Cand_RapCM", "VAR", {-1.93, 0.0, 1.93}}
       }
      }
@@ -123,7 +124,7 @@ BinMapMap_t BINMAP_Psi2S =
      {
       {"Cand_Pt", 6.5, 50.0},
       {
-       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.2, 1.93}},
+       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.93}},
        {"Cand_RapCM", "VAR", {-1.93, 0.0, 1.93}},
        {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}},
       }
@@ -154,7 +155,7 @@ BinMapMap_t BINMAP_Psi2S =
      {
       {"Cand_Pt", 6.5, 50.0},
       {
-       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.2, 1.93}},
+       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.93}},
        {"Cand_RapCM", "VAR", {-1.93, 0.0, 1.93}},
        {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}},
       }
@@ -185,7 +186,7 @@ BinMapMap_t BINMAP_Psi2S =
      {
       {"Cand_Pt", 6.5, 50.0},
       {
-       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.2, 1.93}},
+       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.93}},
        {"Cand_RapCM", "VAR", {-1.93, 0.0, 1.93}},
        {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}},
       }
@@ -216,7 +217,7 @@ BinMapMap_t BINMAP_Psi2S =
      {
       {"Cand_Pt", 6.5, 50.0},
       {
-       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.2, 1.93}},
+       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.93}},
        {"Cand_RapCM", "VAR", {-1.93, 0.0, 1.93}},
        {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}},
       }
@@ -242,56 +243,3 @@ BinMapMap_t BINMAP_General =
     }
    }
   };
-
-
-bool decayLenCut(const double& pT, const double& y, const bool& muonTrig=true, const double& thr=0.90)
-{
-  if(muonTrig)
-  {
-    if(thr>=0.99)
-    {
-      if(fabs(y)<1.4) { return (-0.2 + (1.5/std::pow(pT, 0.5))); }
-      else if(fabs(y)<2.4) { return (-0.3 + (1.5/std::pow(pT, 0.3))); }
-    }
-    else if(thr==0.95)
-    {
-      if(fabs(y)<1.4) { return (0.007 + (0.17/std::pow(pT, 0.67))); }
-      else if(fabs(y)<2.4) { return (-0.05 + (0.26/std::pow(pT, 0.36))); }
-    }
-    else if(thr==0.90)
-    {
-      if(fabs(y)<1.4) { return (0.008 + (0.13/std::pow(pT, 0.73))); }
-      else if(fabs(y)<2.4) { return (-0.03 + (0.18/std::pow(pT, 0.35))); }
-    }
-    else if(thr==0.85)
-    {
-      if(fabs(y)<1.4) { return (0.009 + (0.11/std::pow(pT, 0.84))); }
-      else if(fabs(y)<2.4) { return (-0.03 + (0.14/std::pow(pT, 0.34))); }
-    }
-  }
-  else
-  {
-    if(thr>=0.99)
-    {
-      if(fabs(y)<1.4) { return (-0.1 + (2.8/std::pow(pT, 0.8))); }
-      else if(fabs(y)<2.4) { return (-0.1 + (1.7/std::pow(pT, 0.4))); }
-    }
-    else if(thr==0.95)
-    {
-      if(fabs(y)<1.4) { return (0.021 + (0.8/std::pow(pT, 1.49))); }
-      else if(fabs(y)<2.4) { return (-0.07 + (0.28/std::pow(pT, 0.29))); }
-    }
-    else if(thr==0.90)
-    {
-      if(fabs(y)<1.4) { return (-0.010 + (0.12/std::pow(pT, 0.43))); }
-      else if(fabs(y)<2.4) { return (-0.05 + (0.18/std::pow(pT, 0.30))); }
-    }
-    else if(thr==0.85)
-    {
-      if(fabs(y)<1.4) { return (0.003 + (0.11/std::pow(pT, 0.67))); }
-      else if(fabs(y)<2.4) { return (-0.04 + (0.14/std::pow(pT, 0.29))); }
-    }
-  }
-  std::cout << "[ERROR] decayLenCut: invalid inputs!" << std::endl;
-  return false;
-};

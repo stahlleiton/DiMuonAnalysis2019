@@ -38,12 +38,13 @@ using CorrMap_t    =  std::map< std::string , uint >;
 
 
 // ------------------ FUNCTION -------------------------------
-TnPVec_t getTnPScaleFactors  ( const double& ptD1 , const double& etaD1 , const double& ptD2 , const double& etaD2 , const CorrMap_t& corrType );
+TnPVec_t getTnPScaleFactors  ( const double& ptD1 , const double& etaD1 , const double& ptD2 , const double& etaD2 , const CorrMap_t& corrType , const bool& incMuTrig );
 bool     getTnPUncertainties ( Unc1DVec_t& unc , const EffVec_t& eff );
 bool     getTnPUncertainties ( Unc1DMap_t& unc , const EffMap_t& eff );
 void     initEff1D           ( TH1DMap_t& h , const AnaVarMap_t& binMap , const CorrMap_t& corrType );
-bool     fillEff1D           ( TH1DVec_t& h , const bool& pass , const double& xVar , const TnPVec_t& sfTnP , const double& evtWeight );
-bool     fillEff1D           ( TH1DMap_t& h, const bool& pass, const std::string& sample, const std::string& col, const std::string& type, const VarMap_t& var, const TnPVec_t& sfTnP, const double& evtWeight );
+bool     fillEff1D           ( TH1DVec_t& h , const bool& den_pass , const bool& num_pass , const double& xVar , const TnPVec_t& sfTnP , const double& evtWeight );
+bool     fillEff1D           ( TH1DMap_t& h , const bool& den_pass , const bool& num_pass, const std::string& sample, const std::string& col, const std::string& type,
+			       const VarMap_t& var, const TnPVec_t& sfTnP, const double& evtWeight );
 bool     loadEff1D           ( EffMap_t& eff, const TH1DMap_t& h );
 void     mergeEff            ( EffMap_t& eff );
 void     writeEff            ( TFile& file , const EffMap_t& eff , const Unc1DMap_t& unc , const std::string& mainDirName );
@@ -59,7 +60,7 @@ const char* clStr            ( const std::string& in );
 const std::vector<std::string> COLL_ = { "pPb8Y16", "Pbp8Y16", "PA8Y16" };
 //
 // Efficiency Categories
-const std::vector< std::string > EFFTYPE_ = {"Acceptance", "Efficiency_Total", "Efficiency_DecayCut"};
+const std::vector< std::string > EFFTYPE_ = {"Acceptance", "Efficiency_Total", "Efficiency_DecayCut_90"}; //"Efficiency_DecayCut_85", "Efficiency_DecayCut_95", "Efficiency_DecayCut_99"};
 //
 // Correction Categories
 const CorrMap_t corrType_ = {
@@ -256,17 +257,21 @@ void correctEfficiency(const std::string workDirName = "Nominal", const std::str
 	  // Total Acceptance (Based on Generated muons)
 	  //
 	  TnPVec_t sfMC = {{"NoCorr", {1.0}}};
-	  if (!fillEff1D(h1D, passCandAccep, sample, "pPb8Y16", "Acceptance", varInfo, sfMC, evtWeight)) { return; }
-	  if (!fillEff1D(h1D, passCandAccep, sample, "Pbp8Y16", "Acceptance", varInfo, sfMC, evtWeight)) { return; }
+	  if (!fillEff1D(h1D, true, passCandAccep, sample, "pPb8Y16", "Acceptance", varInfo, sfMC, evtWeight)) { return; }
+	  if (!fillEff1D(h1D, true, passCandAccep, sample, "Pbp8Y16", "Acceptance", varInfo, sfMC, evtWeight)) { return; }
 	  //
 	  continue;
 	}
 	
         // Initialize the boolean flags
 	bool passRecoCandAccep  = false;
+	bool passVertexProbCut  = false;
         bool passIdentification = false;
         bool passTrigger        = false;
-	bool passDecayCut       = false;
+	bool passDecayCut_85    = false;
+	bool passDecayCut_90    = false;
+	bool passDecayCut_95    = false;
+	bool passDecayCut_99    = false;
 	
         // Initialize the Tag-And-Probe scale factos
         TnPVec_t sfTnP = {};
@@ -291,7 +296,7 @@ void correctEfficiency(const std::string workDirName = "Nominal", const std::str
             const auto& cand_EtaD2 = tree->EtaD2()[iReco];
 	    
             // Determine the Tag-And-Probe scale factors
-            sfTnP = getTnPScaleFactors(cand_PtD1, cand_EtaD1, cand_PtD2, cand_EtaD2, corrType);
+            sfTnP = getTnPScaleFactors(cand_PtD1, cand_EtaD1, cand_PtD2, cand_EtaD2, corrType, PD=="DIMUON");
 
 	    // Check if the reconstructed candidate is within analysis kinematic range
 	    const bool candMu1InAccep = (PD=="DIMUON" ? pPb::R8TeV::Y2016::triggerMuonAcceptance(cand_PtD1, cand_EtaD1) : pPb::R8TeV::Y2016::muonAcceptance(cand_PtD1, cand_EtaD1));
@@ -301,33 +306,33 @@ void correctEfficiency(const std::string workDirName = "Nominal", const std::str
             // Check if the reconstructed muons pass muon ID
             passIdentification = tree->softCand(iReco);
 	    
-            // Check if the candidate is matched to the trigger
+            // Check if the reconstructed candidate is matched to the trigger
 	    const auto trigIdx = pPb::R8TeV::Y2016::HLTBitsFromPD(PD)[0];
 	    passTrigger = tree->trigHLT()[trigIdx];
 	    if (PD=="DIMUON") { passTrigger = passTrigger && tree->trigCand(trigIdx, iReco); }
 
+	    // Check if the reconstructed candidate pass vertex probability cut
+	    passVertexProbCut = tree->VtxProb()[iReco] > 0.0001;
+
 	    // Check if the reconstructed candidate pass decay lenght cut
-	    passDecayCut = passRecoCandAccep && (decayLen < decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON")));
+	    passDecayCut_85 = passRecoCandAccep && (decayLen < pPb::R8TeV::Y2016::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.85));
+	    passDecayCut_90 = passRecoCandAccep && (decayLen < pPb::R8TeV::Y2016::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.90));
+	    passDecayCut_95 = passRecoCandAccep && (decayLen < pPb::R8TeV::Y2016::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.95));
+	    passDecayCut_99 = passRecoCandAccep && (decayLen < pPb::R8TeV::Y2016::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.99));
           }
         }
 	//
 	// Total Efficiency (Based on Generated muons)
 	//
-	if (passCandAccep) {
-	  if (!fillEff1D(h1D, (passRecoCandAccep && passIdentification && passTrigger && passEventSelection), sample, col, "Efficiency_Total", varInfo, sfTnP, evtWeight)) { return; }
-	}
+	const bool& isAnaCand = (passCandAccep && passRecoCandAccep && passIdentification && passTrigger && passVertexProbCut && passEventSelection);
+	if (!fillEff1D(h1D, passCandAccep, isAnaCand, sample, col, "Efficiency_Total", varInfo, sfTnP, evtWeight)) { return; }
 	//
 	// Decay cut Efficiency (Based on Generated muons)
 	//
-	if (passCandAccep && passRecoCandAccep && passIdentification && passTrigger && passEventSelection) {
-	  if (!fillEff1D(h1D, passDecayCut, sample, col, "Efficiency_DecayCut", varInfo, sfTnP, evtWeight)) { return; }
-	}
-	//
-	// Event selection Efficiency (Based on Generated muons)
-	//
-	if (passCandAccep && passRecoCandAccep && passIdentification && passTrigger) {
-	  if (!fillEff1D(h1D, passEventSelection, sample, col, "Efficiency_EventSel", varInfo, sfTnP, evtWeight)) { return; }
-	}
+	if (!fillEff1D(h1D, isAnaCand, isAnaCand && passDecayCut_85, sample, col, "Efficiency_DecayCut_85", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, isAnaCand, isAnaCand && passDecayCut_90, sample, col, "Efficiency_DecayCut_90", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, isAnaCand, isAnaCand && passDecayCut_95, sample, col, "Efficiency_DecayCut_95", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, isAnaCand, isAnaCand && passDecayCut_99, sample, col, "Efficiency_DecayCut_99", varInfo, sfTnP, evtWeight)) { return; }
       }
     }
   }
@@ -365,7 +370,7 @@ void correctEfficiency(const std::string workDirName = "Nominal", const std::str
 };
 
 
-double getTnPScaleFactor(const double& pt, const double& eta, const std::string& cor, const int& i)
+double getTnPScaleFactor(const double& pt, const double& eta, const std::string& cor, const int& i, const bool& incMuTrig)
 {
   //
   // - TrkM: (tnp_weight_trkM_ppb)
@@ -394,7 +399,6 @@ double getTnPScaleFactor(const double& pt, const double& eta, const std::string&
   double sf_Trig = tnp_weight_trg_ppb ( pt , eta ,   0 );
   //
   if (cor=="NoCorr") { sf_TrkM = 1.0; sf_MuID = 1.0; sf_Trig = 1.0; }
-  //
   else if (cor=="TnP_Stat_TrkM"   ) { sf_TrkM = tnp_weight_trk_ppb ( pt , eta ,  i    ); }
   else if (cor=="TnP_Stat_MuID"   ) { sf_MuID = tnp_weight_muid_ppb( pt , eta , -10-i ); }
   else if (cor=="TnP_Stat_Trig"   ) { sf_Trig = tnp_weight_trg_ppb ( pt , eta , -10-i ); }
@@ -402,19 +406,20 @@ double getTnPScaleFactor(const double& pt, const double& eta, const std::string&
   else if (cor=="TnP_Syst_MuID"   ) { sf_MuID = tnp_weight_muid_ppb( pt , eta ,   0   ); }
   else if (cor=="TnP_Syst_Trig"   ) { sf_Trig = tnp_weight_trg_ppb ( pt , eta ,   0   ); }
   else if (cor=="TnP_Syst_BinTrkM") { sf_TrkM = tnp_weight_trk_ppb ( pt , eta , -10   ); }
+  if (!incMuTrig) { sf_Trig = 1.0; }
   //
   return ( sf_TrkM * sf_MuID * sf_Trig );
 };
 
 
-TnPVec_t getTnPScaleFactors(const double& ptD1, const double& etaD1, const double& ptD2, const double& etaD2, const CorrMap_t& corrType)
+TnPVec_t getTnPScaleFactors(const double& ptD1, const double& etaD1, const double& ptD2, const double& etaD2, const CorrMap_t& corrType, const bool& incMuTrig)
 {
   TnPVec_t sfTnP;
   for (const auto& cor : corrType) {
     sfTnP[cor.first].clear();
     for (uint i = 1; i <= cor.second; i++) {
-      const auto sf_TnP_D1 = getTnPScaleFactor(ptD1, etaD1, cor.first, i);
-      const auto sf_TnP_D2 = getTnPScaleFactor(ptD2, etaD2, cor.first, i);
+      const auto sf_TnP_D1 = getTnPScaleFactor(ptD1, etaD1, cor.first, i, incMuTrig);
+      const auto sf_TnP_D2 = getTnPScaleFactor(ptD2, etaD2, cor.first, i, incMuTrig);
       sfTnP.at(cor.first).push_back( sf_TnP_D1 * sf_TnP_D2 );
     }
   }
@@ -549,7 +554,7 @@ void initEff1D(TH1DMap_t& h, const AnaVarMap_t& binMap, const CorrMap_t& corrTyp
 };
 
 
-bool fillEff1D(TH1DVec_t& h, const bool& pass, const double& xVar, const TnPVec_t& sfTnP, const double& evtWeight, const std::string& type)
+bool fillEff1D(TH1DVec_t& h, const bool& den_pass, const bool& num_pass, const double& xVar, const TnPVec_t& sfTnP, const double& evtWeight, const std::string& type)
 {
   for (auto& cor : h) {
     for (uint i = 0; i < cor.second.size(); i++) {
@@ -560,28 +565,32 @@ bool fillEff1D(TH1DVec_t& h, const bool& pass, const double& xVar, const TnPVec_
       if (sfTnP.count(cor.first)>0 && sfTnP.at(cor.first).size()>i) { sf = sfTnP.at(cor.first)[i]; found = true; }
       else if (sfTnP.size()==0 || sfTnP.count(cor.first)==0) { sf = 1.0; }
       else { std::cout << "[ERROR] Correction " << cor.first << " has invalid number of entries: " << cor.second.size() << "  " << sfTnP.at(cor.first).size() << " !" << std::endl; return false; }
-      if ((cor.first.find("TnP_")!=std::string::npos) && pass && sfTnP.size()==0) { std::cout << "[ERROR] TnP scale factor vector is empty!" << std::endl; return false; }
+      if ((cor.first.find("TnP_")!=std::string::npos) && num_pass && sfTnP.size()==0) { std::cout << "[ERROR] TnP scale factor vector is empty!" << std::endl; return false; }
       //
       if (found==false && sfTnP.size()>0) {
         std::cout << "[ERROR] Correction " << cor.first << " was not found!" << std::endl; return false;
       }
       //
-      // Fill the Pass histogram
-      if      (cor.first=="NoCorr") { if (pass) { std::get<0>(cor.second[i]).Fill(xVar , 1.0          ); } }
-      else if (type=="Acceptance" ) { if (pass) { std::get<0>(cor.second[i]).Fill(xVar , evtWeight    ); } }
-      else                          { if (pass) { std::get<0>(cor.second[i]).Fill(xVar , evtWeight*sf ); } }
-      // Fill the total histogram
-      const bool applySF = (type=="Efficiency_DecayCut" || type=="Efficiency_EventSel");
-      if      (cor.first=="NoCorr") { std::get<1>(cor.second[i]).Fill(xVar , 1.0);           }
-      else if (applySF)             { std::get<1>(cor.second[i]).Fill(xVar , evtWeight*sf ); }
-      else                          { std::get<1>(cor.second[i]).Fill(xVar , evtWeight );    }
+      // Fill the passing histogram (numerator)
+      if (num_pass) {
+	if      (cor.first=="NoCorr") { std::get<0>(cor.second[i]).Fill(xVar , 1.0          ); }
+	else if (type=="Acceptance" ) { std::get<0>(cor.second[i]).Fill(xVar , evtWeight    ); }
+	else                          { std::get<0>(cor.second[i]).Fill(xVar , evtWeight*sf ); }
+      }
+      // Fill the total histogram (denominator)
+      if (den_pass) {
+	const bool applySF = (type.rfind("Efficiency_DecayCut",0)==0);
+	if      (cor.first=="NoCorr") { std::get<1>(cor.second[i]).Fill(xVar , 1.0);           }
+	else if (applySF)             { std::get<1>(cor.second[i]).Fill(xVar , evtWeight*sf ); }
+	else                          { std::get<1>(cor.second[i]).Fill(xVar , evtWeight );    }
+      }
     }
   }
   return true;
 };
 
 
-bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& sample, const std::string& col, const std::string& type,
+bool fillEff1D(TH1DMap_t& h, const bool& den_pass, const bool& num_pass, const std::string& sample, const std::string& col, const std::string& type,
 	       const VarMap_t& var, const TnPVec_t& sfTnP, const double& evtWeight)
 {
   if (sample.find(col)!=std::string::npos) { std::cout << "[ERROR] Sample name " << sample << " has wrong format!" << std::endl; return false; }
@@ -613,7 +622,7 @@ bool fillEff1D(TH1DMap_t& h, const bool& pass, const std::string& sample, const 
 	if (type!="Acceptance" || bin2.name()!="NTrack") { inBin = inBin && (val2>=bin2.low() && val2<bin2.high()); }
 	if (inBin) { // Don't include values outside of range
 	  // Fill histograms
-	  if (!fillEff1D(b.second, pass, xVar, sfTnP, evtWeight, type)) { return false; }
+	  if (!fillEff1D(b.second, den_pass, num_pass, xVar, sfTnP, evtWeight, type)) { return false; }
 	}
       }
     }
