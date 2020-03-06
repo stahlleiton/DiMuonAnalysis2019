@@ -21,7 +21,7 @@
 
 typedef std::vector< std::vector<UChar_t> > UCharVecVec;
 static const UInt_t NCAND = 1000;
-static const UInt_t NTRK = 1000;
+static const UInt_t NTRK = 10000;
 static const UInt_t NGEN  = 10;
 
 
@@ -218,8 +218,8 @@ public :
 
   UInt_t    candSize_trk()                { SetBranch("candSize_trk");                return candSize_trk_;               }
   Float_t*  pT_trk()                      { SetBranch("pT_trk");                      return pT_trk_;                     }
-  Float_t*  eta_trk()                     { SetBranch("eta_trk");                     return eta_trk_;                    }
   Float_t*  phi_trk()                     { SetBranch("phi_trk");                     return phi_trk_;                    }
+  Float_t*  eta_trk()                     { SetBranch("eta_trk");                     return eta_trk_;                    }
   Bool_t*   HP_trk()                      { SetBranch("HP_trk");                      return HP_trk_;                     }
   Float_t*  pTErr_trk()                   { SetBranch("pTErr_trk");                   return pTErr_trk_;                  }
   Float_t*  dXYsig_trk()                  { SetBranch("dXYsig_trk");                  return dXYsig_trk_;                 }
@@ -441,13 +441,13 @@ public :
 
   // TRACK INFO VARIABLES
   UInt_t            candSize_trk_=0;
-  Float_t           pT_trk_[NCAND]={0};      //[candSize_trk]
-  Float_t           eta_trk_[NCAND]={0};     //[candSize_trk]
-  Float_t           phi_trk_[NCAND]={0};     //[candSize_trk]
-  Bool_t            HP_trk_[NCAND]={0};      //[candSize_trk]
-  Float_t           pTErr_trk_[NCAND]={0};   //[candSize_trk]
-  Float_t           dXYsig_trk_[NCAND]={0};  //[candSize_trk]
-  Float_t           dZsig_trk_[NCAND]={0};   //[candSize_trk]
+  Float_t           pT_trk_[NTRK]={0};      //[candSize_trk]
+  Float_t           eta_trk_[NTRK]={0};     //[candSize_trk]
+  Float_t           phi_trk_[NTRK]={0};     //[candSize_trk]
+  Bool_t            HP_trk_[NTRK]={0};      //[candSize_trk]
+  Float_t           pTErr_trk_[NTRK]={0};   //[candSize_trk]
+  Float_t           dXYsig_trk_[NTRK]={0};  //[candSize_trk]
+  Float_t           dZsig_trk_[NTRK]={0};   //[candSize_trk]
 
   // BRANCHES
   std::map<std::string, TBranch*> b; //!
@@ -519,6 +519,8 @@ Int_t VertexCompositeTree::GetEntry(Long64_t entry)
   // Check contents of entry
   if (candSize_ >= NCAND) { std::cout << "[ERROR] Reconstructed candidate size ("<<candSize_<<") is larger than "<<NCAND << std::endl; return -9; }
   if (candSize_gen_ >= NGEN) { std::cout << "[ERROR] Generated candidate size ("<<candSize_gen_<<") is larger than "<<NGEN << std::endl; return -9; }
+  if (candSize_trk_ >= NTRK) { std::cout << "[ERROR] Track size ("<<candSize_trk_<<") is larger than "<<NTRK << std::endl; return -9; }
+
   return status;
 };
 
@@ -718,8 +720,8 @@ void VertexCompositeTree::InitTree(void)
     // SET TRACKER INFO BRANCHES
     if (fChain->GetBranch("candSize_trk"))                fChain->SetBranchAddress("candSize_trk",               &candSize_trk_,              &(b["candSize_trk"])              );
     if (fChain->GetBranch("pT_trk"))                      fChain->SetBranchAddress("pT_trk",                     pT_trk_,                     &(b["pT_trk"])                    );
-    if (fChain->GetBranch("eta_trk"))                     fChain->SetBranchAddress("eta_trk",                    eta_trk_,                    &(b["eta_trk"])                   );
     if (fChain->GetBranch("phi_trk"))                     fChain->SetBranchAddress("phi_trk",                    phi_trk_,                    &(b["phi_trk"])                   );
+    if (fChain->GetBranch("eta_trk"))                     fChain->SetBranchAddress("eta_trk",                    eta_trk_,                    &(b["eta_trk"])                   );
     if (fChain->GetBranch("HP_trk"))                      fChain->SetBranchAddress("HP_trk",                     HP_trk_,                     &(b["HP_trk"])                    );
     if (fChain->GetBranch("pTErr_trk"))                   fChain->SetBranchAddress("pTErr_trk",                  pTErr_trk_,                  &(b["pTErr_trk"])                 );
     if (fChain->GetBranch("dXYsig_trk"))                  fChain->SetBranchAddress("dXYsig_trk",                 dXYsig_trk_,                 &(b["dXYsig_trk"])                );
@@ -913,8 +915,8 @@ void VertexCompositeTree::Clear(void)
   const auto& nCand_trk = (candSize_trk_>0 ? candSize_trk_ : NTRK);
   if (GetBranchStatus("candSize_trk")==1)      candSize_trk_ = 0;
   if (GetBranchStatus("pT_trk")==1)            std::fill_n(pT_trk_, nCand_trk, -1.);
-  if (GetBranchStatus("eta_trk")==1)           std::fill_n(eta_trk_, nCand_trk, -9.);
   if (GetBranchStatus("phi_trk")==1)           std::fill_n(phi_trk_, nCand_trk, -9.);
+  if (GetBranchStatus("eta_trk")==1)           std::fill_n(eta_trk_, nCand_trk, -9.);
   if (GetBranchStatus("HP_trk")==1)            std::fill_n(HP_trk_, nCand_trk, 0);
   if (GetBranchStatus("pTErr_trk")==1)         std::fill_n(pTErr_trk_, nCand_trk, -1.);
   if (GetBranchStatus("dXYsig_trk")==1)        std::fill_n(dXYsig_trk_, nCand_trk, -99.);
