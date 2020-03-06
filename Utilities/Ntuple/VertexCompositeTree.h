@@ -21,6 +21,7 @@
 
 typedef std::vector< std::vector<UChar_t> > UCharVecVec;
 static const UInt_t NCAND = 1000;
+static const UInt_t NTRK = 1000;
 static const UInt_t NGEN  = 10;
 
 
@@ -214,6 +215,15 @@ public :
   Short_t*  nPixelLayer_mu()              { SetBranch("nPixelLayer_mu");              return nPixelLayer_mu_;             }
   Float_t*  dXY_mu()                      { SetBranch("dXY_mu");                      return dXY_mu_;                     }
   Float_t*  dZ_mu()                       { SetBranch("dZ_mu");                       return dZ_mu_;                      }
+
+  UInt_t    candSize_trk()                { SetBranch("candSize_trk");                return candSize_trk_;               }
+  Float_t*  pT_trk()                      { SetBranch("pT_trk");                      return pT_trk_;                     }
+  Float_t*  eta_trk()                     { SetBranch("eta_trk");                     return eta_trk_;                    }
+  Float_t*  phi_trk()                     { SetBranch("phi_trk");                     return phi_trk_;                    }
+  Bool_t*   HP_trk()                      { SetBranch("HP_trk");                      return HP_trk_;                     }
+  Float_t*  pTErr_trk()                   { SetBranch("pTErr_trk");                   return pTErr_trk_;                  }
+  Float_t*  dXYsig_trk()                  { SetBranch("dXYsig_trk");                  return dXYsig_trk_;                 }
+  Float_t*  dZsig_trk()                   { SetBranch("dZsig_trk");                   return dZsig_trk_;                  }
 
   // EXTRA GETTERS
   Bool_t    tightMuon1  (const UInt_t& iC, const std::string& type="");
@@ -428,6 +438,16 @@ public :
   Short_t           nPixelLayer_mu_[NCAND]={0};   //[candSize]
   Float_t           dXY_mu_[NCAND]={0};   //[candSize]
   Float_t           dZ_mu_[NCAND]={0};   //[candSize]
+
+  // TRACK INFO VARIABLES
+  UInt_t            candSize_trk_=0;
+  Float_t           pT_trk_[NCAND]={0};      //[candSize_trk]
+  Float_t           eta_trk_[NCAND]={0};     //[candSize_trk]
+  Float_t           phi_trk_[NCAND]={0};     //[candSize_trk]
+  Bool_t            HP_trk_[NCAND]={0};      //[candSize_trk]
+  Float_t           pTErr_trk_[NCAND]={0};   //[candSize_trk]
+  Float_t           dXYsig_trk_[NCAND]={0};  //[candSize_trk]
+  Float_t           dZsig_trk_[NCAND]={0};   //[candSize_trk]
 
   // BRANCHES
   std::map<std::string, TBranch*> b; //!
@@ -694,6 +714,17 @@ void VertexCompositeTree::InitTree(void)
     if (fChain->GetBranch("nPixelLayer_mu"))              fChain->SetBranchAddress("nPixelLayer_mu",             nPixelLayer_mu_,             &(b["nPixelLayer_mu"])            );
     if (fChain->GetBranch("dZ_mu"))                       fChain->SetBranchAddress("dZ_mu",                      dZ_mu_,                      &(b["dZ_mu"])                     );
     if (fChain->GetBranch("dXY_mu"))                      fChain->SetBranchAddress("dXY_mu",                     dXY_mu_,                     &(b["dXY_mu"])                    );
+
+    // SET TRACKER INFO BRANCHES
+    if (fChain->GetBranch("candSize_trk"))                fChain->SetBranchAddress("candSize_trk",               &candSize_trk_,              &(b["candSize_trk"])              );
+    if (fChain->GetBranch("pT_trk"))                      fChain->SetBranchAddress("pT_trk",                     pT_trk_,                     &(b["pT_trk"])                    );
+    if (fChain->GetBranch("eta_trk"))                     fChain->SetBranchAddress("eta_trk",                    eta_trk_,                    &(b["eta_trk"])                   );
+    if (fChain->GetBranch("phi_trk"))                     fChain->SetBranchAddress("phi_trk",                    phi_trk_,                    &(b["phi_trk"])                   );
+    if (fChain->GetBranch("HP_trk"))                      fChain->SetBranchAddress("HP_trk",                     HP_trk_,                     &(b["HP_trk"])                    );
+    if (fChain->GetBranch("pTErr_trk"))                   fChain->SetBranchAddress("pTErr_trk",                  pTErr_trk_,                  &(b["pTErr_trk"])                 );
+    if (fChain->GetBranch("dXYsig_trk"))                  fChain->SetBranchAddress("dXYsig_trk",                 dXYsig_trk_,                 &(b["dXYsig_trk"])                );
+    if (fChain->GetBranch("dZsig_trk"))                   fChain->SetBranchAddress("dZsig_trk",                  dZsig_trk_,                  &(b["dZsig_trk"])                 );
+
   }
 };
 
@@ -865,7 +896,7 @@ void VertexCompositeTree::Clear(void)
   
   // CLEAR MUON INFO VARIABLES
   const auto& nCand_mu = (candSize_mu_>0 ? candSize_mu_ : NCAND);
-  if (GetBranchStatus("candSize_mu")==1)      candSize_ = 0;
+  if (GetBranchStatus("candSize_mu")==1)      candSize_mu_ = 0;
   if (GetBranchStatus("pT_mu")==1)            std::fill_n(pT_mu_, nCand_mu, -1.);
   if (GetBranchStatus("eta_mu")==1)           std::fill_n(eta_mu_, nCand_mu, -9.);
   if (GetBranchStatus("phi_mu")==1)           std::fill_n(phi_mu_, nCand_mu, -9.);
@@ -878,6 +909,16 @@ void VertexCompositeTree::Clear(void)
   if (GetBranchStatus("nPixelLayer_mu")==1)   std::fill_n(nPixelLayer_mu_, nCand_mu, -1);
   if (GetBranchStatus("dZ_mu")==1)            std::fill_n(dZ_mu_, nCand_mu, -99.);
   if (GetBranchStatus("dXY_mu")==1)           std::fill_n(dXY_mu_, nCand_mu, -99.);
+
+  const auto& nCand_trk = (candSize_trk_>0 ? candSize_trk_ : NTRK);
+  if (GetBranchStatus("candSize_trk")==1)      candSize_trk_ = 0;
+  if (GetBranchStatus("pT_trk")==1)            std::fill_n(pT_trk_, nCand_trk, -1.);
+  if (GetBranchStatus("eta_trk")==1)           std::fill_n(eta_trk_, nCand_trk, -9.);
+  if (GetBranchStatus("phi_trk")==1)           std::fill_n(phi_trk_, nCand_trk, -9.);
+  if (GetBranchStatus("HP_trk")==1)            std::fill_n(HP_trk_, nCand_trk, 0);
+  if (GetBranchStatus("pTErr_trk")==1)         std::fill_n(pTErr_trk_, nCand_trk, -1.);
+  if (GetBranchStatus("dXYsig_trk")==1)        std::fill_n(dXYsig_trk_, nCand_trk, -99.);
+  if (GetBranchStatus("dZsig_trk")==1)         std::fill_n(dZsig_trk_, nCand_trk, -99.);
 };
 
 void VertexCompositeTree::GenerateDictionaries(void)
