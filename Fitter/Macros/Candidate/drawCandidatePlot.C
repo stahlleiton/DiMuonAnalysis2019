@@ -74,8 +74,9 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
   projSet.remove(*fitVar, true, true);
   if (projSet.find("Cand_Mass")!=NULL) { projSet.remove(*ws.var("Cand_Mass"), true, true); } // Remove mass variable
   const bool& useProjWData = (projSet.getSize() > 0);
-  auto projDS = std::unique_ptr<RooAbsData>(useProjWData ? ws.data(dsNameFit.c_str())->reduce(RooFit::Name("projDS"), RooFit::SelectVars(projSet)) : new RooDataSet("projDS", "", RooArgSet()));
+  auto projDS = std::unique_ptr<RooAbsData>(useProjWData ? ws.data(dsNameFit.c_str())->reduce(RooFit::Name("projDS"), RooFit::SelectVars(projSet)) : NULL);
   const auto& NORM = (useProjWData ? projDS->sumEntries() : 1.0);
+  const auto& projWData = (useProjWData ? RooFit::ProjWData(projSet, *projDS, true) : RooCmdArg());
   if (useProjWData) { std::cout << "[INFO] Using projected dataset for " << fitPDF->GetName() << std::endl; }
   //
   int drawMode = 0;
@@ -114,16 +115,17 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
       if (fitPDFList.getSize()==1) {
 	std::string label = fitPDFList.at(0)->GetName(); label = label.substr(label.find("_")+1);
 	const auto& pdf = dynamic_cast<RooAddPdf*>(ws.pdf(("pdf"+varTag+"_"+label).c_str()));
-	if (pdf && pdf->pdfList().getSize()>1) {
+	const auto& pdfList = pdf->pdfList();
+	if (pdf && pdfList.getSize()>1) {
 	  const auto& norm = fitPDF->expectedEvents(fitSet);
 	  const auto& pdfColor = std::vector<int>({kRed+1, kBlue+2, kGreen+3, kViolet+2, kAzure-7});
-	  auto pdfIt = std::unique_ptr<TIterator>(pdf->pdfList().createIterator()); int iPdf = 0;
+	  auto pdfIt = std::unique_ptr<TIterator>(pdfList.createIterator()); int iPdf = 0;
 	  for (auto it = pdfIt->Next(); it!=NULL; it = pdfIt->Next(), iPdf++) {
 	    RooArgList pdfL; pdfL.add(*dynamic_cast<RooAbsPdf*>(it));
 	    ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", it->GetName())), RooFit::Components(pdfL),
 					    RooFit::Range("PDFPlotWindow"), RooFit::NormRange("PDFPlotWindow"), RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent),
 					    RooFit::LineColor(pdfColor[iPdf]), RooFit::LineStyle(2),
-					    RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
+					    projWData, RooFit::NumCPU(32, 1));
 	  }
 	}
       }
@@ -162,9 +164,9 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
 	      if (!ws.pdf(pdfPlotName.c_str()) && ws.import(addPDF)) { return false; }
 	      // Plot the sum of PDFs
 	      ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PDFPlotWindow"),
-						  RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
+						  RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-8),
 						  RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("B"),
-						  RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
+						  projWData, RooFit::NumCPU(32, 1));
 	    }
 	    norm -= yield->getVal();
 	    pdfList.remove(*pdf);
@@ -177,9 +179,9 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
 	  std::string obj = pName; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find("To"));
 	  // Plot the PDF
 	  ws.pdf(pName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PDFPlotWindow"),
-					RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
+					RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-8),
 					RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("B"),
-					RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
+					projWData, RooFit::NumCPU(32, 1));
 	}
 	// Loop over the non-stacked PDFs
 	if (!pdfDrawMap.empty()) {
@@ -195,7 +197,7 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
 	    ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Components(pdfs),
 					    RooFit::Range("PDFPlotWindow"), RooFit::NormRange("PDFPlotWindow"), RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent),
 					    RooFit::LineColor(PDFMAP_.at(obj)[1]), RooFit::LineStyle(2),
-					    RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
+					    projWData, RooFit::NumCPU(32, 1));
 	  }
 	}
       }
@@ -210,7 +212,7 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
       const auto& norm = fitDS->sumEntries();
       fitPDF->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pdfName).c_str()), RooFit::Range("PDFPlotWindow"), RooFit::NormRange("PDFPlotWindow"),
 		     RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-7), RooFit::LineColor(kBlack), RooFit::LineStyle(1),
-		     RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
+		     projWData, RooFit::NumCPU(32, 1));
     }
     // Store the frame
     frame.at("MAIN")->SetTitle(frameName.c_str());

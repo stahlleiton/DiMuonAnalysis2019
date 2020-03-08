@@ -1,7 +1,6 @@
 #if !defined(__CINT__) || defined(__MAKECINT__)
 // Auxiliary Headers
 #include "../Utilities/Ntuple/VertexCompositeTree.h"
-#include "../Utilities/RunInfo/eventUtils.h"
 #include "../Utilities/dataUtils.h"
 #include "util.h"
 #include "tnp_weight_lowPt.h"
@@ -97,14 +96,14 @@ const std::map< std::string , std::string > inputFileMap_ =
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void correctEfficiency(const std::string workDirName = "Nominal", const std::string PD = "DIMUON")
+void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins", const std::string& PD = "DIMUON")
 {
   //
   std::cout << "[INFO] Starting to compute efficiencies" << std::endl;
   //
   // Initialize the Kinematic Bin info
   BinMapMap_t  ANA_BIN;
-  if (workDirName == "Nominal") {
+  if (workDirName.rfind("_Psi2SBins")!=std::string::npos) {
     ANA_BIN = BINMAP_Psi2S;
   }
   else if (workDirName == "General") {
@@ -179,6 +178,10 @@ void correctEfficiency(const std::string workDirName = "Nominal", const std::str
   for (auto & inputFile : inputFileMap_) {
     const auto& sample = inputFile.first;
     auto& tree = trees.at(sample);
+    StringSet_t objS;
+    if (workDirName.rfind("CharmoniaFits",0)==0) { objS = StringSet_t({"JPsi", "Psi2S"}); }
+    else if (sample.rfind("MC_JPsi",0)==0) { objS.insert("JPsi"); }
+    else if (sample.rfind("MC_Psi2S",0)==0) { objS.insert("Psi2S"); }
     // Loop over the events
     int treeIdx = -1;
     std::cout << "[INFO] Starting to process " << nentries.at(sample) << " nentries" << std::endl;
@@ -215,7 +218,7 @@ void correctEfficiency(const std::string workDirName = "Nominal", const std::str
       //
       // Check Event Conditions
       //
-      // Determine if the event pass the event filters
+      // Determine if candidate pass analysis selection
       const bool passEventSelection = (sample.find("pPbGEN")==std::string::npos ? tree->evtSel()[0] : true);
       //
       // Check Muon Conditions
@@ -233,14 +236,11 @@ void correctEfficiency(const std::string workDirName = "Nominal", const std::str
         const auto& pTD2 = tree->pTD2_gen()[iGen];
         const auto& etaD2 = tree->EtaD2_gen()[iGen];
         const bool mu2InAccep = (PD=="DIMUON" ? pPb::R8TeV::Y2016::triggerMuonAcceptance(pTD2, etaD2) : pPb::R8TeV::Y2016::muonAcceptance(pTD2, etaD2));
-	const bool passMuAccep = mu1InAccep && mu2InAccep;
-
-	// Check that candidate is within analysis kinematic range
-	const auto& pT = tree->pT_gen()[iGen];
-	const auto& rap = (col=="Pbp8Y16" ? -1.0 : 1.0) * tree->y_gen()[iGen];
-	const bool passCandAccep = (fabs(rap)<2.4 && (pT>6.5 || fabs(rap)>1.4)) && passMuAccep;
+	const bool passCandAccep = mu1InAccep && mu2InAccep;
 	
         // Fill the VarMap with the kinematic information
+	const auto& pT = tree->pT_gen()[iGen];
+	const auto& rap = (col=="Pbp8Y16" ? -1.0 : 1.0) * tree->y_gen()[iGen];
 	const auto nTrack = (sample.find("pPbGEN")==std::string::npos ? tree->Ntrkoffline() : 0);
 	const auto rapCM = pPb::EtaLABtoCM(rap, (col=="pPb8Y16"));
 	VarMap_t  varInfo =
@@ -264,14 +264,11 @@ void correctEfficiency(const std::string workDirName = "Nominal", const std::str
 	}
 	
         // Initialize the boolean flags
-	bool passRecoCandAccep  = false;
-	bool passVertexProbCut  = false;
-        bool passIdentification = false;
-        bool passTrigger        = false;
-	bool passDecayCut_85    = false;
-	bool passDecayCut_90    = false;
-	bool passDecayCut_95    = false;
-	bool passDecayCut_99    = false;
+        bool passAnaCuts     = false;
+	bool passDecayCut_85 = false;
+	bool passDecayCut_90 = false;
+	bool passDecayCut_95 = false;
+	bool passDecayCut_99 = false;
 	
         // Initialize the Tag-And-Probe scale factos
         TnPVec_t sfTnP = {};
@@ -285,8 +282,8 @@ void correctEfficiency(const std::string workDirName = "Nominal", const std::str
             // Candidate was matched to generated candidate
 	    
             // Extract the kinematic information of reconstructed candidate
-            const auto& cand_Pt    = tree->pT()[iReco];
-            const auto& cand_Rap   = tree->y()[iReco];
+	    const auto& cand_Pt    = tree->pT()[iReco];
+	    const auto& cand_Rap   = tree->y()[iReco];
 	    const auto& cand_Eta   = tree->eta()[iReco];
 	    const auto  cand_P     = cand_Pt*std::cosh(cand_Eta);
 	    const auto  decayLen   = (tree->V3DDecayLength()[iReco]*tree->V3DCosPointingAngle()[iReco])*(3.0969/cand_P)*10.0;
@@ -294,45 +291,32 @@ void correctEfficiency(const std::string workDirName = "Nominal", const std::str
             const auto& cand_EtaD1 = tree->EtaD1()[iReco];
             const auto& cand_PtD2  = tree->pTD2()[iReco];
             const auto& cand_EtaD2 = tree->EtaD2()[iReco];
+
+	    passAnaCuts = ANA::analysisSelection(*tree, iReco, PD, col, objS, false);
+
+	    // Check if the reconstructed candidate pass decay lenght cut
+	    if (std::abs(cand_Rap)<2.4) {
+	      passDecayCut_85 = (decayLen < ANA::CHARMONIA::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.85));
+	      passDecayCut_90 = (decayLen < ANA::CHARMONIA::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.90));
+	      passDecayCut_95 = (decayLen < ANA::CHARMONIA::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.95));
+	      passDecayCut_99 = (decayLen < ANA::CHARMONIA::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.99));
+	    }
 	    
             // Determine the Tag-And-Probe scale factors
             sfTnP = getTnPScaleFactors(cand_PtD1, cand_EtaD1, cand_PtD2, cand_EtaD2, corrType, PD=="DIMUON");
-
-	    // Check if the reconstructed candidate is within analysis kinematic range
-	    const bool candMu1InAccep = (PD=="DIMUON" ? pPb::R8TeV::Y2016::triggerMuonAcceptance(cand_PtD1, cand_EtaD1) : pPb::R8TeV::Y2016::muonAcceptance(cand_PtD1, cand_EtaD1));
-	    const bool candMu2InAccep = (PD=="DIMUON" ? pPb::R8TeV::Y2016::triggerMuonAcceptance(cand_PtD2, cand_EtaD2) : pPb::R8TeV::Y2016::muonAcceptance(cand_PtD2, cand_EtaD2));
-	    passRecoCandAccep = (fabs(cand_Rap)<2.4 && (cand_Pt>6.5 || fabs(cand_Rap)>1.4)) && candMu1InAccep && candMu2InAccep;
-	    
-            // Check if the reconstructed muons pass muon ID
-            passIdentification = tree->softCand(iReco);
-	    
-            // Check if the reconstructed candidate is matched to the trigger
-	    const auto trigIdx = pPb::R8TeV::Y2016::HLTBitsFromPD(PD)[0];
-	    passTrigger = tree->trigHLT()[trigIdx];
-	    if (PD=="DIMUON") { passTrigger = passTrigger && tree->trigCand(trigIdx, iReco); }
-
-	    // Check if the reconstructed candidate pass vertex probability cut
-	    passVertexProbCut = tree->VtxProb()[iReco] > 0.0001;
-
-	    // Check if the reconstructed candidate pass decay lenght cut
-	    passDecayCut_85 = passRecoCandAccep && (decayLen < pPb::R8TeV::Y2016::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.85));
-	    passDecayCut_90 = passRecoCandAccep && (decayLen < pPb::R8TeV::Y2016::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.90));
-	    passDecayCut_95 = passRecoCandAccep && (decayLen < pPb::R8TeV::Y2016::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.95));
-	    passDecayCut_99 = passRecoCandAccep && (decayLen < pPb::R8TeV::Y2016::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.99));
           }
         }
 	//
 	// Total Efficiency (Based on Generated muons)
 	//
-	const bool& isAnaCand = (passCandAccep && passRecoCandAccep && passIdentification && passTrigger && passVertexProbCut && passEventSelection);
-	if (!fillEff1D(h1D, passCandAccep, isAnaCand, sample, col, "Efficiency_Total", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passCandAccep, passAnaCuts, sample, col, "Efficiency_Total", varInfo, sfTnP, evtWeight)) { return; }
 	//
 	// Decay cut Efficiency (Based on Generated muons)
 	//
-	if (!fillEff1D(h1D, isAnaCand, isAnaCand && passDecayCut_85, sample, col, "Efficiency_DecayCut_85", varInfo, sfTnP, evtWeight)) { return; }
-	if (!fillEff1D(h1D, isAnaCand, isAnaCand && passDecayCut_90, sample, col, "Efficiency_DecayCut_90", varInfo, sfTnP, evtWeight)) { return; }
-	if (!fillEff1D(h1D, isAnaCand, isAnaCand && passDecayCut_95, sample, col, "Efficiency_DecayCut_95", varInfo, sfTnP, evtWeight)) { return; }
-	if (!fillEff1D(h1D, isAnaCand, isAnaCand && passDecayCut_99, sample, col, "Efficiency_DecayCut_99", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_85, sample, col, "Efficiency_DecayCut_85", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_90, sample, col, "Efficiency_DecayCut_90", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_95, sample, col, "Efficiency_DecayCut_95", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_99, sample, col, "Efficiency_DecayCut_99", varInfo, sfTnP, evtWeight)) { return; }
       }
     }
   }

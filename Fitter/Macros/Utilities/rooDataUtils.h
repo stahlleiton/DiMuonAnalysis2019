@@ -416,10 +416,48 @@ bool getDataSet(RooWorkspace& ws, const std::string& dsName, const std::string& 
   TH1::AddDirectory(kFALSE); // Avoid adding objects to memory
   const auto& inDS = dynamic_cast<RooDataSet*>(file->Get(dsName.c_str()));
   if (!inDS) { std::cout << "[ERROR] DataSet " << dsName << " in: " << fileName << " not found!" << std::endl; file->Close(); return false; }
-  if (ws.import(*inDS)) { std::cout << "[ERROR] DataSet " << dsName << " in was not imported!" << std::endl; file->Close(); return false; }
+  if (ws.import(*inDS)) { std::cout << "[ERROR] DataSet " << dsName << " in: " << fileName << " was not imported!" << std::endl; file->Close(); return false; }
   // Close input file
   file->Close();
   return true;
+};
+
+
+bool getPDFData(RooWorkspace& ws, const std::string& pdfName, const std::string& fileName)
+{
+  auto dataName = pdfName;
+  dataName.replace(dataName.find("pdf"), std::string("pdf").length(), "dh");
+  std::cout << "[INFO] Extracting RooDataHist " << dataName << " from: " << fileName << std::endl;
+  // Check if dataset already exist in workspace
+  if (ws.data(dataName.c_str())) { std::cout << "[INFO] RooDataHist " << dataName << " already exist, will not load it!" << std::endl; return true; }
+  // Check if input file exists
+  if (gSystem->AccessPathName(fileName.c_str())) {
+    std::cout << "[INFO] File: " << fileName << " not found!" << std::endl; return false;
+  }
+  // Open the input file
+  auto file = std::unique_ptr<TFile>(TFile::Open(fileName.c_str()));
+  if (!file || !file->IsOpen() || file->IsZombie()) {
+    std::cout << "[ERROR] File: " << fileName << " is corrupted!" << std::endl; if(file) { file->Close(); }; return false;
+  }
+  file->cd();
+  TH1::AddDirectory(kFALSE); // Avoid adding objects to memory
+  const auto& inData = dynamic_cast<RooDataHist*>(file->Get(dataName.c_str()));
+  if (!inData) { std::cout << "[ERROR] RooDataHist " << dataName << " in: " << fileName << " not found!" << std::endl; file->Close(); return false; }
+  if (ws.import(*inData)) { std::cout << "[ERROR] RooDataHist " << dataName << " in: " << fileName << " was not imported!" << std::endl; file->Close(); return false; }
+  // Close input file
+  file->Close();
+  return true;
+};
+
+
+bool getPDFData(RooWorkspace& ws, const std::string& pdfName, const GlobalInfo& info, const std::string& label, const std::string& var)
+{
+  std::string fileName = "";
+  auto dir = info.Par.at("outputDir");
+  setFileName(fileName, dir, label, info, {var});
+  auto varT = var; stringReplace(varT, "_", "");
+  const auto& filePath = (dir+"result/FIT_"+varT+"_"+fileName+".root");
+  return getPDFData(ws, pdfName, filePath);
 };
 
 
@@ -448,6 +486,12 @@ bool saveWorkSpace(const RooWorkspace& ws, const std::string& outputDir, const s
       const auto& snap = ws.getSnapshot(it->GetName());
       if (snap) { snap->Write(it->GetName()); }
     }
+  }
+  // Save the RooDataHists
+  const auto& listData = ws.allData();
+  for (const auto& itp : listData) {
+    const auto& it = dynamic_cast<RooDataHist*>(itp);
+    if (it) { it->Write(it->GetName()); }
   }
   // Write and close output file
   file->Write(); file->Close();
@@ -583,6 +627,22 @@ bool loadParameterRange(GlobalInfo& info, const std::string& var, const std::str
 };
 
 
+bool loadVarRange(GlobalInfo& info, const std::string& var, const std::string& label, const std::string& snap="fittedParameters")
+{
+  std::string fileName = "";
+  auto dir = info.Par.at("outputDir");
+  setFileName(fileName, dir, label, info, {var});
+  auto varT = var; stringReplace(varT, "_", "");
+  const auto& filePath = (dir+"result/FIT_"+varT+"_"+fileName+".root");
+  std::cout << "[INFO] Loading " << var << " parameter range from: " << fileName << std::endl;
+  const auto& status = loadParameterRange(info, var, filePath, snap);
+  if (status) {
+    std::cout << "[INFO] Parameter range loaded: " << var << " > [ " << info.Var.at(var).at("Min") << " , " << info.Var.at(var).at("Max") << " ]" << std::endl;
+  }
+  return status;
+};
+
+
 bool loadParameters(RooWorkspace& ws, const std::string& fileName, const std::string& varName="*", const std::string& col="", 
 		    const std::string& dsName="", const std::string& snap="fittedParameters")
 {
@@ -618,10 +678,15 @@ bool loadParameters(RooWorkspace& ws, const std::string& fileName, const std::st
 };
 
 
-bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::string& pdfName,
+bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::string& pdfName, const std::string& var,
 		   const bool& loadYield=true, const bool& fixPar=true, const std::string& snapName="fittedParameters")
 {
   std::cout << "[INFO] Loading parameters for " << pdfName << " from " << fileName << std::endl;
+  const auto& loadedFileName = getString(ws, "loadedFile_"+var);
+  if (loadedFileName==fileName) {
+    std::cout << "[INFO] Parameters from " << fileName << " has already been loaded!" << std::endl;
+    return true;
+  }
   // Extract the workspace
   RooWorkspace inWS;
   if (!ws.pdf(pdfName.c_str())) {
@@ -647,7 +712,8 @@ bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::str
     if (!loadYield && (name.rfind("N_",0)==0 || name.rfind("R_",0)==0)) continue;
     const auto& sPar = dynamic_cast<RooRealVar*>(snapPar->find(name.c_str()));
     double val = -99999.;
-    if (!sPar && snapPar->find(("R_"+name.substr(2)).c_str())) {
+    double unc = -99999.;
+    if (name.rfind("N_",0)==0 && !sPar && snapPar->find(("R_"+name.substr(2)).c_str())) {
       const auto& vN = name.substr(2);
       const auto& obj = vN.substr(0, vN.find("To"));
       auto rN = vN; stringReplace(rN, obj, (obj=="Psi2S"?"JPsi":(obj=="Ups2S"?"Ups1S":(obj=="Ups3S"?"Ups1S":obj))));
@@ -655,18 +721,23 @@ bool loadFitResult(RooWorkspace& ws, const std::string& fileName, const std::str
       const auto& nPar = dynamic_cast<RooRealVar*>(snapPar->find(("N_"+rN).c_str()));
       if (!nPar) { std::cout << "[ERROR] Parameter " << ("N_"+rN) << " was not found in snapshot " << snapName << std::endl; return false; }
       val = rPar->getVal()*nPar->getVal();
+      unc = std::sqrt(std::pow(rPar->getVal()*nPar->getError(), 2.0) + std::pow(rPar->getError()*nPar->getVal(), 2.0));
     }
     else if (sPar) {
       val = sPar->getVal(); if (name.rfind("N_",0)==0) { val = std::max(val, 0.0); }
+      unc = sPar->getError();
     }
     if (val!=-99999.) {
       ws.var(name.c_str())->setVal(val);
+      if (unc!=-99999.) { ws.var(name.c_str())->setError(unc); }
       if (name.rfind("N_",0)!=0 && name.rfind("R_",0)!=0 && fixPar) ws.var(name.c_str())->setConstant(true);
-      res += Form("%s = %g, ", name.c_str(), val);
+      std::string cnst = ""; if (ws.var(name.c_str())->isConstant()) { cnst = "[C]"; }
+      res += Form("%s = %g %s, ", name.c_str(), val, cnst.c_str());
       loadSet.add(*ws.var(name.c_str()));
     }
   }
   saveSnapshot(ws, loadSet, "loadedParameters");
+  addString(ws, "loadedFile_"+var, fileName);
   std::cout << "[INFO] Loaded " << pdfName << " parameters: " << res << std::endl;
   return true;
 };
@@ -791,6 +862,20 @@ bool storeDSStat(RooWorkspace& ws, const std::string& dsName)
     auto rms = std::unique_ptr<RooRealVar>(ds->rmsVar(*it));
     if (!ws.var(rms->GetName()) && ws.import(*rms)) { std::cout << "[ERROR] Failed to import " << rms->GetName() << std::endl; return false; }
   }
+  if (ws.var("Cand_Rap")) {
+    auto rapDS = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ds->reduce(RooArgSet(*ws.var("Cand_Rap")))));
+    for (const auto& v : StringMap_t({{"Cand_AbsRap", "abs(Cand_Rap)"}, {"Cand_RapCM", "Cand_Rap-0.465"}})) {
+      if (ws.var(v.first.c_str())) {
+	RooFormulaVar rapVar(v.first.c_str(), v.second.c_str(), RooArgList(*ws.var("Cand_Rap")));
+	rapDS->addColumn(rapVar);
+	if (rapDS->get()->find(v.first.c_str())) {
+	  const auto& var = dynamic_cast<RooRealVar*>(ws.var(v.first.c_str()));
+	  ws.factory(Form("%sMean[%g]", v.first.c_str(), rapDS->meanVar(*var)->getVal()));
+	  ws.factory(Form("%sRMS[%g]", v.first.c_str(), rapDS->rmsVar(*var)->getVal()));
+	}
+      }
+    }
+  }
   return true;
 };
 
@@ -865,7 +950,7 @@ bool setFitParameterRange(RooWorkspace& ws, GlobalInfo& info)
 bool updateFitRange(RooWorkspace& ws, GlobalInfo&  info, const std::string& chg)
 {
   DoubleDiMap_t inVarList;
-  for (const auto& varN : info.StrS.at("fitCondVariable")) {
+  for (const auto& varN : info.StrS.at("fitVariable")) {
     int emptyBins = -1;
     double varMin = -99999.9, varMax = -99999.9;
     if (info.Flag.at("fitData")) {
@@ -873,6 +958,9 @@ bool updateFitRange(RooWorkspace& ws, GlobalInfo&  info, const std::string& chg)
       if (varN.rfind("Cand_DLen", 0)==0) {
 	varMin = -999.9;
 	varMax = -999.9;
+      }
+      if (varN=="Cand_DLenErr") {
+	emptyBins = 0;
       }
       if (varN=="Cand_DLenRes") {
 	varMin = (info.Flag.at("fitPsi2S") ? -999.9 : info.Var.at(varN).at("Plot_Min"));
@@ -1006,25 +1094,19 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
     std::string cutSel = "";
     const auto& cutLbl = info.Par.at("Cut");
     const auto& PD = info.Par.at("PD");
-    if (PD.rfind("MUON")!=std::string::npos) {
-      if (cutLbl=="PromptDecay") {
-        cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen < (0.008 + 0.133/pow(Cand_Pt, 0.734))) || (abs(Cand_Rap) > 1.4 && Cand_DLen < (-0.034 + 0.178/pow(Cand_Pt, 0.351))))";
-        std::cout << "[INFO] Cutting on candidate decay length to select PROMPT decays" << std::endl;
-      }
-      else if (cutLbl=="NonPromptDecay") {
-        cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen > (0.008 + 0.133/pow(Cand_Pt, 0.734))) || (abs(Cand_Rap) > 1.4 && Cand_DLen > (-0.034 + 0.178/pow(Cand_Pt, 0.351))))";
-        std::cout << "[INFO] Cutting on candidate decay length to select NON-PROMPT decays" << std::endl;
-      }
+    const bool isMuonTrigger = (PD.rfind("MUON")!=std::string::npos);
+    double threshold = 0.9;
+    if (cutLbl.rfind("[")!=std::string::npos) {
+      const auto& tmp = cutLbl.substr(cutLbl.rfind("[")+1);
+      threshold = std::stod(tmp.substr(0, tmp.rfind("]")));
     }
-    else {
-      if (cutLbl=="PromptDecay") {
-        cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen < (-0.010 + 0.122/pow(Cand_Pt, 0.431))) || (abs(Cand_Rap) > 1.4 && Cand_DLen < (-0.045 + 0.183/pow(Cand_Pt, 0.299))))";
-        std::cout << "[INFO] Cutting on candidate decay length to select PROMPT decays" << std::endl;
-      }
-      else if (cutLbl=="NonPromptDecay") {
-        cutSel = "((abs(Cand_Rap) <= 1.4 && Cand_DLen > (-0.010 + 0.122/pow(Cand_Pt, 0.431))) || (abs(Cand_Rap) > 1.4 && Cand_DLen > (-0.045 + 0.183/pow(Cand_Pt, 0.299))))";
-        std::cout << "[INFO] Cutting on candidate decay length to select NON-PROMPT decays" << std::endl;
-      }
+    if (cutLbl.rfind("PromptDecay", 0)==0) {
+      cutSel = ANA::CHARMONIA::decayLenCut("Cand_DLen <", "Cand_Pt", "Cand_Rap", isMuonTrigger, threshold);
+      std::cout << "[INFO] Cutting on candidate decay length to select PROMPT decays" << std::endl;
+    }
+    else if (cutLbl.rfind("NonPromptDecay", 0)==0) {
+      cutSel = ANA::CHARMONIA::decayLenCut("Cand_DLen >", "Cand_Pt", "Cand_Rap", isMuonTrigger, threshold);
+      std::cout << "[INFO] Cutting on candidate decay length to select NON-PROMPT decays" << std::endl;
     }
     if (cutSel!="") {
       cutDS += " && "+cutSel;
@@ -1084,7 +1166,7 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
       myws.factory(Form("use%sCM[1.0]", v.first.c_str()));
       const auto& var = info.Var.at(v.first+"CM");
       myws.factory(Form("%sCM[%.10f,%.10f,%.10f]", v.first.c_str(), 0.0, var.at("Min"), var.at("Max")));
-      myws.var((v.first+"CM").c_str())->setRange("DEFAULT", -2.965, 2.035);
+      myws.var((v.first+"CM").c_str())->setRange("DEFAULT", var.at("Default_Min"), var.at("Default_Max"));
     }
   }
   // Set the range of each global parameter in the local workspace
@@ -1103,6 +1185,7 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
     }
     if (contain(info.StrS.at("cutPars"), var.first) && !myws.var(var.first.c_str()) && contain(var.second, "Min")) {
       myws.factory(Form("%s[%.10f,%.10f,%.10f]", var.first.c_str(), 0.0, var.second.at("Min"), var.second.at("Max")));
+      myws.var(var.first.c_str())->setRange("DEFAULT", var.second.at("Default_Min"), var.second.at("Default_Max"));
     }
   }
   // Print bin information

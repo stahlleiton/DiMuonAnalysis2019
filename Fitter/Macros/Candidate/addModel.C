@@ -32,7 +32,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
   for (const auto& col : info.StrS.at("fitSystem")) {
     const auto& lbl = cha + chg + "_" + col;
     //
-    std::map<std::string, RooArgList> pdfMapTot;
+    std::map<std::string, std::pair<RooArgList, RooArgList>> pdfMapTot;
     for (const auto& mainObj : info.StrS.at("fitObject")) {
       const auto& mainTag = mainObj + cha + chg;
       const auto& mainLabel = mainTag + "_" + col;
@@ -90,7 +90,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		// create the Template
 		std::string dsName = ( "d" + chg + "_MC_" + obj + "_" + info.Par.at("channelDS") + "_" + col );
 		const std::vector< double > range = { double(ws.var(varName.c_str())->getBins(varWindow.c_str())) , ws.var(varName.c_str())->getMin(varWindow.c_str()) , ws.var(varName.c_str())->getMax(varWindow.c_str()) };
-		const auto& proceed = histToPdf(ws, pdfName, dsName, varName, range);
+		const auto& proceed = histToPdf(ws, pdfName, dsName, varName, range, "HIST");
 		if (!contain(info.Var, "recoMCEntries") || !contain(info.Var.at("recoMCEntries"), label)) {
 		  if (proceed && (std::abs(info.Var.at("recoMCEntries").at(label)-ws.data(Form("dh%s_%s", varName.c_str(), label.c_str()))->sumEntries())>0.5)) {
 		    std::cout << "[WARNING] The number of events in " << Form("dh%s_%s", varName.c_str(), label.c_str()) << " changed from (" << info.Var.at("recoMCEntries").at(label) << ") to (" <<
@@ -109,28 +109,79 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	      }
 	    case (int(Model::SPLOT)):
 	      {
-		// create the sPlot DataSet
-		if (!makeSPlotDS(ws, info, label)) { return false; }
-		// create the PDF
-		const auto& sPlotDS = info.Par.at("dsSPlotNameFit"+chg);
-		const auto& sPlotN = ("N_"+labelI+"_sw");
-		const auto& range = std::vector<double>({((double)getNBins(varName, info)), info.Var.at(varName).at("Min"), info.Var.at(varName).at("Max")});
-		auto dataw = std::unique_ptr<RooDataSet>(new RooDataSet("TMP","TMP", dynamic_cast<RooDataSet*>(ws.data(sPlotDS.c_str())), RooArgSet(*ws.var(varName.c_str()), *ws.var(sPlotN.c_str())), 0, sPlotN.c_str()));
-		if (!histToPdf(ws, pdfName, *dataw, varName, range)) { return false; }
+		// load model from previous fit, if done
+		if (getPDFData(ws, pdfName, info, label, varName)) {
+		  if (!histToPdf(ws, pdfName, varName, "HIST")) { return false; }
+		}
+		else {
+		  // create the sPlot DataSet
+		  if (!makeSPlotDS(ws, info, label)) { return false; }
+		  // create the PDF
+		  const auto& sPlotDS = info.Par.at("dsSPlotNameFit"+chg);
+		  const auto& sPlotN = ("N_"+labelI+"_sw");
+		  const auto& range = std::vector<double>({double(getNBins(varName, info)), info.Var.at(varName).at("Min"), info.Var.at(varName).at("Max")});
+		  std::cout << "[INFO] Using " << sPlotN << " of " << sPlotDS << " to create " << pdfName << " SPlot template" << std::endl;
+		  auto dataw = std::unique_ptr<RooDataSet>(new RooDataSet("TMP","TMP", dynamic_cast<RooDataSet*>(ws.data(sPlotDS.c_str())), RooArgSet(*ws.var(varName.c_str()), *ws.var(sPlotN.c_str())), 0, sPlotN.c_str()));
+		  if (!histToPdf(ws, pdfName, *dataw, varName, range, "HIST")) { return false; }
+		}
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
 		// add PDF to list
 		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] " << tag << " " << sPlotDS << " " << varName << " Template in " << col << " added!" << std::endl; break;
+		std::cout << "[INFO] " << tag << " " << " binned SPLot " << " " << varName << " PDF in " << col << " added!" << std::endl; break;
 	      }
-	    case (int(Model::FULL)):
+	    case (int(Model::KEYS)):
 	      {
-		// create the PDF
-		const auto& dsName = info.Par.at("dsNameFit"+chg);
-		const auto& range = std::vector<double>({((double)getNBins(varName, info)), info.Var.at(varName).at("Min"), info.Var.at(varName).at("Max")});
-		auto dataw = std::unique_ptr<RooDataSet>(new RooDataSet("TMP","TMP", dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())), RooArgSet(*ws.var(varName.c_str()))));
-		if (!histToPdf(ws, pdfName, *dataw, varName, range)) { return false; }
+		// load model from previous fit, if done
+		if (getPDFData(ws, pdfName, info, label, varName)) {
+		  if (!histToPdf(ws, pdfName, varName, "KEYS")) { return false; }
+		}
+		else {
+		  // create the PDF using RooKeys from binned dataset
+		  const auto& dsName = info.Par.at("dsNameFit"+chg);
+		  const auto& range = std::vector<double>({((double)getNBins(varName, info)), info.Var.at(varName).at("Min"), info.Var.at(varName).at("Max")});
+		  std::cout << "[INFO] Using " << dsName << " to create " << pdfName << " binned RooKeysPdf template" << std::endl;
+		  auto data = std::unique_ptr<RooDataSet>(new RooDataSet("TMP","TMP", dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())), RooArgSet(*ws.var(varName.c_str()))));
+		  if (!histToPdf(ws, pdfName, *data, varName, range, "KEYS")) { return false; }
+		}
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
 		// add PDF to list
 		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
-		std::cout << "[INFO] " << tag << " " << dsName << " " << varName << " Template in " << col << " added!" << std::endl; break;
+		std::cout << "[INFO] " << tag << " " << " binned RooKeysPdf " << " " << varName << " PDF in " << col << " added!" << std::endl; break;
+	      }
+	    case (int(Model::DSKEYS)):
+	      {
+		// TODO: implement loading of previous RooKeysPdf
+		if (true) {
+		  // create the PDF using RooKeys from unbinned dataset
+		  const auto& dsName = info.Par.at("dsNameFit"+chg);
+		  std::cout << "[INFO] Using " << dsName << " to create " << pdfName << " unbinned RooKeysPdf template" << std::endl;
+		  auto data = dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()));
+		  auto pdf = std::unique_ptr<RooKeysPdf>(new RooKeysPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(varName.c_str()), *data, RooKeysPdf::MirrorAsymBoth));
+		  if (ws.import(*pdf)) { std::cout << "[ERROR] RooKeysPdf " << pdfName << " failed to import!" << std::endl; }
+		}
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " " << " unbinned RooKeysPdf " << " " << varName << " PDF in " << col << " added!" << std::endl; break;
+	      }
+	    case (int(Model::HIST)):
+	      {
+		// load model from previous fit, if done
+		if (getPDFData(ws, pdfName, info, label, varName)) {
+		  if (!histToPdf(ws, pdfName, varName, "HIST")) { return false; }
+		}
+		else {
+		  // create the PDF using RooHistPdf
+		  const auto& dsName = info.Par.at("dsNameFit"+chg);
+		  const auto& range = std::vector<double>({((double)getNBins(varName, info)), info.Var.at(varName).at("Min"), info.Var.at(varName).at("Max")});
+		  std::cout << "[INFO] Using " << dsName << " to create " << pdfName << " RooHistPdf template" << std::endl;
+		  auto data = std::unique_ptr<RooDataSet>(new RooDataSet("TMP","TMP", dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())), RooArgSet(*ws.var(varName.c_str()))));
+		  if (!histToPdf(ws, pdfName, *data, varName, range, "HIST")) { return false; }
+		}
+		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
+		// add PDF to list
+		pdfList[objI].add(*ws.pdf(pdfName.c_str()));
+		std::cout << "[INFO] " << tag << " " << " RooHistPdf " << " " << varName << " PDF in " << col << " added!" << std::endl; break;
 	      }
 	      //-------------------------------------------
 	      //
@@ -1386,8 +1437,9 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    if (!addModelPar(ws, info, parNames, varName, (p.first+lbl), ("SUM_"+p.first), parFullNames)) { return false; }
 	    RooArgList coefList; for (const auto& par : parFullNames) { if (ws.var(par.c_str())) { coefList.add(*ws.var(par.c_str())); } }
 	    // Sum the PDFs
-	    auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), p.second, coefList));
-	    if (ws.import(*themodel)) { std::cout << "[ERROR] Failed to import PDF " << pdfName << std::endl; return false; }
+	    auto pdf = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), p.second, coefList));
+	    if (!pdf) { std::cout << "[ERROR] RooAddPdf " << pdfName << " is NULL!" << std::endl; return false; }
+	    if (ws.import(*pdf)) { std::cout << "[ERROR] RooAddPdf " << pdfName << " was not imported!" << std::endl; return false; }
 	    const bool& isCondPdf = (varType=="CandDLen" && info.Flag.at("condCand_DLenErr"));
 	    if (isCondPdf) { condPdfListVar[p.first].add(*ws.pdf(pdfName.c_str())); } else { pdfListVar[p.first].add(*ws.pdf(pdfName.c_str())); }
 	    if (!isCondPdf) { pdfMapVar[varType][p.first].add(*ws.pdf(pdfName.c_str())); }
@@ -1397,19 +1449,20 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
       }
       StringSet_t varList = {varTot}; for (const auto& v : pdfMapVar) { varList.insert(v.first); }
       for (const auto& var : varList) {
-	RooArgList pdfListVarTot;
+	auto pdfListVarTot = std::pair<RooArgList, RooArgList>(RooArgList(), RooArgList());
 	for (const auto& p : (var==varTot ? pdfListVar : pdfMapVar[var])) {
 	  // Multiply the PDFs
 	  std::string pdfName = p.second.at(0)->GetName();
 	  const auto& condPdfSize = (var==varTot ? condPdfListVar[p.first].getSize() : 0);
 	  if ((p.second.getSize()+condPdfSize)>1) {
 	    pdfName = ("pdf"+var+"_"+p.first+lbl);
-	    std::unique_ptr<RooProdPdf> themodel;
+	    std::unique_ptr<RooProdPdf> pdf;
 	    if (condPdfSize>0) {
-	      themodel.reset(new RooProdPdf(pdfName.c_str(), pdfName.c_str(), p.second, RooFit::Conditional(condPdfListVar[p.first], RooArgSet(*ws.var("Cand_DLen")))));
+	      pdf.reset(new RooProdPdf(pdfName.c_str(), pdfName.c_str(), p.second, RooFit::Conditional(condPdfListVar[p.first], RooArgSet(*ws.var("Cand_DLen")))));
 	    }
-	    else { themodel.reset(new RooProdPdf(pdfName.c_str(), pdfName.c_str(), p.second)); }
-	    if (ws.import(*themodel)) { std::cout << "[ERROR] Failed to import PDF " << pdfName << std::endl; return false; }
+	    else { pdf.reset(new RooProdPdf(pdfName.c_str(), pdfName.c_str(), p.second)); }
+	    if (!pdf) { std::cout << "[ERROR] RooProdPdf " << pdfName << " is NULL!" << std::endl; return false; }
+	    if (ws.import(*pdf)) { std::cout << "[ERROR] RooProdPdf " << pdfName << " was not imported!" << std::endl; return false; }
 	  }
 	  // create the yield
 	  if (!addModelPar(ws, info, {"N"}, "Cand_Mass", (p.first+lbl), "", true)) { return false; }
@@ -1419,22 +1472,26 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 			       pdfName.c_str(),
 			       ("N_"+p.first+lbl).c_str()
 			       ))) { std::cout << "[ERROR] Failed to create extended PDF " << pdfTotName << std::endl; return false; }
-	  pdfListVarTot.add(*ws.pdf(pdfTotName.c_str()));
+	  pdfListVarTot.first.add(*ws.pdf(pdfName.c_str()));
+	  pdfListVarTot.second.add(*ws.arg(("N_"+p.first+lbl).c_str()));
 	}
-	if (pdfListVarTot.getSize()>0) {
+	if (pdfListVarTot.first.getSize()>0) {
 	  const auto& pdfName = ("pdf"+var+"_Tot"+mainLabel);
-	  auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfListVarTot));
-	  ws.import(*themodel);
+	  auto pdf = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfListVarTot.first, pdfListVarTot.second));
+	  if (!pdf) { std::cout << "[ERROR] RooAddPdf " << pdfName << " is NULL!" << std::endl; return false; }
+	  if (ws.import(*pdf)) { std::cout << "[ERROR] RooAddPdf " << pdfName << " was not imported!" << std::endl; return false; }
 	}
-	pdfMapTot[var].add(pdfListVarTot);
+	pdfMapTot[var].first.add(pdfListVarTot.first);
+	pdfMapTot[var].second.add(pdfListVarTot.second);
       }
     }
     for (const auto& v : pdfMapTot) {
-      if (v.second.getSize()>0) {
+      if (v.second.first.getSize()>0) {
 	const auto& pdfName = ("pdf"+v.first+"_Tot"+lbl);
 	if (v.first==varTot) { info.Par["pdfName"+chg] = pdfName; }
-	auto themodel = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), v.second));
-	ws.import(*themodel);
+	auto pdf = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), v.second.first, v.second.second));
+	if (!pdf) { std::cout << "[ERROR] RooAddPdf " << pdfName << " is NULL!" << std::endl; return false; }
+	if (ws.import(*pdf)) { std::cout << "[ERROR] RooAddPdf " << pdfName << " was not imported!" << std::endl; return false; }
       }
     }
     // Add N for other objects not used in the PDF fit if mass PDF info has been loaded
@@ -1462,7 +1519,7 @@ bool loadPDFParameters(RooWorkspace& ws, const std::string& var, const std::stri
   const auto& cha = info.Par.at("channel");
   const auto& chg = label.substr(label.find(cha)+cha.size(), 2);
   const auto& pdfName = info.Par.at("pdfName"+chg);
-  if (!loadFitResult(ws, inFileName, pdfName, loadYield, fixPar)) { return false; }
+  if (!loadFitResult(ws, inFileName, pdfName, var, loadYield, fixPar)) { return false; }
   return true;
 };
 
@@ -1482,7 +1539,7 @@ RooAbsPdf* getTotalPDF(RooWorkspace& ws, const std::string& var, const std::stri
   if (!addModel(ws, infoTMP, chg, {var})) { return NULL; }
   // Extract the previous PDF
   const auto& pdfName = ("pdf"+varT+"_Tot"+label);
-  if (!loadFitResult(ws, inFileName, pdfName)) { return NULL; }
+  if (!loadFitResult(ws, inFileName, pdfName, var)) { return NULL; }
   return ws.pdf(pdfName.c_str());
 };
 
@@ -1509,9 +1566,9 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& label)
   // Load the sPlot DataSet if already done
   std::string fileName = "";
   auto dir = info.Par.at("outputDir");
-  setFileName(fileName, dir, label, info, {"Cand_Mass"});
+  setFileName(fileName, dir, label, info);
   const auto& outDir = (dir+"dataset/");
-  const auto& inFileName = (outDir+"SPlot_CandMass_"+fileName+".root");
+  const auto& inFileName = (outDir+"SPlot_"+fileName+".root");
   const auto& foundDS = getDataSet(ws, dsSPlotName, inFileName);
   //
   if (!foundDS) {
@@ -1534,11 +1591,15 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& label)
     //
     // Extract the yields
     RooArgList yieldList;
-    if (ws.components().getSize()>0) {
-      auto cmpIt = std::unique_ptr<TIterator>(ws.componentIterator());
-      for (auto itp = cmpIt->Next(); itp!=NULL; itp = cmpIt->Next()) {
-	const auto& it = dynamic_cast<RooAbsArg*>(itp); if (!it) continue;
-	if (std::string(it->GetName()).rfind("N_",0)==0) { yieldList.add(*it); }
+    auto parSet = std::unique_ptr<RooArgSet>(clonePDF->getParameters(RooArgSet()));
+    if (parSet->getSize()>0) {
+      auto parIt = std::unique_ptr<TIterator>(parSet->createIterator());
+      for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next()) {
+	const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
+	if (std::string(it->GetName()).rfind("N_",0)==0) {
+	  it->setMin(0.0); // Set minimum range of yields to zero
+	  yieldList.add(*it);
+	}
       }
     }
     if (yieldList.getSize()==0) { std::cout << "[ERROR] makeSPlotDS: Workspace has no yields!" << endl; return false; }
@@ -1582,8 +1643,9 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& label)
     for (auto it = yIt->Next(); it!=NULL; it = yIt->Next()) {
       const std::string& name = it->GetName();
       const auto& fitVal = ws.var(name.c_str())->getVal();
+      const auto& fitUnc = ws.var(name.c_str())->getError();
       const auto& sVal = sData.GetYieldFromSWeight(name.c_str());
-      if (std::abs(fitVal - sVal)>0.1) { std::cout << "[ERROR] Variable " << name << " has different fitted (" << fitVal << ") and sPlot (" << sVal << ") results!" << std::endl; return false; }
+      if (std::abs(fitVal - sVal)>0.005*fitUnc) { std::cout << "[ERROR] Variable " << name << " has different fitted (" << fitVal << " +- " << fitUnc << ") and sPlot (" << sVal << ") results!" << std::endl; return false; }
     }
     // Store the sPlot dataset
     const auto& sPlotDS = dynamic_cast<RooDataSet*>(ws.data(dsSPlotName.c_str()));
@@ -1592,20 +1654,16 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& label)
   }
   else {
     std::cout << "[INFO] SPlot dataset " << dsSPlotName << " found!" << std::endl;
-    auto data = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(ws.data(dsSPlotName.c_str())->reduce(RooFit::Cut(getString(ws, "cutDS").c_str()))));
+    auto data = dynamic_cast<RooDataSet*>(ws.data(dsSPlotName.c_str()));
     setDSParamaterRange(*data, info, "Full_");
     if (data->numEntries()<=0) { std::cout << "[ERROR] No events from dataset " <<  dsSPlotName << " passed kinematic cuts!" << std::endl; return false; }
     else if (!isCompatibleDataset(*data, *dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())))) { std::cout << "[ERROR] sPlot and original datasets are inconsistent!" << std::endl; return false; }
     else {
-      if (ws.data(dsSPlotName.c_str())) { ws.RecursiveRemove(ws.data(dsSPlotName.c_str())); }
-      if (ws.import(*data, RooFit::Rename(dsSPlotName.c_str()))) { std::cout << "[ERROR] RooDataSet " << dsSPlotName << " was not imported!" << std::endl; return false; }
-      else {
-	if (ws.data(dsName.c_str())) { ws.RecursiveRemove(ws.data(dsName.c_str())); }
-	info.Var.at("numEntries")[dsSPlotName] = ws.data(dsSPlotName.c_str())->sumEntries();
-	info.Par.at("dsName"+chg) = dsSPlotName;
-	defineSet(ws, "SET_"+dsSPlotName, *data->get());
-	std::cout << "[INFO] Imported " << dsSPlotName << " with " << data->numEntries() << " events (" << ws.data(dsName.c_str())->numEntries() << " origDS events)" << " and " << data->sumEntries() << " wevents (" << ws.data(dsName.c_str())->sumEntries() << " origDS wevents)" << std::endl;
-      }
+      if (ws.data(dsName.c_str())) { ws.RecursiveRemove(ws.data(dsName.c_str())); }
+      info.Var.at("numEntries")[dsSPlotName] = ws.data(dsSPlotName.c_str())->sumEntries();
+      info.Par.at("dsName"+chg) = dsSPlotName;
+      defineSet(ws, "SET_"+dsSPlotName, *data->get());
+      std::cout << "[INFO] Imported " << dsSPlotName << " with " << data->numEntries() << " events (" << ws.data(dsName.c_str())->numEntries() << " origDS events)" << " and " << data->sumEntries() << " wevents (" << ws.data(dsName.c_str())->sumEntries() << " origDS wevents)" << std::endl;
     }
     auto dataFit = std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(data->reduce(RooFit::Cut(getString(ws, "cutDSFit").c_str()), RooFit::Name(dsSPlotNameFit.c_str()))));
     setDSParamaterRange(*dataFit, info);
@@ -1711,6 +1769,22 @@ bool loadFitResults(RooWorkspace& ws, const GlobalInfo& info, const std::string&
     // Load mass fit
     if (info.Flag.at("fitCand_DLen") && info.Flag.at("fitCand_Mass")) {
       if (!loadPDFParameters(ws, "Cand_Mass", label, info, true, true)) { std::cout << "[ERROR] loadFitResults: Cand_Mass PDF was not loaded!" << endl; return false; }
+      //
+      const std::string& pdfName = "pdfCandMass_TotToMuMuOS_PA8Y16";
+      const auto& dsNameFit = info.Par.at("dsNameFit"+chg);
+      std::vector<RooCmdArg> cmdList = { RooFit::Extended(true), RooFit::AsymptoticError(false), RooFit::InitialHesse(true), RooFit::Minos(false), RooFit::Strategy(2), RooFit::Minimizer("Minuit2"),
+					 RooFit::Optimize(false), RooFit::NumCPU(32, 1), RooFit::Save(true), RooFit::Timer(true), RooFit::PrintLevel(1), RooFit::BatchMode(true)};
+      std::cout << "[INFO] Fitting " << pdfName << " on " << dsNameFit << std::endl;
+      std::unique_ptr<RooFitResult> fitResult;
+      if (fitPDF(fitResult, ws, cmdList, pdfName, dsNameFit)) {
+	for (const auto& vv : StringVector_t({"N_JPsi"+label, "R_Psi2S"+label, "N_Bkg"+label})) {
+	  if (ws.var(vv.c_str())) {
+	    ws.var(vv.c_str())->setConstant(true);
+	    //ws.var(vv.c_str())->setMin(ws.var(vv.c_str())->getVal() - ws.var(vv.c_str())->getError()*10.0);
+	    //ws.var(vv.c_str())->setMax(ws.var(vv.c_str())->getVal() + ws.var(vv.c_str())->getError()*10.0);
+	  }
+	}
+      }
     }
     // Load decay length resolution fit
     if (info.Flag.at("fitCand_DLen")) {
@@ -1747,9 +1821,9 @@ bool loadFitResults(RooWorkspace& ws, const GlobalInfo& info, const std::string&
 	  infoTMP.Par["objTag_CandDLenGen_"+objI] = objI;
 	  const auto& o = *info.StrS.at("fitObject").begin();
 	  infoTMP.Par["ModelCandDLenGen_"+objI+label] = "DeltaResolution[DLenRes] + "+info.Par.at("ModelCandDLen_"+o+label+"_"+objN)+"["+objN+"]";
-	  const bool& setConst = !info.Flag.at("fit"+objI);
+	  const bool& setConst = true;//!info.Flag.at("fit"+objI);
 	  if (!loadPDFParameters(ws, "Cand_DLenGen", label, infoTMP, false, setConst)) { std::cout << "[ERROR] loadFitResults: " << objN << " Cand_DLenGen PDF was not loaded!" << endl; return false; }
-	  //if (ws.var(("f_"+objN+label).c_str())) { ws.var(("f_"+objN+label).c_str())->setConstant(true); }
+	  if (ws.var(("f_"+objN+label).c_str())) { ws.var(("f_"+objN+label).c_str())->setConstant(true); }
 	  if (ws.var(("rLambdaSS21_"+objN+label).c_str())) { ws.var(("rLambdaSS21_"+objN+label).c_str())->setConstant(true); }
 	}
       }

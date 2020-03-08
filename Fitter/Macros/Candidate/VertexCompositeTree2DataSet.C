@@ -257,9 +257,9 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
             // Check the PID of the matched gen particle
             const auto& tmp = dsNames[0].substr(dsNames[0].find("_")+1);
             auto par = tmp.substr(0, tmp.find("_"));
-            for (const auto& p : MASS) { if (par.find(p.first)!=std::string::npos) { par = p.first; break; } }
-            if (!contain(MASS, par)) { std::cout << "[ERROR] MC particle "<<par<<" is not valid!" << std::endl; return false; }
-            if (fabs(candOSTree->idmom_reco()[iC])!=int(MASS.at(par).at("PID"))) continue;
+            for (const auto& p : ANA::MASS) { if (par.find(p.first)!=std::string::npos) { par = p.first; break; } }
+            if (!contain(ANA::MASS, par)) { std::cout << "[ERROR] MC particle "<<par<<" is not valid!" << std::endl; return false; }
+            if (fabs(candOSTree->idmom_reco()[iC])!=int(ANA::MASS.at(par).at("PID"))) continue;
           }
           //
           // Store muon trigger matching info
@@ -276,7 +276,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           // Compute the pseudo-proper-decay length
           const auto& p    = pT*std::cosh(candOSTree->eta()[iC]);
           const auto& rap  = candOSTree->y()[iC];
-          const auto& massJPsi = MASS.at("JPsi").at("Val");
+          const auto& massJPsi = ANA::MASS.at("JPsi").at("Val");
           const auto& dLen = (candOSTree->V3DDecayLength()[iC] * candOSTree->V3DCosPointingAngle()[iC])*(massJPsi/p)*10.0;
           const auto& dLenErr = (candOSTree->V3DDecayLengthError2()[iC])*(massJPsi/p)*10.0;
           const auto& dLen2D = (candOSTree->V2DDecayLength()[iC] * candOSTree->V2DCosPointingAngle()[iC])*(massJPsi/pT)*10.0;
@@ -380,7 +380,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           // Compute the pseudo-proper-decay length
           const auto& p    = pT*std::cosh(candSSTree->eta()[iC]);
           const auto& rap  = candSSTree->y()[iC];
-          const auto& massJPsi = MASS.at("JPsi").at("Val");
+          const auto& massJPsi = ANA::MASS.at("JPsi").at("Val");
           const auto& dLen = (candSSTree->V3DDecayLength()[iC] * candSSTree->V3DCosPointingAngle()[iC])*(massJPsi/p)*10.0;
           const auto& dLenErr = (candSSTree->V3DDecayLengthError()[iC])*(massJPsi/p)*10.0;
           const auto& dLen2D = (candSSTree->V2DDecayLength()[iC] * candSSTree->V2DCosPointingAngle()[iC])*(massJPsi/pT)*10.0;
