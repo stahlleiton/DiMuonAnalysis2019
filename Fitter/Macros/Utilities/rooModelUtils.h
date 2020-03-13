@@ -20,25 +20,6 @@
 #include "RooStats/SPlot.h"
 
 
-std::set<std::string> MODELCLASS_;
-
-
-bool importModelClass(RooWorkspace& ws, const std::string& className)
-{
-  const std::string& CWD = getcwd(NULL, 0);
-  const auto& classDir = CWD+"/Macros/Utilities/Models/";
-  TInterpreter::EErrorCode ecode;
-  if (MODELCLASS_.find(className)==MODELCLASS_.end()) {
-    gInterpreter->ProcessLineSynch(Form(".L %s%s.cxx+",classDir.c_str(), className.c_str()), &ecode);
-    if (ecode!=TInterpreter::kNoError) { std::cout << "[ERROR] Class " << className << " did not compile!" << std::endl; return false; }
-    MODELCLASS_.insert(className);
-  }
-  auto classPdf = std::unique_ptr<RooAbsPdf>((RooAbsPdf*)gInterpreter->ProcessLineSynch(Form("new %s()", className.c_str()), &ecode));
-  if (ecode!=TInterpreter::kNoError) { std::cout << "[ERROR] Class " << className << " was not created!" << std::endl; return false; }
-  return ws.importClassCode(classPdf->IsA());
-};
-
-
 void constrainQuarkoniumMassParameters(GlobalInfo& info, const StringVector_t& varList, const std::string& excLabel)
 {
   const auto& cha = info.Par.at("channel");
@@ -54,7 +35,7 @@ void constrainQuarkoniumMassParameters(GlobalInfo& info, const StringVector_t& v
   for (const auto& v : varList) {
     if (contain(info.Par, v+"_"+excLabel)) {
       if (v=="m" || v=="Sigma1" || v=="Sigma2") {
-	const double& massRatioValue = (MASS.at(obj).at("Val")/MASS.at(refState.at(obj)).at("Val"));
+	const double& massRatioValue = (ANA::MASS.at(obj).at("Val")/ANA::MASS.at(refState.at(obj)).at("Val"));
 	const auto& massRatioLabel = ("MassRatio_" + obj + "Over" + refState.at(obj));
 	info.Par[massRatioLabel] = Form("%s[%.10f]", massRatioLabel.c_str(), massRatioValue);
 	info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", (v+"_"+excLabel).c_str(), info.Par.at(massRatioLabel).c_str(), (v+"_"+refLabel).c_str());
@@ -66,7 +47,7 @@ void constrainQuarkoniumMassParameters(GlobalInfo& info, const StringVector_t& v
 	  info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", (v+"_"+excLabel).c_str(), info.Par.at(rN).c_str(), (v+"_"+refLabel).c_str());
 	}
       }
-      else { info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+excLabel).c_str(), (v+"_"+refLabel).c_str()); }
+      else if (v!="b") { info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+excLabel).c_str(), (v+"_"+refLabel).c_str()); }
     }
   }
 };
@@ -132,14 +113,14 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
 	else if (v=="Sigma"             ) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  1.000,    0.010,  40.000); }
 	else if (v=="xb"                ) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(), 10.000,    0.000,  40.000); }
 	else if (v.rfind("Sigma",  0)==0) {
-	  auto varR = ((fitVar=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Width") : ((info.Var.at(fitVar).at("Max")-info.Var.at(fitVar).at("Min"))/6.0));
+	  auto varR = ((fitVar=="Cand_Mass" && contain(ANA::MASS, obj)) ? ANA::MASS.at(obj).at("Width") : ((info.Var.at(fitVar).at("Max")-info.Var.at(fitVar).at("Min"))/6.0));
 	  if (fitVar=="Cand_DLenRes" || obj=="DLenRes") { varR = 1.0; }
 	  info.Par[v+"_"+objLabel] = Form("%s[%.10f,%.10f,%.10f]", (v+"_"+objLabel).c_str(), varR, 0.1*varR, 2.5*varR);
 	}
 	else if (v=="m") {
-	  auto varV = ((fitVar=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Val")   : ((info.Var.at(fitVar).at("Max")+info.Var.at(fitVar).at("Min"))/2.0));
-	  auto varR = ((fitVar=="Cand_Mass" && contain(MASS, obj)) ? MASS.at(obj).at("Width") : ((info.Var.at(fitVar).at("Max")-info.Var.at(fitVar).at("Min"))/6.0));
-	  if (fitVar=="Cand_Mass" && !contain(MASS, obj) && (obj!="Bkg" || obj.find("Swap")!=std::string::npos)) {
+	  auto varV = ((fitVar=="Cand_Mass" && contain(ANA::MASS, obj)) ? ANA::MASS.at(obj).at("Val")   : ((info.Var.at(fitVar).at("Max")+info.Var.at(fitVar).at("Min"))/2.0));
+	  auto varR = ((fitVar=="Cand_Mass" && contain(ANA::MASS, obj)) ? ANA::MASS.at(obj).at("Width") : ((info.Var.at(fitVar).at("Max")-info.Var.at(fitVar).at("Min"))/6.0));
+	  if (fitVar=="Cand_Mass" && !contain(ANA::MASS, obj) && (obj!="Bkg" || obj.find("Swap")!=std::string::npos)) {
 	    std::cout << "[WARNING] Initial value for " << (v+"_"+objLabel) << " was not found!" << std::endl;
 	  }
 	  else if (fitVar=="Cand_DLenRes" || obj=="DLenRes") { varR = 0.0; varV = 0.0; }
@@ -282,20 +263,18 @@ TH1* rebinhist(const TH1& hist, const double& xMin, const double& xMax, const st
   return NULL;
 };
 
-  
-bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const RooDataSet& ds, const std::string& var, const std::vector< double >& range)
+
+bool histToDataHist(RooWorkspace& ws, const std::string& dataName, const RooDataSet& ds, const std::string& var, const std::vector< double >& range)
 {
   //
-  if (ws.pdf(pdfName.c_str())) { std::cout << "[INFO] The " << pdfName << " Template has already been created!" << std::endl; return true; }
+  if (ws.data(dataName.c_str())) { std::cout << "[INFO] The RooDataHist " << dataName << " has already been created!" << std::endl; return true; }
   if (!ws.var(var.c_str())) { std::cout << "[ERROR] Variable " << var << " was not found!" << std::endl; return false; }
-  std::cout << "[INFO] Implementing " << pdfName << " Template" << std::endl;
-  //
+  std::cout << "[INFO] Implementing RooDataHist " << dataName << std::endl;
   //  
   // Create the histogram
-  auto histName = pdfName;
-  histName.replace(histName.find("pdf"), std::string("pdf").length(), "h");
-  auto hist = std::unique_ptr<TH1D>(static_cast<TH1D*>(ds.createHistogram(histName.c_str(), *ws.var(var.c_str()), RooFit::Binning(int(range[0]), range[1], range[2]))));
-  if (!hist) { std::cout << "[ERROR] Histogram " << histName << " is NULL!" << std::endl; return false; }
+  auto hist = std::unique_ptr<TH1D>(static_cast<TH1D*>(ds.createHistogram(dataName.c_str(), *ws.var(var.c_str()), RooFit::Binning(int(range[0]), range[1], range[2]))));
+  if (!hist) { std::cout << "[ERROR] Histogram " << dataName << " is NULL!" << std::endl; return false; }
+  for (int iBin=0; iBin<hist->GetNbinsX(); iBin++) { std::cout << "HIST: " << hist->GetBinLowEdge(iBin) << "  " << hist->GetBinLowEdge(iBin) + hist->GetBinWidth(iBin) << "  " << hist->GetBinContent(iBin) << std::endl; }
   // Cleaning the input histogram
   // 1) Remove the Under and Overflow bins
   hist->ClearUnderflowAndOverflow();
@@ -303,33 +282,78 @@ bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const RooDataSet& d
   for (int i=0; i<=hist->GetNbinsX(); i++) { if (hist->GetBinContent(i)<0.000001) { hist->SetBinContent(i, 0.000001); } }
   // 3) Reduce the range of histogram and rebin it
   hist.reset(static_cast<TH1D*>(rebinhist(*hist, range[1], range[2])));
-  if (!hist) { std::cout << "[ERROR] Cleaned Histogram of " << histName << " is NULL!" << std::endl; return false; }
-  auto dataName = pdfName;
-  dataName.replace(dataName.find("pdf"), std::string("pdf").length(), "dh");
+  if (!hist) { std::cout << "[ERROR] Cleaned Histogram of " << dataName << " is NULL!" << std::endl; return false; }
   std::unique_ptr<RooDataHist> dataHist = std::unique_ptr<RooDataHist>(new RooDataHist(dataName.c_str(), "", *ws.var(var.c_str()), hist.get()));
-  if (!dataHist) { std::cout << "[ERROR] DataHist used to create " << pdfName << " failed!" << std::endl; return false; }
-  if (dataHist->sumEntries()==0) { std::cout << "[ERROR] DataHist used to create " << pdfName << " is empty!" << std::endl; return false; }
+  if (!dataHist) { std::cout << "[ERROR] RooDataHist " << dataName << " failed!" << std::endl; return false; }
+  if (dataHist->sumEntries()==0) { std::cout << "[ERROR] RooDataHist " << dataName << " is empty!" << std::endl; return false; }
   if (std::abs(dataHist->sumEntries() - hist->GetSumOfWeights())>0.001) {
-    std::cout << "[ERROR] DataHist (" << dataHist->sumEntries() << ")  used to create histogram (" << hist->GetSumOfWeights() << ") for PDF " << pdfName << "  " << " is invalid!  " << std::endl; return false;
+    std::cout << "[ERROR] RooDataHist " << dataName << " (" << dataHist->sumEntries() << ")  used to create histogram (" << hist->GetSumOfWeights() << ") is invalid!  " << std::endl; return false;
   }
   const double varMin = ws.var(var.c_str())->getMin(), varMax = ws.var(var.c_str())->getMax(), varNBins = ws.var(var.c_str())->getBins(); // Bug Fix
   if (ws.import(*dataHist)) { std::cout << "[ERROR] RooDataHist " << dataName << " was not imported!" << std::endl; return false; }
-  auto pdf = std::unique_ptr<RooHistPdf>(new RooHistPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(var.c_str()), *dynamic_cast<RooDataHist*>(ws.data(dataName.c_str()))));
-  //std::unique_ptr<RooKeysPdf> pdf = std::unique_ptr<RooKeysPdf>(new RooKeysPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(var.c_str()), *dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())), RooKeysPdf::NoMirror, 0.4));
-  if (!pdf) { std::cout << "[ERROR] RooHistPDF " << pdfName << " is NULL!" << std::endl; return false; }
-  if (ws.import(*pdf)) { std::cout << "[ERROR] PDF " << pdfName << " was not imported!" << std::endl; return false; }
   ws.var(var.c_str())->setRange(varMin, varMax); ws.var(var.c_str())->setBins(varNBins); // Bug Fix
   // Return
   return true;
 };
 
 
-bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& dsName, const std::string& var, const std::vector< double >& range)
+bool dataHistToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& dataName, const std::string& var, const std::string& type)
 {
-  const auto& pd = dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()));
+  //
+  // Create the PDF
+  if (type=="HIST") {
+    if (!ws.factory(Form("RooHistPdf::%s(%s, %s)", pdfName.c_str(), var.c_str(),
+			 dataName.c_str()))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+  }
+  else if (type=="KEYS") {
+    if (!ws.factory(Form("RooKeysPdf::%s(%s, %s, %s)", pdfName.c_str(), var.c_str(),
+			 dataName.c_str(),
+			 "MirrorAsymBoth"))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
+  }
+  else { std::cout << "[ERROR] dataHistToPdf: Option " << type << " is not valid!" << std::endl; return false; }
+  //
+  // Return
+  return true;
+};
+
+
+bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const RooDataSet& ds, const std::string& var, const std::vector< double >& range, const std::string& type)
+{
+  //
+  auto dataName = pdfName;
+  dataName.replace(dataName.find("pdf"), std::string("pdf").length(), "dh");
+  if (histToDataHist(ws, dataName, ds, var, range)) {
+    return dataHistToPdf(ws, pdfName, dataName, var, type);
+  }
+  return false;
+};
+
+
+bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& var, const std::string& type)
+{
+  //
+  if (ws.arg(pdfName.c_str())) { std::cout << "[INFO] The " << pdfName << " Template has already been created!" << std::endl; return true; }
+  if (!ws.var(var.c_str())) { std::cout << "[ERROR] Variable " << var << " was not found!" << std::endl; return false; }
+  std::cout << "[INFO] Implementing " << pdfName << " Template" << std::endl;
+  //
+  // Create the histogram
+  auto dataName = pdfName;
+  dataName.replace(dataName.find("pdf"), std::string("pdf").length(), "dh");
+  const auto dataHist = dynamic_cast<RooDataHist*>(ws.data(dataName.c_str()));
+  if (!dataHist) { std::cout << "[ERROR] RooDataHist used to create " << pdfName << " does not exist!" << std::endl; return false; }
+  if (dataHist->sumEntries()==0) { std::cout << "[ERROR] RooDataHist used to create " << pdfName << " is empty!" << std::endl; return false; }
+  //
+  // Create the PDF
+  return dataHistToPdf(ws, pdfName, dataName, var, type);
+};
+
+
+bool histToPdf(RooWorkspace& ws, const std::string& pdfName, const std::string& dsName, const std::string& var, const std::vector< double >& range, const std::string& type)
+{
+  const auto pd = dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()));
   if (!pd) { std::cout << "[ERROR] DataSet " << dsName << " was not found!" << std::endl; return false; }
   if (pd->numEntries()<=2.0) { std::cout << "[WARNING] DataSet " << dsName << " has too few events!" << std::endl; return false; }
-  return histToPdf(ws, pdfName, *pd, var, range);
+  return histToPdf(ws, pdfName, *pd, var, range, type);
 };
 
 

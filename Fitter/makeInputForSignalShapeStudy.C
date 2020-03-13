@@ -1,5 +1,5 @@
-#ifndef makeInputForLLR_C
-#define makeInputForLLR_C
+#ifndef makeInputForSignalShapeStudy_C
+#define makeInputForSignalShapeStudy_C
 
 #include <iostream>
 #include <fstream>
@@ -16,12 +16,12 @@
 bool readFile(std::vector<std::string>& rows, const std::string& fileName);
 
 
-void makeInputForLLR(const std::string& workDirName,
-		     const std::string& par="JPsi",
-		     const std::string& col="PA8Y16")
+void makeInputForSignalShapeStudy(const std::string& workDirName,
+				  const std::string& par="JPsi",
+				  const std::string& col="PA8Y16")
 {
   //
-  const std::vector<std::string> BKGMODELS = {"Uniform", "Chebychev1", "Chebychev2", "Chebychev3", "Chebychev4", "Chebychev5", "Chebychev6"};
+  const std::vector<std::string> SIGMODELS = {"SingleCrystalBall", "SingleExtCrystalBall", "DoubleCrystalBall", "DoubleExtCrystalBall", "GaussianAndCrystalBall", "GaussianAndExtCrystalBall"};
   //
   const std::string& CWD = getcwd(NULL, 0);
   const auto& inputDir = CWD + "/Input/" + workDirName + "/";
@@ -29,7 +29,7 @@ void makeInputForLLR(const std::string& workDirName,
     std::cout << "[ERROR] Input directory: " << inputDir << " doesn't exist!" << std::endl;
     return; 
   }
-  std::vector<std::string> inputDirList;
+  std::vector<std::string> inputDirList({inputDir});
   findSubDir(inputDirList, inputDir);
   //
   std::vector<std::string> inputFileList;
@@ -39,30 +39,31 @@ void makeInputForLLR(const std::string& workDirName,
   //
   std::map<std::string, std::vector<std::string> > inputFileRows;
   for (const auto& file : inputFileList) {
+    std::cout << file << std::endl;
     readFile(inputFileRows[file], file);
   }
   //
   auto outputDir = inputDir;
-  stringReplace(outputDir, workDirName, workDirName+"_LLR");
+  stringReplace(outputDir, workDirName, workDirName+"_SignalShapeStudy");
   std::vector<std::string> outputDirList;
   for (const auto& dir : inputDirList) {
     outputDirList.push_back(dir);
-    stringReplace(outputDirList.back(), workDirName, workDirName+"_LLR");
+    stringReplace(outputDirList.back(), workDirName, workDirName+"_SignalShapeStudy");
   }
   //
   std::vector<std::string> outputFileList;
   std::map<std::string, std::vector<std::string> > outputFileRows;
   for (const auto& file : inputFileList) {
     outputFileList.push_back(file);
-    stringReplace(outputFileList.back(), workDirName, workDirName+"_LLR");
+    stringReplace(outputFileList.back(), workDirName, workDirName+"_SignalShapeStudy");
+    std::cout << "A " << file << std::endl;
     for (const auto& row : inputFileRows.at(file)) {
-      for (const auto& bkgModel : BKGMODELS) {
+      for (const auto& sigModel : SIGMODELS) {
 	auto outputRow = row;
 	std::string model = "";
-	if (row.rfind("[Bkg]")!=std::string::npos) { model = row.substr(0, row.rfind("[Bkg]")); }
-	if (model.rfind("+")!=std::string::npos) { model = model.substr(model.rfind("+")+1); }
+	if (row.rfind("SingleExtCrystalBall")!=std::string::npos) { model = "SingleExtCrystalBall"; }
 	if (model!="") {
-	  stringReplace(outputRow, model, bkgModel);
+	  stringReplace(outputRow, model, sigModel);
 	  outputFileRows[outputFileList.back()].push_back(outputRow);
 	}
 	else {
@@ -81,6 +82,7 @@ void makeInputForLLR(const std::string& workDirName,
   for (const auto& file : outputFileList) {
     ofstream outputFile;
     outputFile.open(file.c_str());
+    std::cout << "B " << file << "  " << contain(outputFileRows, file) <<  std::endl;
     for (const auto& row : outputFileRows.at(file)) {
       outputFile << row << std::endl;
     }
@@ -106,4 +108,4 @@ bool readFile(std::vector<std::string>& rows, const std::string& fileName)
   return true;
 };
 
-#endif // #ifndef makeInputForLLR_C
+#endif // #ifndef makeInputForSignalShapeStudy_C

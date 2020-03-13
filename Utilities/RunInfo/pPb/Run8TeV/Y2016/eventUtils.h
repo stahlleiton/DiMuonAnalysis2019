@@ -30,13 +30,13 @@ namespace pPb {
       std::string HLTPath(const TRIGGERBIT& bit)
       {
 	if (TRIGNAME.count(bit)) { return TRIGNAME.at(bit); }
-	assert(Form("[ERROR] HLT bit %d is invalid", bit));
+	throw std::runtime_error(Form("[ERROR] HLT bit %d is invalid", bit));
 	return "HLT_INVALID";
       }; 
       TRIGGERBIT HLTBit(const std::string& path)
       {
 	for (const auto& trg : TRIGNAME) { if (trg.second==path) { return trg.first; } }
-	assert(Form("[ERROR] HLT path %s is invalid", path.c_str()));
+	throw std::runtime_error(Form("[ERROR] HLT path %s is invalid", path.c_str()));
 	return HLT_INVALID;
       };
       std::map<uint, std::string> HLTBits()
@@ -58,8 +58,8 @@ namespace pPb {
 	};
       std::vector<uint> HLTBitsFromPD(const std::string& PD)
       {
-	if (PDTRIG.count(PD)) { return PDTRIG.at(PD); }
-	assert(Form("[ERROR] PD name %s is invalid", PD.c_str()));
+	if (PDTRIG.count(PD)>0) { return PDTRIG.at(PD); }
+	throw std::runtime_error("[ERROR] PD name " + PD + " is invalid");
 	return {};
       };
       // Event Selection
@@ -70,6 +70,7 @@ namespace pPb {
         NoScraping = 3,
         pileupVertexFilterCut = 4,
         pileupVertexFilterCutGplus =5,
+	allEvtSel =6,
       };
       // Luminosity
       static const std::map< TRIGGERBIT , std::vector<double> > TRIGLUMI =
@@ -88,9 +89,9 @@ namespace pPb {
 	  if      (col=="pPb8Y16") { return TRIGLUMI.at(bit)[0]; }
 	  else if (col=="Pbp8Y16") { return TRIGLUMI.at(bit)[1]; }
 	  else if (col=="PA8Y16" ) { return TRIGLUMI.at(bit)[2]; }
-	  assert(Form("[ERROR] System %s is invalid", col.c_str()));
+	  throw std::runtime_error(Form("[ERROR] System %s is invalid", col.c_str()));
 	}
-	assert(Form("[ERROR] HLT bit %d is invalid", bit));
+	throw std::runtime_error(Form("[ERROR] HLT bit %d is invalid", bit));
 	return 0.0;
       };
       static const std::map< std::string , std::vector<double> > PDLUMI =
@@ -108,27 +109,28 @@ namespace pPb {
 	  if      (col=="pPb8Y16") { return PDLUMI.at(PD)[0]; }
 	  else if (col=="Pbp8Y16") { return PDLUMI.at(PD)[1]; }
 	  else if (col=="PA8Y16" ) { return PDLUMI.at(PD)[2]; }
-	  assert(Form("[ERROR] System %s is invalid", col.c_str()));
+	  throw std::runtime_error(Form("[ERROR] System %s is invalid", col.c_str()));
 	}
-	assert(Form("[ERROR] PD %s is invalid", PD.c_str()));
+	throw std::runtime_error(Form("[ERROR] PD %s is invalid", PD.c_str()));
 	return 0.0;
       };
       double LumiWeightFromPD(const std::string& PD, const std::string& col, const std::string& smp)
       {
 	if (PDLUMI.count(PD)) {
 	  if (col=="pPb8Y16" || col=="Pbp8Y16") {
-	    const bool& isPbp = (col=="Pbp8Y16");
-	    double weight = (isPbp ? PDLUMI.at(PD)[1] : PDLUMI.at(PD)[0])/PDLUMI.at(PD)[2];
-	    if (smp.rfind("MC_JPsi",0)==0 || smp.rfind("MC_PRJPsi",0)==0) { weight /= ((isPbp ? 9934463. : 9964151.)/19898614.); }
-	    else if (smp.rfind("MC_Psi2S",0)==0 || smp.rfind("MC_PRPsi2S",0)==0) { weight /= ((isPbp ? 10346257. : 10678429.)/21024686.); }
-	    else if (smp.rfind("MC_NoPRJPsi",0)==0) { weight /= ((isPbp ? 15217393. : 15171121.)/30388514.); }
-	    else if (smp.rfind("MC_NoPRPsi2S",0)==0) { weight /= ((isPbp ? 15217393. : 15171121.)/30388514.); }
-	    else { assert(Form("[ERROR] Sample %s is invalid", smp.c_str())); }
-	    return weight;
+	    const double lumiWeight = LumiFromPD(PD, col) / LumiFromPD(PD, "PA8Y16");
+	    double entries_pPb=0.0, entries_Pbp=0.0;
+	    if (smp.rfind("MC_JPsi",0)==0 || smp.rfind("MC_PRJPsi",0)==0) { entries_pPb = 10573573; entries_Pbp = 10561630; }
+	    else if (smp.rfind("MC_Psi2S",0)==0 || smp.rfind("MC_PRPsi2S",0)==0) { entries_pPb = 9700119; entries_Pbp = 8547402; }
+	    else if (smp.rfind("MC_NoPRJPsi",0)==0 || smp.rfind("MC_NoPRPsi2S",0)==0) { entries_pPb = 14867044; entries_Pbp = 14521819; }
+	    else { throw std::runtime_error(Form("[ERROR] Sample %s is invalid", smp.c_str())); }
+	    const auto entries_pA = entries_pPb + entries_Pbp;
+	    const double statWeight = (col=="Pbp8Y16" ? entries_Pbp : entries_pPb) / entries_pA;
+	    return lumiWeight / statWeight;
 	  }
-	  assert(Form("[ERROR] System %s is invalid", col.c_str()));
+	  throw std::runtime_error(Form("[ERROR] System %s is invalid", col.c_str()));
 	}
-	assert(Form("[ERROR] PD %s is invalid", PD.c_str()));
+	throw std::runtime_error(Form("[ERROR] PD %s is invalid", PD.c_str()));
 	return 0.0;
       };
       // Muon acceptance cuts
@@ -170,112 +172,6 @@ namespace pPb {
 	cutStr += ")";
 	return cutStr;
       };
-      // Decay length cut
-      bool decayLenCut(const double& pT, const double& y, const bool& muonTrig=true, const double& thr=0.90)
-      {
-	if(muonTrig)
-	  {
-	    if(thr>=0.99)
-	      {
-		if(fabs(y)<1.4) { return (-0.2 + (1.5/std::pow(pT, 0.5))); }
-		else if(fabs(y)<2.4) { return (-0.3 + (1.5/std::pow(pT, 0.3))); }
-	      }
-	    else if(thr==0.95)
-	      {
-		if(fabs(y)<1.4) { return (0.007 + (0.17/std::pow(pT, 0.67))); }
-		else if(fabs(y)<2.4) { return (-0.05 + (0.26/std::pow(pT, 0.36))); }
-	      }
-	    else if(thr==0.90)
-	      {
-		if(fabs(y)<1.4) { return (0.008 + (0.13/std::pow(pT, 0.73))); }
-		else if(fabs(y)<2.4) { return (-0.03 + (0.18/std::pow(pT, 0.35))); }
-	      }
-	    else if(thr==0.85)
-	      {
-		if(fabs(y)<1.4) { return (0.009 + (0.11/std::pow(pT, 0.84))); }
-		else if(fabs(y)<2.4) { return (-0.03 + (0.14/std::pow(pT, 0.34))); }
-	      }
-	  }
-	else
-	  {
-	    if(thr>=0.99)
-	      {
-		if(fabs(y)<1.4) { return (-0.1 + (2.8/std::pow(pT, 0.8))); }
-		else if(fabs(y)<2.4) { return (-0.1 + (1.7/std::pow(pT, 0.4))); }
-	      }
-	    else if(thr==0.95)
-	      {
-		if(fabs(y)<1.4) { return (0.021 + (0.8/std::pow(pT, 1.49))); }
-		else if(fabs(y)<2.4) { return (-0.07 + (0.28/std::pow(pT, 0.29))); }
-	      }
-	    else if(thr==0.90)
-	      {
-		if(fabs(y)<1.4) { return (-0.010 + (0.12/std::pow(pT, 0.43))); }
-		else if(fabs(y)<2.4) { return (-0.05 + (0.18/std::pow(pT, 0.30))); }
-	      }
-	    else if(thr==0.85)
-	      {
-		if(fabs(y)<1.4) { return (0.003 + (0.11/std::pow(pT, 0.67))); }
-		else if(fabs(y)<2.4) { return (-0.04 + (0.14/std::pow(pT, 0.29))); }
-	      }
-	  }
-	std::cout << "[ERROR] decayLenCut: invalid threshold (" << thr << ")!" << std::endl;
-	return false;
-      };
-      std::string decayLenCut(const std::string& dLen, const std::string& pT, const std::string& rap, const bool& muonTrig=true, const double& thr=0.90)
-      {
-	std::string cutStr = "(";
-	if(muonTrig)
-	  {
-	    if(thr>=0.99)
-	      {
-		cutStr += "(abs("+rap+") <= 1.4 && "+dLen+" (-0.2 + 1.5/pow("+pT+", 0.5))) || ";
-		cutStr += "(abs("+rap+") > 1.4 && "+dLen+" (-0.3 + 1.5/pow("+pT+", 0.3)))";
-	      }
-	    else if(thr==0.95)
-	      {
-		cutStr += "(abs("+rap+") <= 1.4 && "+dLen+" (0.007 + 0.17/pow("+pT+", 0.67))) || ";
-		cutStr += "(abs("+rap+") > 1.4 && "+dLen+" (-0.05 + 0.26/pow("+pT+", 0.36)))";
-	      }
-	    else if(thr==0.90)
-	      {
-		cutStr += "(abs("+rap+") <= 1.4 && "+dLen+" (0.008 + 0.13/pow("+pT+", 0.73))) || ";
-		cutStr += "(abs("+rap+") > 1.4 && "+dLen+" (-0.03 + 0.18/pow("+pT+", 0.35)))";
-	      }
-	    else if(thr==0.85)
-	      {
-		cutStr += "(abs("+rap+") <= 1.4 && "+dLen+" (0.009 + 0.11/pow("+pT+", 0.84))) || ";
-		cutStr += "(abs("+rap+") > 1.4 && "+dLen+" (-0.03 + 0.14/pow("+pT+", 0.34)))";
-	      }
-	    else { std::cout << "[ERROR] decayLenCut: invalid threshold (" << thr << ")!" << std::endl; }
-	  }
-	else
-	  {
-	    if(thr>=0.99)
-	      {
-		cutStr += "(abs("+rap+") <= 1.4 && "+dLen+" (-0.1 + 2.8/pow("+pT+", 0.8))) || ";
-		cutStr += "(abs("+rap+") > 1.4 && "+dLen+" (-0.1 + 1.7/pow("+pT+", 0.4)))";
-	      }
-	    else if(thr==0.95)
-	      {
-		cutStr += "(abs("+rap+") <= 1.4 && "+dLen+" (0.021 + 0.8/pow("+pT+", 1.49))) || ";
-		cutStr += "(abs("+rap+") > 1.4 && "+dLen+" (-0.07 + 0.28/pow("+pT+", 0.29)))";
-	      }
-	    else if(thr==0.90)
-	      {
-		cutStr += "(abs("+rap+") <= 1.4 && "+dLen+" (-0.010 + 0.12/pow("+pT+", 0.43))) || ";
-		cutStr += "(abs("+rap+") > 1.4 && "+dLen+" (-0.05 + 0.18/pow("+pT+", 0.30)))";
-	      }
-	    else if(thr==0.85)
-	      {
-		cutStr += "(abs("+rap+") <= 1.4 && "+dLen+" (0.003 + 0.11/pow("+pT+", 0.67))) || ";
-		cutStr += "(abs("+rap+") > 1.4 && "+dLen+" (-0.04 + 0.14/pow("+pT+", 0.29)))";
-	      }
-	    else { std::cout << "[ERROR] decayLenCut: invalid threshold (" << thr << ")!" << std::endl; }
-	  }
-	cutStr += ")";
-	return cutStr;
-      }
     };
   };
 };

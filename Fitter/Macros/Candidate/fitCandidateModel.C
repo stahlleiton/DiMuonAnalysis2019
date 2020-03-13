@@ -125,7 +125,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
   for (const auto& chg : info.StrS.at("fitCharge")) { if (!buildCandidateModel(myws.at(chg), info, chg))  { return false; } }
 
   // Proceed to Fit and Save the results
-  std::string cha = info.Par.at("channel");
+  const auto& cha = info.Par.at("channel");
   for (const auto& col : info.StrS.at("fitSystem")) {
     for (const auto& chg : info.StrS.at("fitCharge")) {
       // Save the info in the workspace
@@ -139,7 +139,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
       //
       // Define output file name
       std::string fileName = "";
-      std::string outDir = outputDir;
+      std::string outDir = info.Par.at("outputDir");
       const auto& label = cha + chg + "_" + col;
       setFileName(fileName, outDir, label, info);
       std::string fitVar = ""; for (const auto& var : info.StrS.at("fitVarName")) { fitVar += var+"_"; };
@@ -261,41 +261,25 @@ void defineFitParameterRange(GlobalInfo& info)
     double varMin = 100000000., varMax = -100000000.;
     double plotVarMin = 100000000., plotVarMax = -100000000.;
     if (var=="Cand_Mass") {
-      if (info.Flag.at("fitMC")) {
-	const auto& vars = (contain(info.StrS, "incObject_CandMass") ? StringSet_t({"CandMass"}) : info.StrS.at("fitVarName"));
-	for (const auto& var : vars) {
-	  for (const auto& obj : info.StrS.at("incObject_"+var)) {
-	    if (contain(MASS, obj)) {
-	      varMin = std::min(varMin, MASS.at(obj).at("Min"));
-	      varMax = std::max(varMax, MASS.at(obj).at("Max"));
-	    }
-	  }
-	}
+      const auto& vars = (contain(info.StrS, "incObject_CandMass") ? StringSet_t({"CandMass"}) : info.StrS.at("fitVarName"));
+      StringSet_t objS;
+      for (const auto& var : vars) {
+	for (const auto& obj : info.StrS.at("incObject_"+var)) { objS.insert(obj); }
       }
-      else {
-	std::vector<std::tuple<std::string, double, double>> objV =
-	  {
-	   {"D0",     1.75,   2.00},
-	   {"JPsi",   2.50,   3.50},
-	   {"Psi2S",  3.40,   4.20},
-	   {"Ups1S",  8.00,  10.50},
-	   {"Ups2S",  9.00,  11.00},
-	   {"Ups3S",  9.50,  14.00},
-	   {"Z",     70.00, 110.00}
-	  };
-        // Define the Candidate Mass range
-	for (const auto& o : objV) {
-	  const auto& name = std::get<0>(o);
-	  const auto& vMin = std::get<1>(o);
-	  const auto& vMax = std::get<2>(o);
-	  if (contain(info.Flag, "inc"+name) && info.Flag.at("inc"+name)) {
-	    varMin = std::min(varMin, vMin);
-	    varMax = std::max(varMax, vMax);
-	  }
-        }
-      }
+      const auto& massRange = ANA::getMassRange(objS, info.Flag.at("fitMC"));
+      varMin = massRange.first; varMax = massRange.second;
     }
     else if (var=="Cand_DLenErr") {
+      if (info.Flag.at("fit"+var)==false) {
+	const auto& cha = info.Par.at("channel");
+	const auto& col = *info.StrS.at("fitSystem").begin();
+	const auto& label = "JPsi" + cha + "OS" + "_" + col;
+	if (!loadVarRange(info, var, label)) { assert("[ERROR] Could not load Cand_DLenErr range!"); }
+      }
+      else {
+	varMin = 0.0;
+	varMax = 10.0;
+      }
       plotVarMin = 0.0;
       plotVarMax = 0.6;
     }
@@ -308,6 +292,8 @@ void defineFitParameterRange(GlobalInfo& info)
       plotVarMax =  8.0;
     }
     else if (var=="Cand_DLen") {
+      varMin = -30.0;
+      varMax = 100.0;
       plotVarMin = -6.0;
       plotVarMax =  8.0;
     }
