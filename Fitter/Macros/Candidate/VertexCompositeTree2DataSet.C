@@ -322,7 +322,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           //
           // Fill the RooDataSets
           for (uint i=0; i<dsNames.size(); i++) {
-            if (dsNames[i].rfind(evtCol)!=std::string::npos) { dataOS[i]->addFast(cols, weight.getVal()); }
+            if (dsNames[i].rfind(evtCol)!=std::string::npos) { dataOS[i]->add(cols, weight.getVal()); }
           }
         }
       }
@@ -413,7 +413,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           //
           // Fill the RooDataSets
           for (uint i=0; i<dsNames.size(); i++) {
-            if (dsNames[i].rfind(evtCol)!=std::string::npos) { dataSS[i]->addFast(cols, weight.getVal()); }
+            if (dsNames[i].rfind(evtCol)!=std::string::npos) { dataSS[i]->add(cols, weight.getVal()); }
           }
         }
       }

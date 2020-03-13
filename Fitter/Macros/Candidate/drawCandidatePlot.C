@@ -59,8 +59,8 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
   fitVar->setRange("DSPlotWindow", minDSRange, maxDSRange);
   fitVar->setBins(nDSBins, "DSPlotWindow");
   setVarToTag(ws, varName, "DSPlotWindow");
-  const auto& minPDFRange = std::max(fitVar->getMin("FitWindow"), minDSRange);
-  const auto& maxPDFRange = std::min(fitVar->getMax("FitWindow"), maxDSRange);
+  const auto minPDFRange = std::max(fitVar->getMin("FitWindow"), minDSRange);
+  const auto maxPDFRange = std::min(fitVar->getMax("FitWindow"), maxDSRange);
   const auto& nPDFBins    = getNBins(minPDFRange, maxPDFRange, binWidth);
   fitVar->setRange("PDFPlotWindow", minPDFRange, maxPDFRange);
   fitVar->setBins(nPDFBins, "PDFPlotWindow");
@@ -391,7 +391,7 @@ void printCandidateParameters(TPad& pad, const RooWorkspace& ws, const std::stri
     // Parse the parameter's labels
     const auto& parLbl = parseVarName(s); if (parLbl=="") continue;
     // Get number of decimals
-    const int& n = std::max(-std::floor(std::log10(v.getError()>0. ? v.getError() : 1.)), 0.);
+    const int n = std::max(-std::floor(std::log10(v.getError()>0. ? v.getError() : 1.)), 0.);
     // Print the parameter's results
     std::string txtLbl;
     if (s.rfind("N_",0)==0) { txtLbl = Form("%s = %.0f#pm%.0f", parLbl.c_str(), v.getValV(), v.getError()); }
