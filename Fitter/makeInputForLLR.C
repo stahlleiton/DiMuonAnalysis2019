@@ -57,7 +57,7 @@ void makeInputForLLR(const std::string& workDirName,
   std::map<std::string, std::vector<std::string> > outputFileRows;
   for (const auto& file : inputFileList) {
     outputFileList.push_back(file);
-    stringReplace(outputFileList.back(), workDirName, workDirName+"_LLR");
+    stringReplace(outputFileList.back(), workDirName, workDirName+(isNominal?"_LLR":"_ExpLLR"));
     for (const auto& row : inputFileRows.at(file)) {
       for (const auto& bkgModel : BKGMODELS) {
 	auto outputRow = row;
