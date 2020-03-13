@@ -87,7 +87,7 @@ void fitter(
   //
   const std::string& CWD = getcwd(NULL, 0);
   GlobalInfo userInput;
-  bool saveAll = true;
+  bool saveAll = false;
   //
   // Set all the Parameters from the input settings
   //

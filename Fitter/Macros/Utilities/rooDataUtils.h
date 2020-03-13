@@ -243,6 +243,32 @@ void saveSnapshot(RooWorkspace& ws, const std::string& snapName, const std::stri
 };
 
 
+std::set<std::string> MODELCLASS_;
+bool importModelClass(RooWorkspace& ws, const std::string& className)
+{
+  const std::string& CWD = getcwd(NULL, 0);
+  const auto& classDir = CWD+"/Macros/Utilities/Models/";
+  TInterpreter::EErrorCode ecode;
+  if (!contain(MODELCLASS_, className)) {
+    gInterpreter->ProcessLineSynch(Form(".L %s%s.cxx+",classDir.c_str(), className.c_str()), &ecode);
+    if (ecode!=TInterpreter::kNoError) { std::cout << "[ERROR] Class " << className << " did not compile!" << std::endl; return false; }
+    MODELCLASS_.insert(className);
+  }
+  auto classPdf = std::unique_ptr<RooAbsPdf>((RooAbsPdf*)gInterpreter->ProcessLineSynch(Form("new %s()", className.c_str()), &ecode));
+  if (ecode!=TInterpreter::kNoError) { std::cout << "[ERROR] Class " << className << " was not created!" << std::endl; return false; }
+  return ws.importClassCode(classPdf->IsA());
+};
+
+
+bool importModelClass(RooWorkspace& ws, RooAbsPdf* pdf)
+{
+  if (!pdf) return false;
+  const std::string& className = pdf->ClassName();
+  if (!contain(MODELCLASS_, className)) return true;
+  return importModelClass(ws, pdf->ClassName());
+};
+
+
 void clearWorkspace(RooWorkspace& inWS, const std::string& smp="All", const bool& delVar=true)
 {
   //
@@ -345,7 +371,9 @@ void copyWorkspace(RooWorkspace& outWS, const RooWorkspace& inWS, const std::str
   if (inWS.allPdfs().getSize()>0 && addPDF) {
     const auto& listPdf = inWS.allPdfs();
     auto pdfIt = std::unique_ptr<TIterator>(listPdf.createIterator());
-    for (auto itp = pdfIt->Next(); itp!=NULL; itp = pdfIt->Next() ) { const auto& it = dynamic_cast<RooAbsPdf*>(itp); if (it && !outWS.pdf(it->GetName())) { outWS.import(*it, RooFit::RecycleConflictNodes()); } }
+    for (auto itp = pdfIt->Next(); itp!=NULL; itp = pdfIt->Next() ) { const auto& it = dynamic_cast<RooAbsPdf*>(itp); if (it && !outWS.pdf(it->GetName()) && importModelClass(outWS, it)) {
+	outWS.import(*it, RooFit::RecycleConflictNodes()); }
+    }
   }
   // Copy all Datasets
   if (inWS.allData().size()>0 && smp!="") {
@@ -1095,17 +1123,17 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
     const auto& cutLbl = info.Par.at("Cut");
     const auto& PD = info.Par.at("PD");
     const bool isMuonTrigger = (PD.rfind("MUON")!=std::string::npos);
-    double threshold = 0.9;
+    std::string threshold = "0.90";
     if (cutLbl.rfind("[")!=std::string::npos) {
       const auto& tmp = cutLbl.substr(cutLbl.rfind("[")+1);
-      threshold = std::stod(tmp.substr(0, tmp.rfind("]")));
+      threshold = tmp.substr(0, tmp.rfind("]"));
     }
     if (cutLbl.rfind("PromptDecay", 0)==0) {
-      cutSel = ANA::CHARMONIA::decayLenCut("Cand_DLen <", "Cand_Pt", "Cand_Rap", isMuonTrigger, threshold);
+      cutSel = ANA::CHARMONIA::decayLenCut("Cand_DLen", "Cand_Pt", "Cand_Rap", threshold, true);
       std::cout << "[INFO] Cutting on candidate decay length to select PROMPT decays" << std::endl;
     }
     else if (cutLbl.rfind("NonPromptDecay", 0)==0) {
-      cutSel = ANA::CHARMONIA::decayLenCut("Cand_DLen >", "Cand_Pt", "Cand_Rap", isMuonTrigger, threshold);
+      cutSel = ANA::CHARMONIA::decayLenCut("Cand_DLen", "Cand_Pt", "Cand_Rap", threshold, false);
       std::cout << "[INFO] Cutting on candidate decay length to select NON-PROMPT decays" << std::endl;
     }
     if (cutSel!="") {

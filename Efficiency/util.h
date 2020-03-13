@@ -61,7 +61,7 @@ typedef std::map< BinF_t , std::map< BinF_t , VarVec_t > > BinMapMap_t;
 BinMapMap_t BINMAP_Psi2S =
   {
    {
-    {"NTrack", 10.0, 250.0},
+    {"NTrack", 15.0, 250.0},
     {
      {
       {"Cand_AbsRap", 0.0, 1.4},
@@ -101,7 +101,7 @@ BinMapMap_t BINMAP_Psi2S =
     }
    },
    {
-    {"NTrack", 10.0, 50.0},
+    {"NTrack", 15.0, 50.0},
     {
      {
       {"Cand_AbsRap", 0.0, 1.4},
@@ -238,6 +238,32 @@ BinMapMap_t BINMAP_General =
        {"Cand_Rap", "FIX", {24, -2.4, 2.4}},
        {"NTrack", "FIX", {20, 0.0, 20.0}},
        {"NTrack", "VAR", {200, 0.0, 400.0}}
+      }
+     }
+    }
+   }
+  };
+
+BinMapMap_t BINMAP_TEST =
+  {
+   {
+    {"Cand_AbsRap", 0.0, 1.4},
+    {
+     {
+      {"NTrack", 0.0, 10000.0},
+      {
+       {"Cand_Pt",  "VAR", {6.5,7,8,9,10,11,12,13,15,17,19,21,25,30,35,40,50}},
+      }
+     }
+    }
+   },
+   {
+    {"Cand_AbsRap", 1.4, 2.4},
+    {
+     {
+      {"NTrack", 0.0, 10000.0},
+      {
+       {"Cand_Pt",  "VAR", {3,4,5,6.5,7,8,9,10,11,12,13,15,17,19,21,25,30,35,40,50}},
       }
      }
     }

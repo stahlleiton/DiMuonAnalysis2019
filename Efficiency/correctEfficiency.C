@@ -59,7 +59,7 @@ const char* clStr            ( const std::string& in );
 const std::vector<std::string> COLL_ = { "pPb8Y16", "Pbp8Y16", "PA8Y16" };
 //
 // Efficiency Categories
-const std::vector< std::string > EFFTYPE_ = {"Acceptance", "Efficiency_Total", "Efficiency_DecayCut_90"}; //"Efficiency_DecayCut_85", "Efficiency_DecayCut_95", "Efficiency_DecayCut_99"};
+const std::vector< std::string > EFFTYPE_ = {"Acceptance", "Efficiency_Total", "Efficiency_DecayCut_85", "Efficiency_DecayCut_90", "Efficiency_DecayCut_95", "Efficiency_DecayCut_Psi2S", "Efficiency_DecayCut_Alt"};
 //
 // Correction Categories
 const CorrMap_t corrType_ = {
@@ -80,18 +80,18 @@ const CorrMap_t corrType_ = {
 const std::string path_MC = "/Users/andre/DiMuonAnalysis2019/Tree";
 const std::map< std::string , std::string > inputFileMap_ =
   {
-   {"MC_JPsiPR_pPb"       , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root")   },
-   {"MC_JPsiPR_Pbp"       , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root")   },
-   {"MC_Psi2SPR_pPb"      , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_Psi2SToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root")  },
-   {"MC_Psi2SPR_Pbp"      , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_Psi2SToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root")  },
-   {"MC_JPsiNoPR_pPb"     , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root") },
-   {"MC_JPsiNoPR_Pbp"     , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root") },
-   {"MC_Psi2SNoPR_pPb"    , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root") },
-   {"MC_Psi2SNoPR_Pbp"    , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root") },
-   {"MC_JPsiPR_pPbGEN"    , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root")   },
-   {"MC_Psi2SPR_pPbGEN"   , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_Psi2SToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root")  },
-   {"MC_JPsiNoPR_pPbGEN"  , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root") },
-   {"MC_Psi2SNoPR_pPbGEN" , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root") }
+   {"MC_JPsiPR_pPb8Y16"       , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root")   },
+   {"MC_JPsiPR_Pbp8Y16"       , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root")   },
+   {"MC_Psi2SPR_pPb8Y16"      , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_Psi2SToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root")  },
+   {"MC_Psi2SPR_Pbp8Y16"      , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_Psi2SToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root")  },
+   {"MC_JPsiNoPR_pPb8Y16"     , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root") },
+   {"MC_JPsiNoPR_Pbp8Y16"     , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root") },
+   {"MC_Psi2SNoPR_pPb8Y16"    , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root") },
+   {"MC_Psi2SNoPR_Pbp8Y16"    , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root") },
+   {"MC_JPsiPR_pPb8Y16GEN"    , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root")   },
+   {"MC_Psi2SPR_pPb8Y16GEN"   , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_Psi2SToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root")  },
+   {"MC_JPsiNoPR_pPb8Y16GEN"  , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root") },
+   {"MC_Psi2SNoPR_pPb8Y16GEN" , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root") }
   };
 std::map< std::string , std::vector< std::string > > sampleType_;
 
@@ -102,16 +102,7 @@ void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins
   std::cout << "[INFO] Starting to compute efficiencies" << std::endl;
   //
   // Initialize the Kinematic Bin info
-  BinMapMap_t  ANA_BIN;
-  if (workDirName.rfind("_Psi2SBins")!=std::string::npos) {
-    ANA_BIN = BINMAP_Psi2S;
-  }
-  else if (workDirName == "General") {
-    ANA_BIN = BINMAP_General;
-  }
-  else {
-    std::cout << "[ERROR] WorkDirName " << workDirName << " has not been defined" << std::endl; return;
-  }
+  BinMapMap_t  ANA_BIN = BINMAP_Psi2S;
   AnaVarMap_t ANA_BIN_MAP;
   for (const auto& v1 : ANA_BIN) {
     const auto& var1 = v1.first;
@@ -159,7 +150,6 @@ void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins
   // ------------------------------------------------------------------------------------------------------------------------
   //
   // Extract all the samples
-  std::map< std::string , Long64_t > nentries;
   std::map< std::string , std::unique_ptr< VertexCompositeTree > > trees;
   for (const auto & inputFile : inputFileMap_) {
     const auto& sample = inputFile.first;
@@ -168,7 +158,6 @@ void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins
     trees[sample] = std::unique_ptr<VertexCompositeTree>(new VertexCompositeTree());
     const std::string dir = (sample.rfind("GEN")!=std::string::npos ? "dimuana_mc" : "dimucontana_mc");
     if (!trees.at(sample)->GetTree(fileInfo, dir)) return;
-    nentries[sample] = trees.at(sample)->GetEntries();
   }
   //
   // ------------------------------------------------------------------------------------------------------------------------
@@ -182,10 +171,29 @@ void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins
     if (workDirName.rfind("CharmoniaFits",0)==0) { objS = StringSet_t({"JPsi", "Psi2S"}); }
     else if (sample.rfind("MC_JPsi",0)==0) { objS.insert("JPsi"); }
     else if (sample.rfind("MC_Psi2S",0)==0) { objS.insert("Psi2S"); }
+    //
+    // Determine the collision system of the sample
+    std::string col = "";
+    if (sample.find("Pbp8Y16")!=std::string::npos) col = "Pbp8Y16"; // for Pbp
+    if (sample.find("pPb8Y16")!=std::string::npos) col = "pPb8Y16"; // for pPb
+    if (col=="") { std::cout << "[ERROR] Could not determine the collision system in the sample" << std::endl; return; }
+    const bool isGenOnly = sample.find("pPb8Y16GEN")!=std::string::npos;
+    //
+    // Determine the type of sample : i.e. MC_DYToMuMu
+    auto sampleType = sample;
+    sampleType = sampleType.substr(0, (sampleType.find(col)-1));
+    //
+    // Get the Lumi re-weight for MC (global weight)
+    const auto nentries = tree->GetEntries();
+    const auto lumi = pPb::R8TeV::Y2016::LumiFromPD(PD, col);
+    const double mcWeight = (lumi / nentries);
+    // Set the global weight
+    if (!isGenOnly) { setGlobalWeight(h1D, mcWeight, sampleType, col); }
+    //
     // Loop over the events
     int treeIdx = -1;
-    std::cout << "[INFO] Starting to process " << nentries.at(sample) << " nentries" << std::endl;
-    for (Long64_t jentry = 0; jentry < nentries.at(sample); jentry++) {
+    std::cout << "[INFO] Starting to process " << nentries << " nentries" << std::endl;
+    for (Long64_t jentry = 0; jentry < nentries; jentry++) {
       //
       // Get the entry in the trees
       if (tree->GetEntry(jentry)<0) { std::cout << "[ERROR] Muon Tree invalid entry!"  << std::endl; return; }
@@ -195,23 +203,7 @@ void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins
         std::cout << "[INFO] Processing " << sample << " using file: " << inputFile.second << std::endl;
       }
       //
-      loadBar(jentry, nentries.at(sample));
-      //
-      // Determine the collision system of the sample
-      std::string col = "";
-      if (sample.find("Pbp")!=std::string::npos) col = "Pbp8Y16"; // for Pbp
-      if (sample.find("pPb")!=std::string::npos) col = "pPb8Y16"; // for pPb
-      if (col=="") { std::cout << "[ERROR] Could not determine the collision system in the sample" << std::endl; return; }
-      //
-      // Determine the type of sample : i.e. MC_DYToMuMu
-      auto sampleType = sample;
-      sampleType = sampleType.substr(0, (sampleType.find(col)-1));
-      //
-      // Get the Lumi re-weight for MC (global weight)
-      const auto lumi = pPb::R8TeV::Y2016::LumiFromPD(PD, col);
-      const double mcWeight = (lumi / tree->GetTreeEntries());
-      // Set the global weight only in the first event (i.e. once per sample)
-      if (jentry==0) { setGlobalWeight(h1D, mcWeight, sampleType, col); }
+      loadBar(jentry, nentries);
       //
       // Define the event weight (set to 1.0 by default)
       double evtWeight = 1.0;
@@ -219,7 +211,7 @@ void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins
       // Check Event Conditions
       //
       // Determine if candidate pass analysis selection
-      const bool passEventSelection = (sample.find("pPbGEN")==std::string::npos ? tree->evtSel()[0] : true);
+      const bool passEventSelection = (isGenOnly ? true : tree->evtSel()[0]);
       //
       // Check Muon Conditions
       //
@@ -241,24 +233,24 @@ void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins
         // Fill the VarMap with the kinematic information
 	const auto& pT = tree->pT_gen()[iGen];
 	const auto& rap = (col=="Pbp8Y16" ? -1.0 : 1.0) * tree->y_gen()[iGen];
-	const auto nTrack = (sample.find("pPbGEN")==std::string::npos ? tree->Ntrkoffline() : 0);
+	const auto& nTrack = (isGenOnly ? 0 : tree->Ntrkoffline());
 	const auto rapCM = pPb::EtaLABtoCM(rap, (col=="pPb8Y16"));
 	VarMap_t  varInfo =
 	  {
 	   { "Cand_Pt",     pT        },
 	   { "Cand_Rap",    rap       },
 	   { "Cand_AbsRap", fabs(rap) },
-	   { "Cand_RapCM" , rapCM     },
+	   { "Cand_RapCM",  rapCM     },
 	   { "NTrack",      nTrack    }
 	  };
 	
-	if (sample.find("pPbGEN")!=std::string::npos) {
-	  //
-	  // Total Acceptance (Based on Generated muons)
-	  //
+	//
+	// Total Acceptance (sased on Generated muons)
+	//
+	if (isGenOnly) {
 	  TnPVec_t sfMC = {{"NoCorr", {1.0}}};
-	  if (!fillEff1D(h1D, true, passCandAccep, sample, "pPb8Y16", "Acceptance", varInfo, sfMC, evtWeight)) { return; }
-	  if (!fillEff1D(h1D, true, passCandAccep, sample, "Pbp8Y16", "Acceptance", varInfo, sfMC, evtWeight)) { return; }
+	  if (!fillEff1D(h1D, true, passCandAccep, sampleType, "pPb8Y16", "Acceptance", varInfo, sfMC, evtWeight)) { return; }
+	  if (!fillEff1D(h1D, true, passCandAccep, sampleType, "Pbp8Y16", "Acceptance", varInfo, sfMC, evtWeight)) { return; }
 	  //
 	  continue;
 	}
@@ -268,55 +260,53 @@ void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins
 	bool passDecayCut_85 = false;
 	bool passDecayCut_90 = false;
 	bool passDecayCut_95 = false;
-	bool passDecayCut_99 = false;
+	bool passDecayCut_Psi2S = false;
+	bool passDecayCut_Alt = false;
 	
         // Initialize the Tag-And-Probe scale factos
         TnPVec_t sfTnP = {};
 
-        // Check that the generated candidate is within the analysis kinematic range
-        if (passCandAccep) {
-          // Find the reconstructed candidate matched to gen
-          const short iReco = tree->RecIdx_gen()[iGen];
-          if (iReco >= 0) {
-            //
-            // Candidate was matched to generated candidate
+	// Find the reconstructed candidate matched to gen
+	const short iReco = tree->RecIdx_gen()[iGen];
+	if (iReco >= 0) {
+	  //
+	  // Candidate was matched to generated candidate
 	    
-            // Extract the kinematic information of reconstructed candidate
-	    const auto& cand_Pt    = tree->pT()[iReco];
-	    const auto& cand_Rap   = tree->y()[iReco];
-	    const auto& cand_Eta   = tree->eta()[iReco];
-	    const auto  cand_P     = cand_Pt*std::cosh(cand_Eta);
-	    const auto  decayLen   = (tree->V3DDecayLength()[iReco]*tree->V3DCosPointingAngle()[iReco])*(3.0969/cand_P)*10.0;
-            const auto& cand_PtD1  = tree->pTD1()[iReco];
-            const auto& cand_EtaD1 = tree->EtaD1()[iReco];
-            const auto& cand_PtD2  = tree->pTD2()[iReco];
-            const auto& cand_EtaD2 = tree->EtaD2()[iReco];
+	  // Extract the kinematic information of reconstructed candidate
+	  const auto cand_Pt    = tree->pT()[iReco];
+	  const auto cand_Rap   = tree->y()[iReco];
+	  const auto cand_Eta   = tree->eta()[iReco];
+	  const auto cand_P     = cand_Pt*std::cosh(cand_Eta);
+	  const auto decayLen   = (tree->V3DDecayLength()[iReco]*tree->V3DCosPointingAngle()[iReco])*(3.0969/cand_P)*10.0;
+	  const auto cand_PtD1  = tree->pTD1()[iReco];
+	  const auto cand_EtaD1 = tree->EtaD1()[iReco];
+	  const auto cand_PtD2  = tree->pTD2()[iReco];
+	  const auto cand_EtaD2 = tree->EtaD2()[iReco];
 
-	    passAnaCuts = ANA::analysisSelection(*tree, iReco, PD, col, objS, false);
+	  passAnaCuts = ANA::analysisSelection(*tree, iReco, PD, col, objS, false);
 
-	    // Check if the reconstructed candidate pass decay lenght cut
-	    if (std::abs(cand_Rap)<2.4) {
-	      passDecayCut_85 = (decayLen < ANA::CHARMONIA::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.85));
-	      passDecayCut_90 = (decayLen < ANA::CHARMONIA::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.90));
-	      passDecayCut_95 = (decayLen < ANA::CHARMONIA::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.95));
-	      passDecayCut_99 = (decayLen < ANA::CHARMONIA::decayLenCut(cand_Pt, cand_Rap, (PD=="DIMUON"), 0.99));
-	    }
+	  // Check if the reconstructed candidate pass decay lenght cut
+	  passDecayCut_85    = ANA::CHARMONIA::decayLenCut(decayLen, cand_Pt, cand_Rap, "0.85",  true);
+	  passDecayCut_90    = ANA::CHARMONIA::decayLenCut(decayLen, cand_Pt, cand_Rap, "0.90",  true);
+	  passDecayCut_95    = ANA::CHARMONIA::decayLenCut(decayLen, cand_Pt, cand_Rap, "0.95",  true);
+	  passDecayCut_Psi2S = ANA::CHARMONIA::decayLenCut(decayLen, cand_Pt, cand_Rap, "Psi2S", true);
+	  passDecayCut_Alt   = ANA::CHARMONIA::decayLenCut(decayLen, cand_Pt, cand_Rap, "Alt",   true);
 	    
-            // Determine the Tag-And-Probe scale factors
-            sfTnP = getTnPScaleFactors(cand_PtD1, cand_EtaD1, cand_PtD2, cand_EtaD2, corrType, PD=="DIMUON");
-          }
-        }
+	  // Determine the Tag-And-Probe scale factors
+	  sfTnP = getTnPScaleFactors(cand_PtD1, cand_EtaD1, cand_PtD2, cand_EtaD2, corrType, PD=="DIMUON");
+	}
 	//
 	// Total Efficiency (Based on Generated muons)
 	//
-	if (!fillEff1D(h1D, passCandAccep, passAnaCuts, sample, col, "Efficiency_Total", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passCandAccep, passAnaCuts, sampleType, col, "Efficiency_Total", varInfo, sfTnP, evtWeight)) { return; }
 	//
 	// Decay cut Efficiency (Based on Generated muons)
 	//
-	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_85, sample, col, "Efficiency_DecayCut_85", varInfo, sfTnP, evtWeight)) { return; }
-	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_90, sample, col, "Efficiency_DecayCut_90", varInfo, sfTnP, evtWeight)) { return; }
-	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_95, sample, col, "Efficiency_DecayCut_95", varInfo, sfTnP, evtWeight)) { return; }
-	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_99, sample, col, "Efficiency_DecayCut_99", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_85,    sampleType, col, "Efficiency_DecayCut_85",    varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_90,    sampleType, col, "Efficiency_DecayCut_90",    varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_95,    sampleType, col, "Efficiency_DecayCut_95",    varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_Psi2S, sampleType, col, "Efficiency_DecayCut_Psi2S", varInfo, sfTnP, evtWeight)) { return; }
+	if (!fillEff1D(h1D, passAnaCuts, passAnaCuts && passDecayCut_Alt,   sampleType, col, "Efficiency_DecayCut_Alt",   varInfo, sfTnP, evtWeight)) { return; }
       }
     }
   }
@@ -413,13 +403,13 @@ TnPVec_t getTnPScaleFactors(const double& ptD1, const double& etaD1, const doubl
 
 bool getTnPUncertainties(Unc1DVec_t& unc, const EffVec_t& eff)
 {
-  if (eff.count("TnP_Nominal") == 0) { return true; }
+  if (!contain(eff, "TnP_Nominal")) { return true; }
   // Compute individual uncertainties
   const TEfficiency& nom = eff.at("TnP_Nominal")[0];
   const uint& nBin = nom.GetCopyTotalHisto()->GetNbinsX();
   for (const auto& co : eff) {
     if (co.first=="TnP_Nominal" || co.first.find("TnP_")==std::string::npos) continue;
-    if (eff.count(co.first+"_")>0) continue;
+    if (contain(eff, co.first+"_")) continue;
     unc[co.first].ResizeTo(nBin);
     for (uint iBin = 1; iBin <= nBin; iBin++) {
       double uncVal = 0.0;
@@ -546,8 +536,8 @@ bool fillEff1D(TH1DVec_t& h, const bool& den_pass, const bool& num_pass, const d
       bool found = false;
       //
       double sf = 1.0;
-      if (sfTnP.count(cor.first)>0 && sfTnP.at(cor.first).size()>i) { sf = sfTnP.at(cor.first)[i]; found = true; }
-      else if (sfTnP.size()==0 || sfTnP.count(cor.first)==0) { sf = 1.0; }
+      if (contain(sfTnP, cor.first) && sfTnP.at(cor.first).size()>i) { sf = sfTnP.at(cor.first)[i]; found = true; }
+      else if (sfTnP.empty() || !contain(sfTnP, cor.first)) { sf = 1.0; }
       else { std::cout << "[ERROR] Correction " << cor.first << " has invalid number of entries: " << cor.second.size() << "  " << sfTnP.at(cor.first).size() << " !" << std::endl; return false; }
       if ((cor.first.find("TnP_")!=std::string::npos) && num_pass && sfTnP.size()==0) { std::cout << "[ERROR] TnP scale factor vector is empty!" << std::endl; return false; }
       //
@@ -580,29 +570,29 @@ bool fillEff1D(TH1DMap_t& h, const bool& den_pass, const bool& num_pass, const s
   if (sample.find(col)!=std::string::npos) { std::cout << "[ERROR] Sample name " << sample << " has wrong format!" << std::endl; return false; }
   for (auto& s : h) {
     //
-    if (sample.rfind(s.first,0)==0) continue;
+    if (s.first!=sample) continue;
     //
     for (auto& c : s.second) {
       //
       if ((c.first=="PA8Y16" && col!="Pbp8Y16") || (c.first!="PA8Y16" && c.first!=col)) continue;
       //
-      if (c.second.count(type)==0) { return true; }
+      if (!contain(c.second, type)) { return true; }
       //
       for (auto& b : c.second.at(type)) {
 	//
 	const auto& bin1 = b.first.first.getbin(0);
 	const auto& bin2 = b.first.first.getbin(1);
 	const auto& bin3 = b.first.second;
-	if (var.count(bin1.name())==0) { std::cout << "[ERROR] Variable " << bin1.name() << " was not loaded properly" << std::endl; return false; }
-	if (var.count(bin2.name())==0) { std::cout << "[ERROR] Variable " << bin2.name() << " was not loaded properly" << std::endl; return false; }
+	if (!contain(var, bin1.name())) { std::cout << "[ERROR] Variable " << bin1.name() << " was not loaded properly" << std::endl; return false; }
+	if (!contain(var, bin2.name())) { std::cout << "[ERROR] Variable " << bin2.name() << " was not loaded properly" << std::endl; return false; }
 	const auto& val1 = var.at(bin1.name());
 	const auto& val2 = var.at(bin2.name());
 	const auto& xVarName = bin3.substr(0, bin3.rfind("_"));
-	if (var.count(xVarName)==0) { std::cout << "[ERROR] Variable " << xVarName << " was not loaded properly" << std::endl; return false; }
+	if (!contain(var, xVarName)) { std::cout << "[ERROR] Variable " << xVarName << " was not loaded properly" << std::endl; return false; }
 	const auto& xVar = var.at(xVarName);
 	//
 	bool inBin = true;
-	if (type!="Acceptance" || bin1.name()!="NTrack") { inBin = (val1>=bin1.low() && val1<bin1.high()); }
+	if (type!="Acceptance" || bin1.name()!="NTrack") { inBin = inBin && (val1>=bin1.low() && val1<bin1.high()); }
 	if (type!="Acceptance" || bin2.name()!="NTrack") { inBin = inBin && (val2>=bin2.low() && val2<bin2.high()); }
 	if (inBin) { // Don't include values outside of range
 	  // Fill histograms
@@ -676,7 +666,7 @@ void mergeEff(EffMap_t& ef)
   // Merge pPb and Pbp (inverted) -> PA
   if(std::find(COLL_.begin(), COLL_.end(), "PA") != COLL_.end()) {
     for (auto& s : ef) {
-      if (s.second.count("PA8Y16")>0 && s.second.count("pPb8Y16")>0) {
+      if (contain(s.second, "PA8Y16") && contain(s.second, "pPb8Y16")) {
 	for (auto& t : s.second.at("PA8Y16")) {
 	  for (auto& b : t.second) {
 	    for (auto& co : b.second) {
@@ -701,7 +691,7 @@ void mergeEff(EffMap_t& ef)
       }
       else {
 	std::cout << "[WARNING] Can't merge pPb and Pbp in " << s.first << " ! "<< std::endl;
-	if (s.second.count("PA8Y16")>0) { s.second.erase("PA8Y16"); }
+	if (contain(s.second, "PA8Y16")) { s.second.erase("PA8Y16"); }
       }
     }
   }
@@ -710,7 +700,7 @@ void mergeEff(EffMap_t& ef)
 
 void writeEff(TFile& file, const EffMap_t& eff, const Unc1DMap_t& unc, const std::string& sample, const std::string& mainDirName)
 {
-  if (eff.size()>0 && eff.count(sample)>0) {
+  if (eff.size()>0 && contain(eff, sample)) {
     auto mainDir = file.mkdir(mainDirName.c_str());
     mainDir->cd();
     for (auto& c : eff.at(sample)) {
@@ -738,12 +728,12 @@ void writeEff(TFile& file, const EffMap_t& eff, const Unc1DMap_t& unc, const std
 	      std::cout << co.second[i].GetName() << "  " << co.second[i].GetTotalHistogram()->GetEntries() << "  " << co.second[i].GetPassedHistogram()->GetEntries() << std::endl;
 	      co.second[i].Write(clStr(co.second[i].GetName()));
 	    }
-	    if (u.count(co.first)>0) {
+	    if (contain(u, co.first)) {
 	      if (co.first.find("TnP_S")!=std::string::npos) { u.at(co.first).Write((name + co.first).c_str()); }
 	    }
 	    binDir->cd();
 	  }
-	  if (u.count("TnP_Tot") > 0) { 
+	  if (contain(u, "TnP_Tot")) {
 	    u.at("TnP_Stat").Write((name + "TnP_Stat").c_str());
 	    u.at("TnP_Syst").Write((name + "TnP_Syst").c_str());
 	    u.at("TnP_Tot").Write((name + "TnP_Tot").c_str());
@@ -777,7 +767,7 @@ void saveEff(const std::string& outDir, const EffMap_t& eff1D, const Unc1DMap_t&
 
 void setGlobalWeight(TH1DMap_t& h, const double& weight, const std::string& sample, const std::string& col)
 {
-  if (h.count(sample) && h.at(sample).count(col)>0) {
+  if (contain(h, sample) && contain(h.at(sample), col)>0) {
     for (auto& t : h.at(sample).at(col)) {
       for (auto& b : t.second) {
 	for (auto& co : b.second) {

@@ -20,25 +20,6 @@
 #include "RooStats/SPlot.h"
 
 
-std::set<std::string> MODELCLASS_;
-
-
-bool importModelClass(RooWorkspace& ws, const std::string& className)
-{
-  const std::string& CWD = getcwd(NULL, 0);
-  const auto& classDir = CWD+"/Macros/Utilities/Models/";
-  TInterpreter::EErrorCode ecode;
-  if (MODELCLASS_.find(className)==MODELCLASS_.end()) {
-    gInterpreter->ProcessLineSynch(Form(".L %s%s.cxx+",classDir.c_str(), className.c_str()), &ecode);
-    if (ecode!=TInterpreter::kNoError) { std::cout << "[ERROR] Class " << className << " did not compile!" << std::endl; return false; }
-    MODELCLASS_.insert(className);
-  }
-  auto classPdf = std::unique_ptr<RooAbsPdf>((RooAbsPdf*)gInterpreter->ProcessLineSynch(Form("new %s()", className.c_str()), &ecode));
-  if (ecode!=TInterpreter::kNoError) { std::cout << "[ERROR] Class " << className << " was not created!" << std::endl; return false; }
-  return ws.importClassCode(classPdf->IsA());
-};
-
-
 void constrainQuarkoniumMassParameters(GlobalInfo& info, const StringVector_t& varList, const std::string& excLabel)
 {
   const auto& cha = info.Par.at("channel");

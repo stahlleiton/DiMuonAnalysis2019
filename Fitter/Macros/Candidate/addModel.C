@@ -32,7 +32,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
   for (const auto& col : info.StrS.at("fitSystem")) {
     const auto& lbl = cha + chg + "_" + col;
     //
-    std::map<std::string, std::pair<RooArgList, RooArgList>> pdfMapTot;
+    std::map<std::string, RooArgList> pdfMapTot;
     for (const auto& mainObj : info.StrS.at("fitObject")) {
       const auto& mainTag = mainObj + cha + chg;
       const auto& mainLabel = mainTag + "_" + col;
@@ -155,9 +155,10 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 		  // create the PDF using RooKeys from unbinned dataset
 		  const auto& dsName = info.Par.at("dsNameFit"+chg);
 		  std::cout << "[INFO] Using " << dsName << " to create " << pdfName << " unbinned RooKeysPdf template" << std::endl;
-		  auto data = dynamic_cast<RooDataSet*>(ws.data(dsName.c_str()));
-		  auto pdf = std::unique_ptr<RooKeysPdf>(new RooKeysPdf(pdfName.c_str(), pdfName.c_str(), *ws.var(varName.c_str()), *data, RooKeysPdf::MirrorAsymBoth));
-		  if (ws.import(*pdf)) { std::cout << "[ERROR] RooKeysPdf " << pdfName << " failed to import!" << std::endl; }
+		  if (!ws.factory(Form("RooKeysPdf::%s(%s, %s, %s)", pdfName.c_str(), varName.c_str(),
+				       dsName.c_str(),
+				       "MirrorAsymBoth"
+				       ))) { std::cout << "[ERROR] Failed to create PDF " << pdfName << std::endl; return false; }
 		}
 		ws.pdf(pdfName.c_str())->setNormRange(varWindow.c_str());
 		// add PDF to list
@@ -457,7 +458,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::SingleExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "Alpha", "n", "rAlphaR", "AlphaR", "nR"};
+		const StringVector_t parNames = {"m", "Sigma1", "Alpha", "n", "AlphaR", "nR"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -479,7 +480,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::DoubleExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "rAlphaR", "AlphaR", "nR", "Alpha2", "n2", "AlphaR2", "nR2", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "nR", "Alpha2", "n2", "AlphaR2", "nR2", "f"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -515,7 +516,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::GaussianAndExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "rAlphaR", "AlphaR", "rnR", "nR", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "rnR", "nR", "f"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -547,7 +548,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::DoubleGaussianAndExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "rSigma32", "Sigma3", "Alpha", "n", "rAlphaR", "AlphaR", "nR", "f", "f2", "recf2"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "rSigma32", "Sigma3", "Alpha", "n", "AlphaR", "nR", "f", "f2", "recf2"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// create the two PDFs
@@ -602,7 +603,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::SingleModExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "Alpha", "n", "rAlphaR", "AlphaR"};
+		const StringVector_t parNames = {"m", "Sigma1", "Alpha", "n", "AlphaR"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -623,7 +624,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::DoubleModExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "rAlphaR", "AlphaR", "Alpha2", "n2", "AlphaR2", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "Alpha2", "n2", "AlphaR2", "f"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -657,7 +658,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::GaussianAndModExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "rAlphaR", "AlphaR", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "f"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -1449,7 +1450,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
       }
       StringSet_t varList = {varTot}; for (const auto& v : pdfMapVar) { varList.insert(v.first); }
       for (const auto& var : varList) {
-	auto pdfListVarTot = std::pair<RooArgList, RooArgList>(RooArgList(), RooArgList());
+	RooArgList pdfListVarTot;
 	for (const auto& p : (var==varTot ? pdfListVar : pdfMapVar[var])) {
 	  // Multiply the PDFs
 	  std::string pdfName = p.second.at(0)->GetName();
@@ -1472,24 +1473,22 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 			       pdfName.c_str(),
 			       ("N_"+p.first+lbl).c_str()
 			       ))) { std::cout << "[ERROR] Failed to create extended PDF " << pdfTotName << std::endl; return false; }
-	  pdfListVarTot.first.add(*ws.pdf(pdfName.c_str()));
-	  pdfListVarTot.second.add(*ws.arg(("N_"+p.first+lbl).c_str()));
+	  pdfListVarTot.add(*ws.pdf(pdfTotName.c_str()));
 	}
-	if (pdfListVarTot.first.getSize()>0) {
+	if (pdfListVarTot.getSize()>0) {
 	  const auto& pdfName = ("pdf"+var+"_Tot"+mainLabel);
-	  auto pdf = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfListVarTot.first, pdfListVarTot.second));
+	  auto pdf = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfListVarTot));
 	  if (!pdf) { std::cout << "[ERROR] RooAddPdf " << pdfName << " is NULL!" << std::endl; return false; }
 	  if (ws.import(*pdf)) { std::cout << "[ERROR] RooAddPdf " << pdfName << " was not imported!" << std::endl; return false; }
 	}
-	pdfMapTot[var].first.add(pdfListVarTot.first);
-	pdfMapTot[var].second.add(pdfListVarTot.second);
+	pdfMapTot[var].add(pdfListVarTot);
       }
     }
     for (const auto& v : pdfMapTot) {
-      if (v.second.first.getSize()>0) {
+      if (v.second.getSize()>0) {
 	const auto& pdfName = ("pdf"+v.first+"_Tot"+lbl);
 	if (v.first==varTot) { info.Par["pdfName"+chg] = pdfName; }
-	auto pdf = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), v.second.first, v.second.second));
+	auto pdf = std::unique_ptr<RooAddPdf>(new RooAddPdf(pdfName.c_str(), pdfName.c_str(), v.second));
 	if (!pdf) { std::cout << "[ERROR] RooAddPdf " << pdfName << " is NULL!" << std::endl; return false; }
 	if (ws.import(*pdf)) { std::cout << "[ERROR] RooAddPdf " << pdfName << " was not imported!" << std::endl; return false; }
       }
