@@ -17,11 +17,14 @@ bool readFile(std::vector<std::string>& rows, const std::string& fileName);
 
 
 void makeInputForLLR(const std::string& workDirName,
+		     const bool& isNominal = true,
 		     const std::string& par="JPsi",
 		     const std::string& col="PA8Y16")
 {
   //
-  const std::vector<std::string> BKGMODELS = {"Uniform", "Chebychev1", "Chebychev2", "Chebychev3", "Chebychev4", "Chebychev5", "Chebychev6"};
+  std::vector<std::string> BKGMODELS;
+  if (isNominal) { BKGMODELS = {"Uniform", "Chebychev1", "Chebychev2", "Chebychev3", "Chebychev4", "Chebychev5", "Chebychev6"}; }
+  else { BKGMODELS = {"Uniform", "ExpChebychev1", "ExpChebychev2", "ExpChebychev3", "ExpChebychev4", "ExpChebychev5", "ExpChebychev6"}; }
   //
   const std::string& CWD = getcwd(NULL, 0);
   const auto& inputDir = CWD + "/Input/" + workDirName + "/";
