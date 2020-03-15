@@ -205,8 +205,10 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 		if (!fitFailed) break;
 	      }
 	    }
-	    if (false && isData && !fitFailed && contain(fitVars, "Cand_Mass")) {
+	    if (info.Flag["doMinos"] && isData && !fitFailed && contain(fitVars, "Cand_Mass")) {
+	      const auto varS = getModelPar(myws.at(chg), pdfName, {"N_", "R_"});
               cmdList[3] = RooFit::Minos(true);
+	      cmdList.push_back(RooFit::Minos(varS));
               fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
 	    }
           }
@@ -216,12 +218,18 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 	  }
           else { std::cout << "[ERROR] Fit Result returned by the PDF is NULL!" << std::endl; return false; }
 	  if (fitFailed) {
+	    uint failStatus = 0;
 	    for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) {
-	      if (fitResult->statusCodeHistory(iSt)!=0) {
-		std::cout << "[ERROR] Fit failed in " << fitResult->statusLabelHistory(iSt) << " with status " << fitResult->statusCodeHistory(iSt) << " !" << std::endl; break;
+	      const int status = fitResult->statusCodeHistory(iSt);
+	      if (status!=0) {
+		const std::string label = fitResult->statusLabelHistory(iSt);
+		if (label=="MINIMIZE") { failStatus = 1; }
+		else if (label=="HESSE") { failStatus = 2; }
+		else if (label=="MINOS") { failStatus = 3; }
+		std::cout << "[ERROR] Fit failed in " << label << " with status " << status << " !" << std::endl;
 	      }
 	    }
-	    myws.at(chg).factory("FAILED[1.0]");
+	    if (failStatus>0) { myws.at(chg).factory(Form("FIT_FAILED[%d]", failStatus)); }
 	  }
         }
         else if ( myws.at(chg).obj(pdfName.c_str()) ) {

@@ -603,6 +603,7 @@ bool compareSnapshots(const RooArgSet& pars1, const RooArgSet& pars2)
   auto parIt2 = std::unique_ptr<TIterator>(pars1.createIterator());
   for (auto itp = parIt2->Next(); itp!=NULL; itp = parIt2->Next() ) {
     const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
+    if (!pars2.find(it->GetName())) continue;
     const auto& val = pars2.getRealValue(it->GetName(),-1e99);
     if (val != it->getVal() || ((RooRealVar&)pars2[it->GetName()]).getMin() != it->getMin() || ((RooRealVar&)pars2[it->GetName()]).getMax() != it->getMax()){
       std::cout << "OLD: " << it->GetName() << "  " << ((RooRealVar&)pars2[it->GetName()]).getVal() << "  " << ((RooRealVar&)pars2[it->GetName()]).getMin() << "  " << ((RooRealVar&)pars2[it->GetName()]).getMax() << std::endl;

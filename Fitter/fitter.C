@@ -89,6 +89,11 @@ void fitter(
   GlobalInfo userInput;
   bool saveAll = false;
   //
+  if (workDirName.find("/Nominal",workDirName.length()-8)!=std::string::npos ||
+      workDirName.find("/Nominal/")!=std::string::npos) {
+    userInput.Flag["doMinos"] = true;
+  }
+  //
   // Set all the Parameters from the input settings
   //
   userInput.Par["analysis"] = analysis;

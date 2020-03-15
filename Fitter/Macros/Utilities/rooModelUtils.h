@@ -20,6 +20,24 @@
 #include "RooStats/SPlot.h"
 
 
+RooArgSet getModelPar(const RooWorkspace& ws, const std::string& pdfName, const StringVector_t& varList)
+{
+  auto parSet = std::unique_ptr<RooArgSet>(ws.pdf(pdfName.c_str())->getParameters(RooArgSet()));
+  //
+  RooArgSet varS;
+  auto parIt = std::unique_ptr<TIterator>(parSet->createIterator());
+  for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next()) {
+    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
+    const std::string& name = it->GetName();
+    bool addPar = false;
+    for (const auto& inV : varList) { if (name.rfind(inV,0)==0) { addPar = true; break; } }
+    if (addPar) { varS.add(*it); }
+  }
+  //
+  return varS;
+};
+
+
 void constrainQuarkoniumMassParameters(GlobalInfo& info, const StringVector_t& varList, const std::string& excLabel)
 {
   const auto& cha = info.Par.at("channel");
@@ -69,7 +87,8 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
   if (vTmp!="") { objFoundLabel.erase(0, vTmp.size()+1); } else { objFoundLabel.erase(0, 1); }
   //
   for (const auto& v : parNames) {
-    const bool& found = (contain(info.Par, v+"_"+objLabel) || contain(info.Par, v+"_"+objFoundLabel));
+    const bool& found = ((contain(info.Par, v+"_"+objLabel) && info.Par.at(v+"_"+objLabel)!="") ||
+			 (contain(info.Par, v+"_"+objFoundLabel) && info.Par.at(v+"_"+objFoundLabel)!=""));
     if (!contain(info.Par, v+"_"+objLabel) || info.Par.at(v+"_"+objLabel)=="") {
       if (!contain(info.Par, v+"_"+objFoundLabel) || info.Par.at(v+"_"+objFoundLabel)=="") {
 	if (v=="Cut") { info.Par[v+"_"+objLabel] = ""; }
@@ -89,7 +108,7 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
 	else if (v.rfind("Alpha" , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  2.000,    0.500,   8.000); }
 	else if (v=="nR2"      && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("nR_"+objLabel).c_str()); }
 	else if (v=="rnR"               ) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  5.000,    1.000, 100.000); }
-	//else if (v=="nR"                ) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", (v+"_"+objLabel).c_str(), ("rnR_"+objLabel).c_str(), ("n_"+objLabel).c_str()); }
+	else if (v=="nR"       && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", (v+"_"+objLabel).c_str(), ("rnR_"+objLabel).c_str(), ("n_"+objLabel).c_str()); }
 	else if (v.rfind("nR"    , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  6.000, -100.000, 100.000); }
 	else if (v=="n2"       && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("n_"+objLabel).c_str()); }
 	else if (v.rfind("n"     , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  2.000,    0.500,  10.000); }

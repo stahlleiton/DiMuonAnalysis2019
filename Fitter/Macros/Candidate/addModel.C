@@ -19,7 +19,7 @@
 #include "../Utilities/rooDataUtils.h"
 
 
-bool makeSPlotDS ( RooWorkspace& ws , GlobalInfo& info       , const std::string& label );
+bool makeSPlotDS ( RooWorkspace& ws , GlobalInfo& info , const std::string& label );
 
 
 bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const StringSet_t& varV={})
@@ -516,7 +516,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::GaussianAndExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "rnR", "nR", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "nR", "f"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
