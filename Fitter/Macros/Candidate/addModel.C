@@ -480,7 +480,7 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	    case (int(Model::DoubleExtCrystalBall)):
 	      {
 		// input variables
-		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "AlphaR", "nR", "Alpha2", "n2", "AlphaR2", "nR2", "f"};
+		const StringVector_t parNames = {"m", "Sigma1", "rSigma21", "Sigma2", "Alpha", "n", "rAlphaR", "AlphaR", "nR", "Alpha2", "n2", "AlphaR2", "nR2", "f"};
 		// create the variables for this model
 		if (!addModelPar(ws, info, parNames, varName, label, modelN)) { return false; }
 		// import the model class
@@ -1644,7 +1644,8 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& label)
       const auto& fitVal = ws.var(name.c_str())->getVal();
       const auto& fitUnc = ws.var(name.c_str())->getError();
       const auto& sVal = sData.GetYieldFromSWeight(name.c_str());
-      if (std::abs(fitVal - sVal)>0.005*fitUnc) { std::cout << "[ERROR] Variable " << name << " has different fitted (" << fitVal << " +- " << fitUnc << ") and sPlot (" << sVal << ") results!" << std::endl; return false; }
+      if (std::abs(fitVal - sVal)>0.028*fitUnc) { std::cout << "[ERROR] Variable " << name << " has different fitted (" << fitVal << " +- " << fitUnc << ") and sPlot (" << sVal << ") results, giving: "
+							    << std::abs(fitVal - sVal)/fitUnc << " !" << std::endl; return false; }
     }
     // Store the sPlot dataset
     const auto& sPlotDS = dynamic_cast<RooDataSet*>(ws.data(dsSPlotName.c_str()));

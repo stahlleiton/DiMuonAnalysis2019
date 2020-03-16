@@ -600,7 +600,8 @@ std::string formatCutLbl(const std::string& cut)
 {
   if (cut=="") return cut;
   auto str = cut;
-  stringReplace(str, "Prompt", "Pr");
+  const auto& cutL = StringMap_t({{"Prompt", "Pr"}, {"Decay", "Dec"}, {"[0.","["}, {"Psi2S", "#psi(2S)"}});
+  for (const auto& cL : cutL) { stringReplace(str, cL.first, cL.second); }
   return str;
 };
 

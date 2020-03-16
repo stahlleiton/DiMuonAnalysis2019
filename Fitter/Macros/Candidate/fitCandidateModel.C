@@ -193,15 +193,15 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
           if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
             std::cout << "[INFO] Using constrain PDFs to fit " << pdfName << " on " << dsNameFit << std::endl;
             cmdList.push_back(RooFit::ExternalConstraints(*pdfConstrains));
-            fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+            fitFailed = fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit) > 0;
           }
           else {
             std::cout << "[INFO] Fitting " << pdfName << " on " << dsNameFit << std::endl;
-            fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+            fitFailed = fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit) > 0;
 	    if (fitFailed) {
 	      for (uint iTry=1; iTry<=opt; iTry++) {
 		cmdList[4] = RooFit::Strategy(opt-iTry);
-		fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit, "initialParameters");
+		fitFailed = fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit, "initialParameters") > 0;
 		if (!fitFailed) break;
 	      }
 	    }
@@ -209,27 +209,27 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 	      const auto varS = getModelPar(myws.at(chg), pdfName, {"N_", "R_"});
               cmdList[3] = RooFit::Minos(true);
 	      cmdList.push_back(RooFit::Minos(varS));
-              fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+               auto fitStatus = fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+	      if (fitStatus!=0 && fitStatus!=3) { fitStatus = fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit, "initialParameters"); }
+	      fitFailed = fitStatus > 0;
 	    }
           }
           if (fitResult) {
 	    fitResult->SetTitle(fitResult->GetName());
-	    myws.at(chg).import(*fitResult, fitResult->GetName());
+	    if (myws.at(chg).import(*fitResult, fitResult->GetName())) { std::cout << "[ERROR] Fit result object was not imported!" << std::endl; return false; }
 	  }
           else { std::cout << "[ERROR] Fit Result returned by the PDF is NULL!" << std::endl; return false; }
 	  if (fitFailed) {
-	    uint failStatus = 0;
-	    for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) {
-	      const int status = fitResult->statusCodeHistory(iSt);
-	      if (status!=0) {
-		const std::string label = fitResult->statusLabelHistory(iSt);
-		if (label=="MINIMIZE") { failStatus = 1; }
-		else if (label=="HESSE") { failStatus = 2; }
-		else if (label=="MINOS") { failStatus = 3; }
-		std::cout << "[ERROR] Fit failed in " << label << " with status " << status << " !" << std::endl;
-	      }
-	    }
-	    if (failStatus>0) { myws.at(chg).factory(Form("FIT_FAILED[%d]", failStatus)); }
+	    const auto fitStatus = failStatus(fitResult);
+	    if (fitStatus>0) { myws.at(chg).factory(Form("FIT_FAILED[%d]", fitStatus)); }
+	  }
+	  // Compute NLL results for mass fits (for LLR test)
+	  if (contain(fitVars, "Cand_Mass")) {
+	    const auto& pdf = myws.at(chg).pdf(pdfName.c_str());
+	    const auto& data = myws.at(chg).data(dsNameFit.c_str());
+	    RooLinkedList fitConf; auto cmdL = cmdList; for (auto& cmd : cmdL) { fitConf.Add(dynamic_cast<TObject*>(&cmd)); };
+	    auto nll = std::unique_ptr<RooAbsReal>(pdf->createNLL(*data, fitConf));
+	    if (myws.at(chg).import(*nll, RooFit::Rename(("NLL_"+pdfName).c_str()))) { std::cout << "[ERROR] NLL was not imported!" << std::endl; return false; }
 	  }
         }
         else if ( myws.at(chg).obj(pdfName.c_str()) ) {
@@ -274,7 +274,8 @@ void defineFitParameterRange(GlobalInfo& info)
       for (const auto& var : vars) {
 	for (const auto& obj : info.StrS.at("incObject_"+var)) { objS.insert(obj); }
       }
-      const auto& massRange = ANA::getMassRange(objS, info.Flag.at("fitMC"));
+      const bool useLooseMassRange = info.Flag.at("fitMC") && info.Flag.at("fitCand_Mass");
+      const auto massRange = ANA::getMassRange(objS, useLooseMassRange);
       varMin = massRange.first; varMax = massRange.second;
     }
     else if (var=="Cand_DLenErr") {

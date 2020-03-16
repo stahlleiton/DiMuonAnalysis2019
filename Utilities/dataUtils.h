@@ -578,7 +578,9 @@ namespace ANA {
   std::pair<double, double> getMassRange(const std::set<std::string>& objS, const bool& useLoose)
   {
     double minM = 999999., maxM = -999999.;
-    for (const auto& obj : objS) {
+    for (const auto& o : objS) {
+      auto obj = o;
+      if (obj.rfind("Cat")!=std::string::npos) { obj = obj.substr(0, obj.rfind("Cat")); }
       if (contain(MASS, obj)) {
 	if (useLoose) {
 	  minM = std::min(minM, MASS.at(obj).at("Loose_Min"));
@@ -590,7 +592,7 @@ namespace ANA {
 	}
       }
     }
-    if (minM > maxM) { assert(Form("[ERROR] Mass range (%g , %g) is invalid!", minM, maxM)); }
+    if (minM > maxM) { throw std::runtime_error(Form("[ERROR] Mass range (%g , %g) is invalid!", minM, maxM)); }
     return std::make_pair(minM, maxM);
   };
   bool massCut(const double& mass, const std::set<std::string>& objS, const bool& isMC)

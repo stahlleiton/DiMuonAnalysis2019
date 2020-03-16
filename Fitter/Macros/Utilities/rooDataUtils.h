@@ -1073,15 +1073,32 @@ bool updateFitRange(RooWorkspace& ws, GlobalInfo&  info, const std::string& chg)
 };
 
 
-bool fitPDF(std::unique_ptr<RooFitResult>& fitResult, RooWorkspace& ws, const std::vector<RooCmdArg>& cmdList, const std::string& pdfName, const std::string& dsName, const std::string& snapshot="")
+uint failStatus(std::unique_ptr<RooFitResult>& fitResult)
+{
+  uint failStatus = 0;
+  for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) {
+    const int status = fitResult->statusCodeHistory(iSt);
+    if (status!=0) {
+      const std::string label = fitResult->statusLabelHistory(iSt);
+      if (label=="MINIMIZE") { failStatus = 1; }
+      else if (label=="HESSE") { failStatus = 2; }
+      else if (label=="MINOS" && failStatus==0) { failStatus = 3; }
+      std::cout << "[ERROR] Fit failed in " << label << " with status " << status << " !" << std::endl;
+    }
+  }
+  return failStatus;
+};
+
+
+uint fitPDF(std::unique_ptr<RooFitResult>& fitResult, RooWorkspace& ws, const std::vector<RooCmdArg>& cmdList, const std::string& pdfName, const std::string& dsName, const std::string& snapshot="")
 {
   if (snapshot!="") { ws.loadSnapshot(snapshot.c_str()); }
   RooLinkedList fitConf; auto cmdL = cmdList; for (auto& cmd : cmdL) { fitConf.Add(dynamic_cast<TObject*>(&cmd)); };
   const auto& tmp = ws.pdf(pdfName.c_str())->fitTo(*ws.data(dsName.c_str()), fitConf);
   fitResult.reset(tmp);
-  bool fitPass = true; for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) { if (fitResult->statusCodeHistory(iSt)!=0) { fitPass = false; break; } }
+  const auto fitStatus = failStatus(fitResult);
   fitResult->Print("v");
-  return fitPass;
+  return fitStatus;
 };
 
 
@@ -1131,11 +1148,11 @@ int importDataset(RooWorkspace& myws, GlobalInfo& info, const RooWorkspaceMap_t&
     }
     if (cutLbl.rfind("PromptDecay", 0)==0) {
       cutSel = ANA::CHARMONIA::decayLenCut("Cand_DLen", "Cand_Pt", "Cand_Rap", threshold, true);
-      std::cout << "[INFO] Cutting on candidate decay length to select PROMPT decays" << std::endl;
+      std::cout << "[INFO] Cutting on candidate decay length using selection: " << cutLbl << " to enhance PROMPT decays" << std::endl;
     }
     else if (cutLbl.rfind("NonPromptDecay", 0)==0) {
       cutSel = ANA::CHARMONIA::decayLenCut("Cand_DLen", "Cand_Pt", "Cand_Rap", threshold, false);
-      std::cout << "[INFO] Cutting on candidate decay length to select NON-PROMPT decays" << std::endl;
+      std::cout << "[INFO] Cutting on candidate decay length using selection: " << cutLbl << " to enhance NON-PROMPT decays" << std::endl;
     }
     if (cutSel!="") {
       cutDS += " && "+cutSel;

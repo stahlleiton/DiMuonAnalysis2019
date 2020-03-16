@@ -107,8 +107,6 @@ bool setModelPar(GlobalInfo& info, const StringVector_t& parNames, const std::st
 	else if (v=="AlphaR2"  && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("AlphaR_"+objLabel).c_str()); }
 	else if (v.rfind("Alpha" , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  2.000,    0.500,   8.000); }
 	else if (v=="nR2"      && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("nR_"+objLabel).c_str()); }
-	else if (v=="rnR"               ) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  5.000,    1.000, 100.000); }
-	else if (v=="nR"       && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", (v+"_"+objLabel).c_str(), ("rnR_"+objLabel).c_str(), ("n_"+objLabel).c_str()); }
 	else if (v.rfind("nR"    , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  6.000, -100.000, 100.000); }
 	else if (v=="n2"       && !found) { info.Par[v+"_"+objLabel] = Form("RooFormulaVar::%s('@0',{%s})", (v+"_"+objLabel).c_str(), ("n_"+objLabel).c_str()); }
 	else if (v.rfind("n"     , 0)==0) { info.Par[v+"_"+objLabel] = Form("%s[%.6f,%.6f,%.6f]", (v+"_"+objLabel).c_str(),  2.000,    0.500,  10.000); }
@@ -293,7 +291,6 @@ bool histToDataHist(RooWorkspace& ws, const std::string& dataName, const RooData
   // Create the histogram
   auto hist = std::unique_ptr<TH1D>(static_cast<TH1D*>(ds.createHistogram(dataName.c_str(), *ws.var(var.c_str()), RooFit::Binning(int(range[0]), range[1], range[2]))));
   if (!hist) { std::cout << "[ERROR] Histogram " << dataName << " is NULL!" << std::endl; return false; }
-  for (int iBin=0; iBin<hist->GetNbinsX(); iBin++) { std::cout << "HIST: " << hist->GetBinLowEdge(iBin) << "  " << hist->GetBinLowEdge(iBin) + hist->GetBinWidth(iBin) << "  " << hist->GetBinContent(iBin) << std::endl; }
   // Cleaning the input histogram
   // 1) Remove the Under and Overflow bins
   hist->ClearUnderflowAndOverflow();
