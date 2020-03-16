@@ -225,11 +225,14 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
 	  }
 	  // Compute NLL results for mass fits (for LLR test)
 	  if (contain(fitVars, "Cand_Mass")) {
+	    std::cout << "[INFO] Computing NLL for " << pdfName << " on " << dsNameFit << std::endl;
 	    const auto& pdf = myws.at(chg).pdf(pdfName.c_str());
 	    const auto& data = myws.at(chg).data(dsNameFit.c_str());
-	    RooLinkedList fitConf; auto cmdL = cmdList; for (auto& cmd : cmdL) { fitConf.Add(dynamic_cast<TObject*>(&cmd)); };
+	    std::vector<RooCmdArg> cmdList = {RooFit::Extended(true), RooFit::Optimize(false), RooFit::NumCPU(numCores, 1), RooFit::BatchMode(true)};
+	    RooLinkedList fitConf; auto cmdL = cmdList; for (auto& cmd : cmdL) { fitConf.Add(dynamic_cast<TObject*>(&cmd)); }
 	    auto nll = std::unique_ptr<RooAbsReal>(pdf->createNLL(*data, fitConf));
-	    if (myws.at(chg).import(*nll, RooFit::Rename(("NLL_"+pdfName).c_str()))) { std::cout << "[ERROR] NLL was not imported!" << std::endl; return false; }
+	    if (!nll) { std::cout << "[ERROR] NLL was not created!" << std::endl; return false; }
+	    if (!myws.at(chg).factory(Form("NLL_%s[%.4f]", pdfName.c_str(), nll->getVal()))) { std::cout << "[ERROR] Failed to create NLL" << std::endl; return false; }
 	  }
         }
         else if ( myws.at(chg).obj(pdfName.c_str()) ) {
