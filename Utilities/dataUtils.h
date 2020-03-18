@@ -243,7 +243,8 @@ bool fileList(std::vector< std::string >& fileNames, const std::string& dirPath,
   if (dpdf != NULL){
     struct dirent *epdf;
     while ((epdf = readdir(dpdf))){
-      if (strcmp(epdf->d_name,".")!=0 && strcmp(epdf->d_name,"..")!=0 ) {
+      std::string name = epdf->d_name;
+      if (name!="." && name!=".." && name.rfind(".",0)!=0 && name.find("/.")==std::string::npos) {
         if (verb) { std::cout << "[INFO] Adding file: " << epdf->d_name << std::endl; }
         fileNames.push_back(epdf->d_name);
       }

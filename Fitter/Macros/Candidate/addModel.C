@@ -46,12 +46,14 @@ bool addModel(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, const 
 	std::cout << "[INFO] Implementing " << mainTag << " " << varName << " Model for " << col << std::endl;
 	// Make sure that DLenRes and main object are done first
 	StringVector_t objV;
-	if (contain(info.StrS.at("addObjectModel_"+varType+"_"+mainLabel), "DLenRes")) { objV.push_back("DLenRes"); }
-	if (contain(info.StrS.at("addObjectModel_"+varType+"_"+mainLabel), mainObj)) { objV.push_back(mainObj); }
-	for (const auto& m : info.StrS.at("addObjectModel_"+varType+"_"+mainLabel)) { if (!contain(objV, m)) { objV.push_back(m); } }
+	const auto& refObj = info.Par.at("objTag_"+varType+"_"+mainObj);
+	auto mLabel = (refObj==mainObj) ? mainLabel : refObj+cha+chg+"_"+col;
+	if (contain(info.StrS.at("addObjectModel_"+varType+"_"+mLabel), "DLenRes")) { objV.push_back("DLenRes"); }
+	if (contain(info.StrS.at("addObjectModel_"+varType+"_"+mLabel), mainObj)) { objV.push_back(mainObj); }
+	for (const auto& m : info.StrS.at("addObjectModel_"+varType+"_"+mLabel)) { if (!contain(objV, m)) { objV.push_back(m); } }
 	std::map<std::string, RooArgList> pdfList;
 	for (const auto& obj : objV) {
-	  const auto& modelN = info.Par.at("Model"+varType+"_"+mainLabel+"_"+obj);
+	  const auto& modelN = info.Par.at("Model"+varType+"_"+mLabel+"_"+obj);
 	  const auto& tag = obj + cha + chg;
 	  const auto& label = tag + "_" + col;
 	  auto objI = obj.substr(0, obj.find("Cat"));

@@ -400,7 +400,7 @@ void copyWorkspace(RooWorkspace& outWS, const RooWorkspace& inWS, const std::str
   if (const_cast<RooWorkspace*>(&inWS)->set("SET")) {
     const auto& listSet = const_cast<RooWorkspace*>(&inWS)->set("SET");
     auto setIt = std::unique_ptr<TIterator>(listSet->createIterator());
-    for (auto it = setIt->Next(); it!=NULL; it = setIt->Next()) { if (!outWS.arg(it->GetName())) { addString(outWS, it->GetName(), it->GetName(), false); outWS.extendSet("SET", it->GetName()); } }
+    for (auto it = setIt->Next(); it!=NULL; it = setIt->Next()) { if (!outWS.set(it->GetName())) { defineSet(outWS, it->GetName(), *const_cast<RooWorkspace*>(&inWS)->set(it->GetName())); } }
   }
   // Return the RooMessenger Level
   RooMsgService::instance().setGlobalKillBelow(level);
@@ -979,7 +979,7 @@ bool setFitParameterRange(RooWorkspace& ws, GlobalInfo& info)
 bool updateFitRange(RooWorkspace& ws, GlobalInfo&  info, const std::string& chg)
 {
   DoubleDiMap_t inVarList;
-  for (const auto& varN : info.StrS.at("fitVariable")) {
+  for (const auto& varN : info.StrS.at("fitCondVariable")) {
     int emptyBins = -1;
     double varMin = -99999.9, varMax = -99999.9;
     if (info.Flag.at("fitData")) {

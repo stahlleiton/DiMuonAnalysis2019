@@ -282,13 +282,7 @@ void defineFitParameterRange(GlobalInfo& info)
       varMin = massRange.first; varMax = massRange.second;
     }
     else if (var=="Cand_DLenErr") {
-      if (info.Flag.at("fit"+var)==false) {
-	const auto& cha = info.Par.at("channel");
-	const auto& col = *info.StrS.at("fitSystem").begin();
-	const auto& label = "JPsi" + cha + "OS" + "_" + col;
-	if (!loadVarRange(info, var, label)) { assert("[ERROR] Could not load Cand_DLenErr range!"); }
-      }
-      else {
+      if (info.Flag.at("fit"+var)) {
 	varMin = 0.0;
 	varMax = 10.0;
       }
