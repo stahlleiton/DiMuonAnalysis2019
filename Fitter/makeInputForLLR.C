@@ -25,6 +25,7 @@ void makeInputForLLR(const std::string& workDirName,
   std::vector<std::string> BKGMODELS;
   if (isNominal) { BKGMODELS = {"Uniform", "Chebychev1", "Chebychev2", "Chebychev3", "Chebychev4", "Chebychev5", "Chebychev6"}; }
   else { BKGMODELS = {"Uniform", "ExpChebychev1", "ExpChebychev2", "ExpChebychev3", "ExpChebychev4", "ExpChebychev5", "ExpChebychev6"}; }
+  const std::string dirLbl = (isNominal?"_LLR":"_ExpLLR");
   //
   const std::string& CWD = getcwd(NULL, 0);
   const auto& inputDir = CWD + "/Input/" + workDirName + "/";
@@ -46,18 +47,18 @@ void makeInputForLLR(const std::string& workDirName,
   }
   //
   auto outputDir = inputDir;
-  stringReplace(outputDir, workDirName, workDirName+"_LLR");
+  stringReplace(outputDir, workDirName, workDirName+dirLbl);
   std::vector<std::string> outputDirList;
   for (const auto& dir : inputDirList) {
     outputDirList.push_back(dir);
-    stringReplace(outputDirList.back(), workDirName, workDirName+"_LLR");
+    stringReplace(outputDirList.back(), workDirName, workDirName+dirLbl);
   }
   //
   std::vector<std::string> outputFileList;
   std::map<std::string, std::vector<std::string> > outputFileRows;
   for (const auto& file : inputFileList) {
     outputFileList.push_back(file);
-    stringReplace(outputFileList.back(), workDirName, workDirName+(isNominal?"_LLR":"_ExpLLR"));
+    stringReplace(outputFileList.back(), workDirName, workDirName+dirLbl);
     for (const auto& row : inputFileRows.at(file)) {
       for (const auto& bkgModel : BKGMODELS) {
 	auto outputRow = row;
@@ -78,11 +79,13 @@ void makeInputForLLR(const std::string& workDirName,
   //
   makeDir(outputDir);
   for (const auto& dir : outputDirList) {
+    std::cout << "[INFO] Creating input file directory: " << dir << std::endl;
     makeDir(dir);
   }
   //
   for (const auto& file : outputFileList) {
     ofstream outputFile;
+    std::cout << "[INFO] Creating input file: " << file << std::endl;
     outputFile.open(file.c_str());
     for (const auto& row : outputFileRows.at(file)) {
       outputFile << row << std::endl;
