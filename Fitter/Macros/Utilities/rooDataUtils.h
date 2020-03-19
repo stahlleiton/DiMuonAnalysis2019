@@ -1055,8 +1055,8 @@ bool updateFitRange(RooWorkspace& ws, GlobalInfo&  info, const std::string& chg)
 	info.Par.at("dsNameFit"+chg) = dsN;
 	if (contain(info.Par, "dsSPlotName"+chg) && info.Par.at("dsSPlotName"+chg)==dsName) { info.Par.at("dsSPlotNameFit"+chg) = dsN; }
 	if (ws.import(*tmpDS, RooFit::Rename(dsN.c_str()))) { std::cout << "[ERROR] RooDataSet " << dsN << " was not created!" << std::endl; return false; }
-	info.Var.at("numEntries")[dsN] = tmpDS->sumEntries();
-	ws.factory(Form("numEntries_%s[%.0f]", dsN.c_str(), tmpDS->sumEntries()));
+	info.Var.at("numEntries")[dsN] = std::max(tmpDS->sumEntries(), double(tmpDS->numEntries()));
+	ws.factory(Form("numEntries_%s[%.0f]", dsN.c_str(), info.Var.at("numEntries").at(dsN)));
       }
       else {
 	ws.RecursiveRemove(ds); if(ds) delete ds;

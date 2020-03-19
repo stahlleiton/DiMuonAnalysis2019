@@ -18,7 +18,7 @@ void printLLRStudy(
 {
   const std::string& objTag = "JPsi";
   const std::string& colTag = "PA8Y16";
-  const std::string& PD = "DIMUON";
+  const StringVector_t& PDList = {"MINBIAS", "DIMUON"};
   const std::string& channel = "ToMuMu";
   //
   RooMsgService::instance().getStream(1).removeTopic(RooFit::Minimization);
@@ -31,36 +31,41 @@ void printLLRStudy(
   // Step 1: Read all fit output files
   for(uint j = 0; j < DIR.at("output").size(); j++) {
     if (DIR.at("output").size()>1 && j==0) continue; // First entry is always the main input directory
-    // Set the fit output directory
-    const std::string& dirPath = Form("%sCandMass/DATA_%s/%s/%s/", DIR.at("output")[j].c_str(), PD.c_str(), objTag.c_str(), colTag.c_str());
-    // Find the fit output files
-    StringVector_t fileNames;
-    if (!fileList(fileNames, dirPath+"result/", false)) { return; }
-    // Read the fit output files
-    GlobalInfoDiMap_t content;
-    if (!readFiles(content, fileNames, dirPath+"result/")) { return; }
-    // Perform the LLR test
-    const std::string& outputDir = Form("%sCandMass/DATA_%s/%s/%s/", DIR.at("outputLLR")[j].c_str(), PD.c_str(), objTag.c_str(), colTag.c_str());
-    for (const auto& s : StringVector_t({"result", "plot/png", "plot/pdf", "plot/root", "plot/C", "tex"})) {
-      makeDir(outputDir+s);
-    }
-    makeDir(DIR.at("inputLLR")[j]);
-    StringDiVector_t winnerLabels;
-    const auto& bestModelFiles = printNLL(winnerLabels, content, outputDir, pvalcut); 
-    std::cout << "[INFO] " << "Background study summary file done!" << std::endl;
     //
-    // Copy all the fit output files for the best models
-    std::cout << "[INFO] The files for the best models are: " << std::endl;
-    for (auto bestModelFile : bestModelFiles) {
-      std::cout << bestModelFile << std::endl;
-      stringReplace(bestModelFile, ".root", "");
-      // Copy the fit output files
-      gSystem->CopyFile((dirPath+"result/"+bestModelFile+".root").c_str(), (outputDir+"result/"+bestModelFile+".root").c_str());
-      // Copy the fit output plots
-      stringReplace(bestModelFile, "FIT_", "PLOT_");
-      for (const auto& s : StringVector_t({"png", "pdf", "root", "C"})) {
-	gSystem->CopyFile((dirPath+"plot/"+s+"/"+bestModelFile+"."+s).c_str(), (outputDir+"plot/"+s+"/"+bestModelFile+"."+s).c_str());
-      }                        
+    StringDiVector_t winnerLabels;
+    for(const auto& PD : PDList) {
+      // Set the fit output directory
+      const std::string& dirPath = Form("%sCandMass/DATA_%s/%s/%s/", DIR.at("output")[j].c_str(), PD.c_str(), objTag.c_str(), colTag.c_str());
+      if (!existDir(dirPath)) continue;
+      // Find the fit output files
+      StringVector_t fileNames;
+      if (!fileList(fileNames, dirPath+"result/", false)) { return; }
+      // Read the fit output files
+      GlobalInfoDiMap_t content;
+      if (!readFiles(content, fileNames, dirPath+"result/")) { return; }
+      // Perform the LLR test
+      const std::string& outputDir = Form("%sCandMass/DATA_%s/%s/%s/", DIR.at("outputLLR")[j].c_str(), PD.c_str(), objTag.c_str(), colTag.c_str());
+      for (const auto& s : StringVector_t({"result", "plot/CandMass/png", "plot/CandMass/pdf", "plot/CandMass/root", "plot/CandMass/C", "tex"})) {
+	makeDir(outputDir+s);
+      }
+      makeDir(DIR.at("inputLLR")[j]);
+      const auto& bestModelFiles = printNLL(winnerLabels, content, outputDir, pvalcut); 
+      std::cout << "[INFO] " << "Background study summary file done for PD: " << PD << "!" << std::endl;
+      //
+      // Copy all the fit output files for the best models
+      std::cout << "[INFO] The files for the best models are: " << std::endl;
+      for (auto bestModelFile : bestModelFiles) {
+	std::cout << bestModelFile << std::endl;
+	stringReplace(bestModelFile, ".root", "");
+	// Copy the fit output files
+	gSystem->CopyFile((dirPath+"result/"+bestModelFile+".root").c_str(), (outputDir+"result/"+bestModelFile+".root").c_str());
+	// Copy the fit output plots
+	stringReplace(bestModelFile, "FIT_", "PLOT_");
+	for (const auto& s : StringVector_t({"png", "pdf", "root", "C"})) {
+	  std::cout << "[INFO] Copying file: " << (dirPath+"plot/CandMass/"+s+"/"+bestModelFile+"."+s) << " to " << (outputDir+"plot/CandMass/"+s+"/"+bestModelFile+"."+s) << std::endl;
+	  gSystem->CopyFile((dirPath+"plot/CandMass/"+s+"/"+bestModelFile+"."+s).c_str(), (outputDir+"plot/CandMass/"+s+"/"+bestModelFile+"."+s).c_str());
+	}
+      }
     }
     //
     // Reduce the input files
@@ -133,16 +138,15 @@ bool extractNLL(GlobalInfo& info, const std::string& fileName)
   // Extract the workspace
   const auto& ws = dynamic_cast<RooWorkspace*>(inputFile.Get("workspace"));
   if (!ws) { std::cout << "[ERROR] Workspace not found in " << fileName << std::endl; inputFile.Close(); return false; }
-  // Get the dataset and PDF names
+  // Get the dataset variables and PDF names
   const std::string& dsName  = (ws->obj("dsName")  ? dynamic_cast<RooStringVar*>(ws->obj("dsName"))->getVal() : "");
-  if (!ws->data(dsName.c_str())) { std::cout << "[ERROR] extractNLL: DataSet " << dsName << " was not found!" << std::endl; inputFile.Close(); return false; }
   const std::string& pdfName = (ws->obj("pdfName") ? dynamic_cast<RooStringVar*>(ws->obj("pdfName"))->getVal() : "");
   if (!ws->pdf(pdfName.c_str())) { std::cout << "[ERROR] extractNLL: DataSet " << pdfName << " was not found!" << std::endl; inputFile.Close(); return false; }
   // Extract the NLL info
-  auto nll = std::unique_ptr<RooAbsReal>(ws->pdf(pdfName.c_str())->createNLL(*ws->data(dsName.c_str())));
+  auto nll = ws->var(("NLL_"+pdfName).c_str());
   if (!nll) { std::cout << "[ERROR] extractNLL: NLL was not found in " << fileName << std::endl; inputFile.Close(); return false; }
   const auto& valNLL = nll->getVal();
-  auto pars = std::unique_ptr<RooArgSet>(ws->pdf(pdfName.c_str())->getParameters(*ws->data(dsName.c_str())));
+  auto pars = std::unique_ptr<RooArgSet>(ws->pdf(pdfName.c_str())->getParameters(*ws->var("Cand_Mass")));
   if (!pars) { std::cout << "[ERROR] extractNLL: Parameters for " << pdfName << " was not found in " << fileName << std::endl; inputFile.Close(); return false; }
   const auto& npar = pars->getSize();
   // Store the NLL info
@@ -154,14 +158,22 @@ bool extractNLL(GlobalInfo& info, const std::string& fileName)
   if (listObs) {
     auto obsIt = std::unique_ptr<TIterator>(listObs->createIterator());
     for (auto it = obsIt->Next(); it!=NULL; it = obsIt->Next()) { obsNames.insert(it->GetName()); }
-    if (ws->var("Cand_AbsRap")) { obsNames.insert("Cand_AbsRap"); } // BUGFIX
   }
-  else { std::cout << "[ERROR] extractNLL: Set of observables was not found!" << std::endl; return false; }
+  else { obsNames = StringSet_t({"Cand_Mass", "Cand_Pt", "Cand_Rap", "Cand_DLen", "Centrality", "NTrack"}); } // BUG FIX
+  //
   for (const auto& obs : obsNames) {
-    const auto& var = ws->var(obs.c_str());
-    if (std::string(var->GetName())=="Cand_Mass") continue; 
+    auto name = obs;
+    if (name=="Cand_Rap" && ws->var("Cand_RapCM")) { name = "Cand_RapCM"; }
+    else if (name=="Cand_Rap" && ws->var("Cand_AbsRap")) { name = "Cand_AbsRap"; }
+    else if (name=="Cand_Mass") continue;
+    auto var = ws->var(name.c_str());
     if (var->getMin()!=var->getMin("DEFAULT") || var->getMax()!=var->getMax("DEFAULT")) {
-      const std::string& lbl = Form("%.1f%s%.1f", var->getMin(), (var->getMax()<0.?"_":"-"), var->getMax());
+      const auto vMin = var->getMin();
+      const auto vMax = var->getMax();
+      std::string lbl = ""; 
+      lbl += fmod(vMin*10., 1.)==0 ? Form("%.1f", vMin) : Form("%g", vMin);
+      lbl += (name.rfind("Cand_Rap",0)==0 ? "_" : "-");
+      lbl += fmod(vMax*10., 1.)==0 ? Form("%.1f", vMax) : Form("%g", vMax);
       info.StrV["OBS"].push_back(lbl);
     }
   }
@@ -183,7 +195,7 @@ bool readFiles(GlobalInfoDiMap_t& content, const StringVector_t& fileNames, cons
     // Store the info
     info.Par["fileName"] = fileName;
     info.Par["modelName"] = str0.substr(str0.rfind("_")+1);
-    if (info.Par.at("modelName")=="Uniform") { info.Par.at("modelName") = "Chebychev0"; } // Temporary lazy solution
+    if (info.Par.at("modelName")=="Uniform") { info.Par.at("modelName") = "Cheb0"; } // Temporary lazy solution
     info.Par["binName"] = str1.substr(0, str1.rfind(".root"));
     info.Var["cnt"]["Val"] = 0;
     //
@@ -244,6 +256,7 @@ StringVector_t printNLL(StringDiVector_t& winnerLabels, const GlobalInfoDiMap_t&
 	  StringVector_t lin;
           if (modelNameA==modelNameB) {
             lin.push_back("|  TEST: "+modelNameA);
+            lin.push_back(Form("|    NPar: %.0f  ", nParA));
             lin.push_back(Form("|    NLL: %.2f  ", NLLA));
             lin.push_back(Form("|    AIC: %.2f  ", AICA));
             lin.push_back("|     ");
@@ -257,6 +270,7 @@ StringVector_t printNLL(StringDiVector_t& winnerLabels, const GlobalInfoDiMap_t&
             if (diffNLL<0) probChi2 = 100.0;
             if (probChi2>pvalcut && (nParA-nParB)<=2.0) modelRow.Var.at("cnt").at("Val")++;
             lin.push_back("|   "+modelNameA);
+            lin.push_back(Form("|    NPar: %.0f  ", nParA));
             lin.push_back(Form("|    NLL: %.2f  ", NLLA));
             lin.push_back(Form("|    Diff: %.2f  ", diffNLL));
             lin.push_back(Form("|    Prob: %.1f%s   ", probChi2, "%"));
@@ -334,7 +348,11 @@ bool reduceInputFile(const std::string& outputFile, const std::string& inputFile
     else {
       for(const auto& winLbl : winnerLabels) {
 	bool foundLbl = true;
-	for (const auto& lbl : winLbl) { if (row.find(lbl)==std::string::npos) { foundLbl = false; break; } }
+	for (const auto& lbl : winLbl) {
+	  auto label = lbl;
+	  stringReplace(label, "Cheb", "Chebychev");
+	  if (row.find(label)==std::string::npos) { foundLbl = false; break; }
+	}
 	if (foundLbl) { found = true; break; }
       }
     }

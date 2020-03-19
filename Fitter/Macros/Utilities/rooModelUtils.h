@@ -61,7 +61,7 @@ void constrainQuarkoniumMassParameters(GlobalInfo& info, const StringVector_t& v
       else if (v=="N") {
 	if (!info.Flag["notConstrainYields"]) {
 	  const auto& rN = "R_"+excLabel;
-	  info.Par[rN] = rN+"[0.4,-0.1,1.0]";
+	  if (info.Par[rN]=="") { info.Par[rN] = rN+"[0.4,-0.1,1.0]"; }
 	  info.Par.at(v+"_"+excLabel) = Form("RooFormulaVar::%s('@0*@1',{%s,%s})", (v+"_"+excLabel).c_str(), info.Par.at(rN).c_str(), (v+"_"+refLabel).c_str());
 	}
       }

@@ -1621,7 +1621,7 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& label)
     if (ws.import(*skimData, RooFit::Rename(dsSPlotName.c_str()))) { std::cout << "[ERROR] sPlot datasets were not imported!" << std::endl; return false; }
     else {
       if (ws.data(dsName.c_str())) { ws.RecursiveRemove(ws.data(dsName.c_str())); }
-      info.Var.at("numEntries")[dsSPlotName] = ws.data(dsSPlotName.c_str())->sumEntries();
+      info.Var.at("numEntries")[dsSPlotName] = std::max(ws.data(dsSPlotName.c_str())->sumEntries(), double(ws.data(dsSPlotName.c_str())->numEntries()));
       info.Par.at("dsName"+chg) = dsSPlotName;
       setDSParamaterRange(ws, dsSPlotName, info, "Full_");
       std::cout << "[INFO] sPlot datasets created succesfully!" << std::endl;
@@ -1630,7 +1630,7 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& label)
       if (ws.import(*skimDataFit, RooFit::Rename(dsSPlotNameFit.c_str()))) { std::cout << "[ERROR] sPlot fit datasets were not imported!" << std::endl; return false; }
       else {
 	if (ws.data(dsNameFit.c_str())) { ws.RecursiveRemove(ws.data(dsNameFit.c_str())); }
-	info.Var.at("numEntries")[dsSPlotNameFit] = ws.data(dsSPlotNameFit.c_str())->sumEntries();
+	info.Var.at("numEntries")[dsSPlotNameFit] = std::max(ws.data(dsSPlotNameFit.c_str())->sumEntries(), double(ws.data(dsSPlotNameFit.c_str())->numEntries()));
 	info.Par.at("dsNameFit"+chg) = dsSPlotNameFit;
 	setDSParamaterRange(ws, dsSPlotNameFit, info);
 	std::cout << "[INFO] sPlot fit datasets created succesfully!" << std::endl;
@@ -1662,7 +1662,7 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& label)
     else if (!isCompatibleDataset(*data, *dynamic_cast<RooDataSet*>(ws.data(dsName.c_str())))) { std::cout << "[ERROR] sPlot and original datasets are inconsistent!" << std::endl; return false; }
     else {
       if (ws.data(dsName.c_str())) { ws.RecursiveRemove(ws.data(dsName.c_str())); }
-      info.Var.at("numEntries")[dsSPlotName] = ws.data(dsSPlotName.c_str())->sumEntries();
+      info.Var.at("numEntries")[dsSPlotName] = std::max(ws.data(dsSPlotName.c_str())->sumEntries(), double(ws.data(dsSPlotName.c_str())->numEntries()));
       info.Par.at("dsName"+chg) = dsSPlotName;
       defineSet(ws, "SET_"+dsSPlotName, *data->get());
       std::cout << "[INFO] Imported " << dsSPlotName << " with " << data->numEntries() << " events (" << ws.data(dsName.c_str())->numEntries() << " origDS events)" << " and " << data->sumEntries() << " wevents (" << ws.data(dsName.c_str())->sumEntries() << " origDS wevents)" << std::endl;
@@ -1677,7 +1677,7 @@ bool makeSPlotDS(RooWorkspace& ws, GlobalInfo& info, const std::string& label)
       if (ws.import(*dataFit, RooFit::Rename(dsSPlotNameFit.c_str()))) { std::cout << "[ERROR] RooDataSet " << dsSPlotNameFit << " was not imported!" << std::endl; return false; }
       else {
 	if (ws.data(dsNameFit.c_str())) { ws.RecursiveRemove(ws.data(dsNameFit.c_str())); }
-	info.Var.at("numEntries")[dsSPlotNameFit] = ws.data(dsSPlotNameFit.c_str())->sumEntries();
+	info.Var.at("numEntries")[dsSPlotNameFit] = std::max(ws.data(dsSPlotNameFit.c_str())->sumEntries(), double(ws.data(dsSPlotNameFit.c_str())->numEntries()));
 	info.Par.at("dsNameFit"+chg) = dsSPlotNameFit;
 	defineSet(ws, "SET_"+dsSPlotNameFit, *dataFit->get());
 	std::cout << "[INFO] Imported " << dsSPlotNameFit << " with " << dataFit->numEntries() << " events (" << ws.data(dsNameFit.c_str())->numEntries() << " origDS events)" << " with " << dataFit->sumEntries() << " wevents (" << ws.data(dsNameFit.c_str())->sumEntries() << " origDS wevents)" << std::endl;
@@ -1737,7 +1737,7 @@ bool addSPlotWeight(RooWorkspace& ws, GlobalInfo& info, const std::string& chg, 
     if (ws.import(*tmpDS)) { std::cout << "[ERROR] addSPlotWeight: Failed to import " << tmpDS->GetName() << std::endl; }
   }
   //
-  info.Var.at("numEntries")[dsName] = ws.data(dsName.c_str())->sumEntries();
+  info.Var.at("numEntries")[dsName] = std::max(ws.data(dsName.c_str())->sumEntries(), double(ws.data(dsName.c_str())->numEntries()));
   //
   return true;
 };

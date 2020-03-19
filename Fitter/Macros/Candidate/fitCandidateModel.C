@@ -89,7 +89,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
       if (importID<0) { return false; }
       else if (importID==0) { doFit = false; }
     }
-    info.Var["numEntries"][dsName] = myws.at(chg).data(dsName.c_str())->sumEntries();
+    info.Var["numEntries"][dsName] = std::max(myws.at(chg).data(dsName.c_str())->sumEntries(), double(myws.at(chg).data(dsName.c_str())->numEntries()));
     if (info.Var.at("numEntries").at(dsName)<=0) { doFit = false; }
   }
   if (!doFit) { std::cout << "[ERROR] No entries to fit!" << std::endl; return false; }
