@@ -5,7 +5,7 @@ NonPromptDecay,DIMUON,NONE,-2.4_-1.4,NONE,3.0-6.5,15.0-250.0,GaussianAndExtCryst
 NonPromptDecay,DIMUON,NONE,1.4_2.4,NONE,3.0-6.5,15.0-250.0,GaussianAndExtCrystalBall[JPsi;Psi2S]+Chebychev3[Bkg],[0.7;-1.0;1.0],[0.030;0.003;0.060],[1.1;0.2;2.0],[1.33;1.0;3.0],[11.0],[1.5],[1.9]
 NonPromptDecay,DIMUON,NONE,NONE,1.4-2.4,6.5-9.0,15.0-250.0,GaussianAndExtCrystalBall[JPsi;Psi2S]+Chebychev3[Bkg],[0.6;-1.0;2.0],[0.030;0.003;0.080],[1.5;0.9;6.0],[1.4;0.0;3.0],[11.0],[1.5],[1.9]
 NonPromptDecay,DIMUON,NONE,NONE,1.4-2.4,9.0-50.0,15.0-250.0,GaussianAndExtCrystalBall[JPsi;Psi2S]+Chebychev3[Bkg],[0.6;-1.0;2.0],[0.030;0.003;0.080],[1.5;0.9;6.0],[1.4;0.0;3.0],[11.0],[1.5],[1.9]
-NonPromptDecay,DIMUON,NONE,-2.4_-1.4,NONE,6.5-50.0,15.0-250.0,GaussianAndExtCrystalBall[JPsi;Psi2S]+Chebychev4[Bkg],[0.6;-1.0;2.0],[0.030;0.003;0.080],[1.5;0.9;6.0],[1.4;0.0;3.0],[11.0],[1.5],[1.9]
+NonPromptDecay,DIMUON,NONE,-2.4_-1.4,NONE,6.5-50.0,15.0-250.0,GaussianAndExtCrystalBall[JPsi;Psi2S]+Chebychev3[Bkg],[0.6;-1.0;2.0],[0.030;0.003;0.120],[1.5;0.2;6.0],[1.4;0.0;3.0],[11.0],[1.5],[1.9]
 NonPromptDecay,DIMUON,NONE,1.4_2.4,NONE,6.5-50.0,15.0-250.0,GaussianAndExtCrystalBall[JPsi;Psi2S]+Chebychev3[Bkg],[0.6;-1.0;1.0],[0.030;0.003;0.120],[1.5;0.2;6.0],[1.4;0.0;3.0],[11.0],[1.5],[1.9]
 NonPromptDecay,DIMUON,NONE,NONE,0.0-1.4,6.5-9.0,15.0-250.0,GaussianAndExtCrystalBall[JPsi;Psi2S]+Chebychev2[Bkg],[0.6;-1.0;2.0],[0.030;0.003;0.080],[1.5;0.9;6.0],[1.5;0.0;3.0],[7.0],[1.5],[1.8]
 NonPromptDecay,DIMUON,NONE,NONE,0.0-1.4,9.0-50.0,15.0-250.0,GaussianAndExtCrystalBall[JPsi;Psi2S]+Chebychev4[Bkg],[0.6;-1.0;2.0],[0.030;0.003;0.080],[1.5;0.9;6.0],[1.5;0.0;3.0],[7.0],[1.5],[1.8]

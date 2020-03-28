@@ -25,9 +25,9 @@
 
 
 bool checkSettings     ( const GlobalInfo& userInput );
-bool parseFile         ( StringMapVector_t& data , const std::string& fileName );
+bool parseFile         ( StringMapVector_t& data , const std::string& fileName , const bool& addHeader=false );
 bool parseString       ( std::vector<double>& output , std::string input );
-bool iniWorkEnv        ( StringVectorMap_t& DIR , const std::string& workDirName );
+bool iniWorkEnv        ( StringVectorMap_t& DIR , const std::string& workDirName , const bool& doMakeDir=true );
 void iniFileDir        ( StringMapVector_t& inputFitDirs , StringDiMapVector_t& inputInitialFilesDirs ,
                          const StringMap_t& inputFitDir  , const StringDiMap_t& inputInitialFilesDir , const StringVectorMap_t& DIR );
 bool loadIniParameters ( std::vector< GlobalInfoVectorMap_t >& infoMapVectors , GlobalInfo& userInput ,
@@ -550,6 +550,7 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
   for (const auto& col : row) {
     bool found = false;
     const auto& colName = col.first;
+    if (colName=="ROW") continue;
     for (const auto& var : info.Var) {
       const auto& varName = var.first;
       if (colName==varName) {
@@ -709,16 +710,17 @@ bool parseString(std::vector<double>& output, std::string input)
 };
 
 
-bool parseFile(StringMapVector_t& data, const std::string& fileName)
+bool parseFile(StringMapVector_t& data, const std::string& fileName, const bool& addHeader)
 {
   StringDiVector_t content, tmp;
   if(!readFile(tmp, fileName, -1, 1)){ return false; }
   StringVector_t header = tmp.at(0);
   if (header.empty()) { std::cout << "[ERROR] The header is null!" << std::endl; return false; }
-  if(!readFile(content, fileName, header.size())){ return false; }
+  if(!readFile(content, fileName, header.size()-1)){ return false; }
   for (const auto& rHeader : header) {
     if (rHeader=="") { std::cout << "[ERROR] A column has no label!" << std::endl; return false; }
   }
+  if (addHeader) { data.push_back({{"HEADER", content.at(0).at(header.size()-1)}}); }
   content.erase(content.begin()); // remove header
   for (const auto& row : content) {
     StringMap_t col;
@@ -781,6 +783,7 @@ bool readFile(StringDiVector_t& content, const std::string& fileName, const int&
 	cols.push_back(col);
 	i++;
       }
+      cols.push_back(nCol>0 ? line : "ROW");
       content.push_back(cols);
     }
   }
@@ -791,7 +794,7 @@ bool readFile(StringDiVector_t& content, const std::string& fileName, const int&
 };
 
 
-bool iniWorkEnv(StringVectorMap_t& DIR, const std::string& workDirName)
+bool iniWorkEnv(StringVectorMap_t& DIR, const std::string& workDirName, const bool& doMakeDir)
 {
   std::cout << "[INFO] Initializing the work enviroment" << std::endl;
   DIR["main"].push_back(gSystem->ExpandPathName(gSystem->pwd()));
@@ -809,15 +812,15 @@ bool iniWorkEnv(StringVectorMap_t& DIR, const std::string& workDirName)
     findSubDir(DIR.at("input"), DIR.at("input")[0]);
   }
   DIR["output"].push_back(DIR.at("main")[0] + "/Output/" + workDirName + "/");
-  makeDir(DIR.at("output")[0]);
+  if (doMakeDir) { makeDir(DIR.at("output")[0]); }
   for(uint j = 1; j < DIR.at("input").size(); j++) {
     auto subdir = DIR.at("input")[j];
     stringReplace(subdir, "/Input/", "/Output/");
-    makeDir(subdir);
+    if (doMakeDir) { makeDir(subdir); }
     DIR.at("output").push_back(subdir);
   }
   DIR["dataset"].push_back(DIR.at("main")[0] + "/DataSet/");
-  makeDir(DIR.at("dataset")[0]);
+  if (doMakeDir) { makeDir(DIR.at("dataset")[0]); }
   return true;
 };
 
