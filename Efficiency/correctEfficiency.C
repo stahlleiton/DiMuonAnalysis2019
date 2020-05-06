@@ -37,6 +37,7 @@ using CorrMap_t    =  std::map< std::string , uint >;
 
 
 // ------------------ FUNCTION -------------------------------
+void     correctEfficiency   ( const std::string& workDirName , const std::string& PD );
 TnPVec_t getTnPScaleFactors  ( const double& ptD1 , const double& etaD1 , const double& ptD2 , const double& etaD2 , const CorrMap_t& corrType , const bool& incMuTrig );
 bool     getTnPUncertainties ( Unc1DVec_t& unc , const EffVec_t& eff );
 bool     getTnPUncertainties ( Unc1DMap_t& unc , const EffMap_t& eff );
@@ -96,7 +97,15 @@ const std::map< std::string , std::string > inputFileMap_ =
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins", const std::string& PD = "DIMUON")
+void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins", const StringVector_t& PD = {"DIMUON", "MINBIAS"})
+{
+  for (const auto& pd : PD) {
+    correctEfficiency(workDirName, pd);
+  }
+};
+
+
+void correctEfficiency(const std::string& workDirName, const std::string& PD)
 {
   //
   std::cout << "[INFO] Starting to compute efficiencies" << std::endl;
@@ -234,7 +243,7 @@ void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins
 	const auto& pT = tree->pT_gen()[iGen];
 	const auto& rap = (col=="Pbp8Y16" ? -1.0 : 1.0) * tree->y_gen()[iGen];
 	const auto& nTrack = (isGenOnly ? 0 : tree->Ntrkoffline());
-	const auto rapCM = pPb::EtaLABtoCM(rap, (col=="pPb8Y16"));
+	const auto rapCM = pPb::EtaLABtoCM(rap, true);
 	VarMap_t  varInfo =
 	  {
 	   { "Cand_Pt",     pT        },
@@ -341,6 +350,7 @@ void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins
   std::string outDir = mainDir + workDirName + "/" + PD + "/";
   gSystem->mkdir(outDir.c_str(), kTRUE);
   saveEff(outDir, eff1D, unc1D);
+  gSystem->ChangeDirectory(CWD.c_str());
 };
 
 
@@ -664,7 +674,7 @@ bool loadEff1D(EffMap_t& ef, const TH1DMap_t& h)
 void mergeEff(EffMap_t& ef)
 {
   // Merge pPb and Pbp (inverted) -> PA
-  if(std::find(COLL_.begin(), COLL_.end(), "PA") != COLL_.end()) {
+  if(std::find(COLL_.begin(), COLL_.end(), "PA8Y16") != COLL_.end()) {
     for (auto& s : ef) {
       if (contain(s.second, "PA8Y16") && contain(s.second, "pPb8Y16")) {
 	for (auto& t : s.second.at("PA8Y16")) {

@@ -328,10 +328,11 @@ void splitString(std::vector< std::string >& output, const std::string& instr, c
 };
 
 
-void stringReplace(std::string& txt, const std::string& from, const std::string& to)
+void stringReplace(std::string& txt, const std::string& from, const std::string& to, const int& max=99999)
 {
   std::string::size_type n = 0;
-  while ( ( n = txt.find( from, n ) ) != std::string::npos ) {
+  int i = 0;
+  while ( ( n = txt.find( from, n ) ) != std::string::npos && i++<max ) {
     txt.replace( n, from.size(), to );
     n += to.size();
   }

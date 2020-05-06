@@ -89,9 +89,13 @@ void fitter(
   GlobalInfo userInput;
   bool saveAll = false;
   //
-  if (workDirName.find("/Nominal",workDirName.length()-8)!=std::string::npos ||
-      workDirName.find("/Nominal/")!=std::string::npos) {
-    userInput.Flag["doMinos"] = true;
+  userInput.Flag["doMinos"] = false;
+  for (const auto& wsLbl : StringVector_t({"Nominal", "Nominal_LLR50"})) {
+    if (workDirName.find(wsLbl, workDirName.length()-wsLbl.length())!=std::string::npos ||
+	workDirName.find(wsLbl+"/")!=std::string::npos) {
+      userInput.Flag.at("doMinos") = true;
+      break;
+    }
   }
   //
   // Set all the Parameters from the input settings
