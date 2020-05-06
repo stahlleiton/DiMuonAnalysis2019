@@ -82,13 +82,13 @@ const std::string path_MC = "/Users/andre/DiMuonAnalysis2019/Tree";
 const std::map< std::string , std::string > inputFileMap_ =
   {
    {"MC_JPsiPR_pPb8Y16"       , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root")   },
-   {"MC_JPsiPR_Pbp8Y16"       , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root")   },
+   {"MC_JPsiPR_Pbp8Y16"       , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root")   },
    {"MC_Psi2SPR_pPb8Y16"      , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_Psi2SToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root")  },
-   {"MC_Psi2SPR_Pbp8Y16"      , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_Psi2SToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root")  },
+   {"MC_Psi2SPR_Pbp8Y16"      , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_Psi2SToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root")  },
    {"MC_JPsiNoPR_pPb8Y16"     , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root") },
-   {"MC_JPsiNoPR_Pbp8Y16"     , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root") },
+   {"MC_JPsiNoPR_Pbp8Y16"     , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root") },
    {"MC_Psi2SNoPR_pPb8Y16"    , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root") },
-   {"MC_Psi2SNoPR_Pbp8Y16"    , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_Pbp-Bst_pPb816Summer16_DiMuMC.root") },
+   {"MC_Psi2SNoPR_Pbp8Y16"    , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root") },
    {"MC_JPsiPR_pPb8Y16GEN"    , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root")   },
    {"MC_Psi2SPR_pPb8Y16GEN"   , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_Psi2SToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root")  },
    {"MC_JPsiNoPR_pPb8Y16GEN"  , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_BToPsiToMuMu_pPb-Bst_GENonly_pPb816Summer16_DiMuGENONLY.root") },
