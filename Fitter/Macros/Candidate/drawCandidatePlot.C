@@ -3,8 +3,10 @@
 
 
 #include "../Utilities/drawUtils.h"
+#include <fstream>
 
 
+bool     checkFit                  ( std::vector<std::string>& status   , const RooWorkspace& ws , const std::string& pdfName );
 void     printCandidateParameters  ( TPad& pad , const RooWorkspace& ws , const std::string& pdfName , const uint& drawMode );
 void     printCandidateTextInfo    ( TPad& pad , const RooWorkspace& ws , const std::string& varN , const uint& drawMode , const int& plotStyle );
 TLegend* printCandidateLegend      ( TPad& pad , const RooPlot& frame   , const StringMap_t& legInfo , const int& plotStyle );
@@ -335,13 +337,27 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
   // Set log scale if requested
   pad.at("MAIN")->SetLogy(setLogScale);
   pad.at("MAIN")->Update();
-   //
+  //
   // Save the plot in different formats
   StringVector_t formats = {"png", "pdf", "root", "C"};
   for (const auto& f : formats) {
     makeDir(outputDir+"plot/"+varTag+"/"+f+"/");
     cFig->SaveAs((outputDir+"plot/"+varTag+"/"+f+"/"+fileName+"."+f).c_str());
   }
+  //
+  // Check fit quality and store plot if failed
+  std::vector<std::string> status;
+  auto failDir = outputDir;
+  if (failDir.find("DATA_")!=std::string::npos) { failDir = failDir.substr(0, failDir.find("DATA_")); }
+  else if (failDir.find("MC_")!=std::string::npos) { failDir = failDir.substr(0, failDir.find("MC_")); }
+  if (checkFit(status, ws, pdfName)) {
+    makeDir(failDir+"FAILED/");
+    cFig->SaveAs((failDir+"FAILED/"+fileName+".png").c_str());
+  }
+  else if (existFile(failDir+"FAILED/"+fileName+".png")) {
+    std::remove((failDir+"FAILED/"+fileName+".png").c_str());
+  }
+  //
   // Close canvas
   cFig->Clear();
   cFig->Close();
@@ -379,6 +395,35 @@ bool drawCandidatePlot( RooWorkspace& ws,
 };
 
 
+bool checkFit(std::vector<std::string>& status, const RooWorkspace& ws, const std::string& pdfName)
+{
+  // 1) check if parameters are hitting limits (within 3 sigma)
+  const auto& vars = getModelVar(ws, pdfName, "*");
+  for (const auto& var : vars) {
+    if ((std::abs(var.getValV() - var.getMin())/getErrorLo(var)) <= 3.0) {
+      status.push_back(Form("Parameter: %s reach lower limit. Suggest to use as lower limit: %.3f", var.GetName(), (var.getValV() - 3.1*getErrorLo(var))));
+    }
+    if ((std::abs(var.getValV() - var.getMax())/getErrorHi(var)) <= 3.0) {
+      status.push_back(Form("Parameter: %s reach upper limit. Suggest to use as upper limit: %.3f", var.GetName(), (var.getValV() + 3.1*getErrorHi(var))));
+    }
+  }
+  // 2) check if fit failed
+  if (ws.var("FIT_FAILED")) {
+    const auto sta = ws.var("FIT_FAILED")->getVal();
+    if (sta==1) { status.push_back("Fit failed due to MINIMIZE"); }
+    if (sta==2) { status.push_back("Fit failed due to HESSE"); }
+  }
+  // 3) check if f parameter is outside range [0, 1]
+  for (const auto& var : vars) {
+    const std::string name = var.GetName();
+    if (name.rfind("f_",0)==0 && (var.getValV()>1. || var.getValV()<0.)) {
+      status.push_back(Form("Parameter %s value %.2f is outside of [0, 1] range", var.GetName(), var.getValV()));
+    }
+  }
+  return !status.empty();
+};
+
+
 void printCandidateParameters(TPad& pad, const RooWorkspace& ws, const std::string& pdfName, const uint& drawMode)
 {
   pad.cd();
@@ -393,7 +438,7 @@ void printCandidateParameters(TPad& pad, const RooWorkspace& ws, const std::stri
     // Parse the parameter's labels
     const auto& parLbl = parseVarName(s); if (parLbl=="") continue;
     // Get number of decimals
-    const int n = std::max(-std::floor(std::log10(v.getError()>0. ? v.getError() : 1.)), 0.);
+    const int n = std::min(std::max(-std::floor(std::log10(v.getError()>0. ? v.getError() : 1.)), 0.), 3.);
     // Print the parameter's results
     std::string txtLbl;
     if (s.rfind("N_",0)==0) { txtLbl = Form("%s = %.0f#pm%.0f", parLbl.c_str(), v.getValV(), v.getError()); }
@@ -401,8 +446,16 @@ void printCandidateParameters(TPad& pad, const RooWorkspace& ws, const std::stri
     else if (n==1) { txtLbl = Form("%s = %.1f#pm%.1f", parLbl.c_str(), v.getValV(), v.getError()); }
     else if (n==2) { txtLbl = Form("%s = %.2f#pm%.2f", parLbl.c_str(), v.getValV(), v.getError()); }
     else           { txtLbl = Form("%s = %.3f#pm%.3f", parLbl.c_str(), v.getValV(), v.getError()); }
-    const bool& isAtLimit = isParAtLimit(v);
-    if (isAtLimit) { txtLbl += " (!)"; }
+    std::pair<double, double> limit;
+    const bool& isAtLimit = isParAtLimit(limit, v);
+    if (isAtLimit) {
+      txtLbl += " (!)#frac{";
+      if (limit.second!=-99.) { txtLbl += Form((n==0? "%.1f" : (n==1? "%.2f" : "%.3f")), limit.second); }
+      txtLbl += "}{";
+      if (limit.first!=-99.) { txtLbl += Form((n==0? "%.1f" : (n==1? "%.2f" : "%.3f")), limit.first); }
+      txtLbl += "}";
+    }
+    else if (s.rfind("f_",0)==0 && (v.getValV()>1. || v.getValV()<0.)) { txtLbl += " (!!!)"; }
     const bool printTxt = (isAtLimit || (s.rfind("b_",0)==0) ||  (s.rfind("N_",0)==0) || (s.find("BkgTo")==std::string::npos));
     if (printTxt) { t.DrawLatex(xPos, yPos-dy, txtLbl.c_str()); dy+=dYPos; }
   }
