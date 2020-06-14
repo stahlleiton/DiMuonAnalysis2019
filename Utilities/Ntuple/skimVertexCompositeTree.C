@@ -38,12 +38,16 @@ TTree* skimTree(TTree* told, std::vector<int>& evtV)
   tnew->SetAutoFlush(0);
   uint candSize;
   float mass[500];
-  bool softMuon1[500], softMuon2[500];
+  bool softMuon1[500], softMuon2[500], hybridMuon1[500], hybridMuon2[500], tightMuon1[500], tightMuon2[500];
 
   told->SetBranchAddress("candSize",&candSize);
   told->SetBranchAddress("mass",&mass);
   told->SetBranchAddress("softMuon1",&softMuon1);
   told->SetBranchAddress("softMuon2",&softMuon2);
+  told->SetBranchAddress("hybridMuon1",&hybridMuon1);
+  told->SetBranchAddress("hybridMuon2",&hybridMuon2);
+  told->SetBranchAddress("tightMuon1",&tightMuon1);
+  told->SetBranchAddress("tightMuon2",&tightMuon2);
 
   const auto& nentries = told->GetEntriesFast();
   const bool& fillV = (int(evtV.size())<nentries);
@@ -53,7 +57,7 @@ TTree* skimTree(TTree* told, std::vector<int>& evtV)
       told->GetEntry(i);
       bool hasGoodCandidate = false;
       for (uint j=0; j<candSize; j++) {
-        if ((mass[j]>2.1 && mass[j]<4.8) && (softMuon1[j] && softMuon2[j])) { hasGoodCandidate = true; break; }
+        if ((mass[j]>2.1) && ((softMuon1[j] && softMuon2[j]) || (hybridMuon1[j] && hybridMuon2[j]) || (tightMuon1[j] && tightMuon2[j]))) { hasGoodCandidate = true; break; }
       }
       const bool& keepEvt = (hasGoodCandidate);
       evtV.push_back(keepEvt);
