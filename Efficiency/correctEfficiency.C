@@ -78,7 +78,7 @@ const CorrMap_t corrType_ = {
 };
 //
 // Input Files for analysis
-const std::string path_MC = "/Users/andre/DiMuonAnalysis2019/Tree";
+const std::string path_MC = "/Users/andre/Analysis/DiMuonAnalysis2019/Tree";
 const std::map< std::string , std::string > inputFileMap_ =
   {
    {"MC_JPsiPR_pPb8Y16"       , Form("%s/%s", path_MC.c_str(), "VertexCompositeTree_JPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root")   },
@@ -97,7 +97,7 @@ const std::map< std::string , std::string > inputFileMap_ =
 std::map< std::string , std::vector< std::string > > sampleType_;
 
 
-void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi2SBins", const StringVector_t& PD = {"DIMUON", "MINBIAS"})
+void correctEfficiency(const std::string& workDirName = "CharmoniaFits_Psi1SBins", const StringVector_t& PD = {"DIMUON", "MINBIAS"})
 {
   for (const auto& pd : PD) {
     correctEfficiency(workDirName, pd);
@@ -111,7 +111,9 @@ void correctEfficiency(const std::string& workDirName, const std::string& PD)
   std::cout << "[INFO] Starting to compute efficiencies" << std::endl;
   //
   // Initialize the Kinematic Bin info
-  BinMapMap_t  ANA_BIN = BINMAP_Psi2S;
+  BinMapMap_t  ANA_BIN;
+  if (workDirName.rfind("Psi2SBins")!=std::string::npos) { ANA_BIN = BINMAP_Psi2S; }
+  if (workDirName.rfind("Psi1SBins")!=std::string::npos) { ANA_BIN = BINMAP_Psi1S; }
   AnaVarMap_t ANA_BIN_MAP;
   for (const auto& v1 : ANA_BIN) {
     const auto& var1 = v1.first;

@@ -55,9 +55,42 @@ class AnaBin_t : public std::set<BinF_t>
 
 typedef std::tuple<std::string, std::string, std::vector<double>> Var_t;
 typedef std::vector<Var_t> VarVec_t;
-typedef std::map< BinF_t , std::map< BinF_t , VarVec_t > > BinMapMap_t;
+typedef std::map< BinF_t , VarVec_t > BinMap_t;
+typedef std::map< BinF_t , BinMap_t > BinMapMap_t;
 
 // Initialize the binning
+
+// FOR Psi(2S):
+BinMap_t BINMAP_Psi2S_NTrk =
+  {
+   {
+    {"Cand_AbsRap", 0.0, 1.4},
+    {
+     {"Cand_Pt", "VAR", {6.5, 9.0, 50.0}}
+    }
+   },
+   {
+    {"Cand_AbsRap", 1.4, 2.4},
+    {
+     {"Cand_Pt", "VAR", {3.0, 5.0, 6.5, 9.0, 50.0}}
+    }
+   },
+   {
+    {"Cand_Pt", 3.0, 6.5},
+    {
+     {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}}
+    }
+   },
+   {
+    {"Cand_Pt", 6.5, 50.0},
+    {
+     {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.93}},
+     {"Cand_RapCM", "VAR", {-1.93, 0.0, 1.93}},
+     {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}},
+    }
+   }
+  };
+
 BinMapMap_t BINMAP_Psi2S =
   {
    {
@@ -102,129 +135,103 @@ BinMapMap_t BINMAP_Psi2S =
    },
    {
     {"NTrack", 15.0, 50.0},
-    {
-     {
-      {"Cand_AbsRap", 0.0, 1.4},
-      {
-       {"Cand_Pt", "VAR", {6.5, 9.0, 50.0}}
-      }
-     },
-     {
-      {"Cand_AbsRap", 1.4, 2.4},
-      {
-       {"Cand_Pt", "VAR", {3.0, 5.0, 6.5, 9.0, 50.0}}
-      }
-     },
-     {
-      {"Cand_Pt", 3.0, 6.5},
-      {
-       {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}}
-      }
-     },
-     {
-      {"Cand_Pt", 6.5, 50.0},
-      {
-       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.93}},
-       {"Cand_RapCM", "VAR", {-1.93, 0.0, 1.93}},
-       {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}},
-      }
-     }
-    }
+    BINMAP_Psi2S_NTrk
    },
    {
     {"NTrack", 50.0, 80.0},
-    {
-     {
-      {"Cand_AbsRap", 0.0, 1.4},
-      {
-       {"Cand_Pt", "VAR", {6.5, 9.0, 50.0}}
-      }
-     },
-     {
-      {"Cand_AbsRap", 1.4, 2.4},
-      {
-       {"Cand_Pt", "VAR", {3.0, 5.0, 6.5, 9.0, 50.0}}
-      }
-     },
-     {
-      {"Cand_Pt", 3.0, 6.5},
-      {
-       {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}}
-      }
-     },
-     {
-      {"Cand_Pt", 6.5, 50.0},
-      {
-       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.93}},
-       {"Cand_RapCM", "VAR", {-1.93, 0.0, 1.93}},
-       {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}},
-      }
-     }
-    }
+    BINMAP_Psi2S_NTrk
    },
    {
     {"NTrack", 80.0, 120.0},
-    {
-     {
-      {"Cand_AbsRap", 0.0, 1.4},
-      {
-       {"Cand_Pt", "VAR", {6.5, 9.0, 50.0}}
-      }
-     },
-     {
-      {"Cand_AbsRap", 1.4, 2.4},
-      {
-       {"Cand_Pt", "VAR", {3.0, 5.0, 6.5, 9.0, 50.0}}
-      }
-     },
-     {
-      {"Cand_Pt", 3.0, 6.5},
-      {
-       {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}}
-      }
-     },
-     {
-      {"Cand_Pt", 6.5, 50.0},
-      {
-       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.93}},
-       {"Cand_RapCM", "VAR", {-1.93, 0.0, 1.93}},
-       {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}},
-      }
-     }
-    }
+    BINMAP_Psi2S_NTrk
    },
    {
     {"NTrack", 120.0, 250.0},
+    BINMAP_Psi2S_NTrk
+   }
+  };
+
+
+// FOR Psi(1S):
+BinMap_t BINMAP_Psi1S_NTrk =
+  {
+   {
+    {"Cand_AbsRap", 0.0, 1.4},
     {
-     {
-      {"Cand_AbsRap", 0.0, 1.4},
-      {
-       {"Cand_Pt", "VAR", {6.5, 9.0, 50.0}}
-      }
-     },
-     {
-      {"Cand_AbsRap", 1.4, 2.4},
-      {
-       {"Cand_Pt", "VAR", {3.0, 5.0, 6.5, 9.0, 50.0}}
-      }
-     },
-     {
-      {"Cand_Pt", 3.0, 6.5},
-      {
-       {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}}
-      }
-     },
-     {
-      {"Cand_Pt", 6.5, 50.0},
-      {
-       {"Cand_RapCM", "VAR", {-2.86, -1.93, -1.2, -0.6, 0.0, 0.6, 1.2, 1.93}},
-       {"Cand_RapCM", "VAR", {-1.93, 0.0, 1.93}},
-       {"Cand_Rap", "VAR", {-2.4, -1.4, 1.4, 2.4}},
-      }
-     }
+     {"Cand_Pt", "VAR", {6.5, 8.0, 10.0, 12.0, 50.0}}
+    }
+   },
+   {
+    {"Cand_AbsRap", 1.4, 2.4},
+    {
+     {"Cand_Pt", "VAR", {0.0, 1.5, 3.0, 4.0, 5.0, 6.5, 8.0, 10.0, 12.0, 50.0}}
+    }
+   },
+   {
+    {"Cand_Rap", -2.4, -1.4},
+    {
+     {"Cand_Pt", "VAR", {0.0, 3.0, 6.5}}
+    }
+   },
+   {
+    {"Cand_Rap", 1.4, 2.4},
+    {
+     {"Cand_Pt", "VAR", {0.0, 3.0, 6.5}}
+    }
+   },
+   {
+    {"Cand_Pt", 6.5, 50.0},
+    {
+     {"Cand_Rap", "VAR", {-2.4, -1.4, -0.8, 0.0, 0.8, 1.4, 2.4}},
     }
    }
   };
+
+BinMapMap_t BINMAP_Psi1S =
+  {
+   {
+    {"NTrack", 15.0, 250.0},
+    BINMAP_Psi1S_NTrk
+   },
+   {
+    {"NTrack", 15.0, 40.0},
+    BINMAP_Psi1S_NTrk
+   },
+   {
+    {"NTrack", 40.0, 60.0},
+    BINMAP_Psi1S_NTrk
+   },
+   {
+    {"NTrack", 60.0, 80.0},
+    BINMAP_Psi1S_NTrk
+   },
+   {
+    {"NTrack", 80.0, 100.0},
+    BINMAP_Psi1S_NTrk
+   },
+   {
+    {"NTrack", 100.0, 120.0},
+    BINMAP_Psi1S_NTrk
+   },
+   {
+    {"NTrack", 120.0, 150.0},
+    BINMAP_Psi1S_NTrk
+   },
+   {
+    {"NTrack", 150.0, 185.0},
+    BINMAP_Psi1S_NTrk
+   },
+   {
+    {"NTrack", 185.0, 250.0},
+    BINMAP_Psi1S_NTrk
+   },
+   {
+    {"NTrack", 250.0, 350.0},
+    BINMAP_Psi1S_NTrk
+   }
+  };
+
+// FOR TEST:
 
 BinMapMap_t BINMAP_General =
   {
