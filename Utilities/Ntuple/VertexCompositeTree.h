@@ -37,6 +37,7 @@ public :
   virtual Long64_t     GetTreeEntries  (void) const { return ((fChain_ && fChain_->GetTree()) ? fChain_->GetTree()->GetEntriesFast() : -1); }
   virtual Int_t        GetTreeNumber   (void) const { return fCurrent_; }
   virtual void         Clear           (void);
+  static  void         GenerateDictionaries (void);
 
   // EVENT INFO GETTERS
   UInt_t    RunNb()                       { SetBranch("RunNb");                       return RunNb_;                      }
@@ -237,7 +238,6 @@ public :
   virtual void      SetBranch       (const std::string&);
   virtual void      InitTree        (void);
   virtual Int_t     LoadEntry       (void) { return fChain_->GetEntry(entry_); }
-  virtual void      GenerateDictionaries (void);
 
   template <typename T> T GET(T* x) { return ( (x) ? *x : T() ); }
   

@@ -310,7 +310,7 @@ void fitter(
 	  const auto& col = infoMapVector.first;
 	  if (userInput.Flag.at("fit"+col) && (col==dsCol)) {
 	    // run multithreading
-	    auto processFits = [=](int idx)
+	    auto processFits = [&](int idx)
 	    {
 	      //
 	      const size_t size = std::ceil(float(infoMapVector.second.size())/float(nCores));

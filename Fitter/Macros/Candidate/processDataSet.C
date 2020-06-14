@@ -69,7 +69,7 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   }
   //
   // Variables to delete
-  const std::vector<std::string> delVarNames = {"Cand_Qual", "Cand_Trig", "Cand_VtxP", "Dau1_Eta", "Dau1_Pt", "Dau2_Eta", "Dau2_Pt", "Cand_DLen2D", "Cand_DLenErr2D", "Cand_DLenGen2D"};
+  const std::vector<std::string> delVarNames = {"Cand_Qual", "Cand_Trig", "Cand_VtxP", "Dau1_Eta", "Dau1_Pt", "Dau2_Eta", "Dau2_Pt", "Cand_DLen2D", "Cand_DLenErr2D", "Cand_DLenGen2D", "Event_Sel"};
   //
   // Loop over the RooDataSets
   for (auto& ws : workspaces) {
@@ -81,7 +81,8 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
     //
     // Determine the cut string
     const std::string& PD = (ws.second.obj("PD") ? dynamic_cast<RooStringVar*>(ws.second.obj("PD"))->getVal() : "");
-    const auto& cutStr = ANA::analysisSelection("Dau1_Pt", "Dau1_Eta", "Dau2_Pt", "Dau2_Eta", "Cand_Mass", "Cand_VtxP", "Cand_Trig", "Cand_Qual", PD, evtCol, objS, true);
+    auto cutStr = ANA::analysisSelection("Dau1_Pt", "Dau1_Eta", "Dau2_Pt", "Dau2_Eta", "Cand_Mass", "Cand_VtxP", "Cand_Trig", "Cand_Qual", PD, evtCol, objS, true);
+    if (ws.second.var("Event_Sel")) { cutStr += " && (int(Event_Sel) & 1)"; }
     //
     // Skim the datasets
     RooWorkspace tmpWS; copyWorkspace(tmpWS, ws.second, "", false);
