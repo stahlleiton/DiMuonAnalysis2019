@@ -1,7 +1,7 @@
 #ifndef Utilities_resultUtils_h
 #define Utilities_resultUtils_h
 // Auxiliary Headers
-#include "bin.h"
+#include "bins.h"
 #include "../../Utilities/dataUtils.h"
 #include "../../Utilities/CMS/tdrstyle.C"
 #include "../../Utilities/CMS/CMS_lumi.C"
@@ -13,6 +13,7 @@
 #include "TLegendEntry.h"
 #include "TPaletteAxis.h"
 #include "TF1.h"
+#include "TMatrixD.h"
 // RooFit headers
 // c++ headers
 #include <iostream>
@@ -22,73 +23,214 @@
 
 
 // ------------------ TYPE -------------------------------
-typedef std::pair< anabin        , anabin            > BinPair_t;
-typedef std::map< anabin         , DoubleDiMap_t     > DoubleBinDiMap_t;
+typedef std::vector< double                          > DoubleVec_t;
+typedef std::pair< double        , double            > DoublePair_t;
+typedef std::pair< AnaBin_t        , int               > BinPair_t;
+typedef std::map< AnaBin_t         , DoubleDiMap_t     > DoubleBinDiMap_t;
 typedef std::map< std::string    , DoubleBinDiMap_t  > VarBinMap_t;
 typedef std::map< std::string    , VarBinMap_t       > VarBinDiMap_t;
 typedef std::map< std::string    , VarBinDiMap_t     > VarBinTriMap_t;
-typedef std::map< anabin         , double            > BinMap_t;
+typedef std::map< std::string    , VarBinTriMap_t    > VarBinQuadMap_t;
+typedef std::map< AnaBin_t         , double            > BinMap_t;
 typedef std::map< std::string    , BinMap_t          > BinDiMap_t;
 typedef std::map< std::string    , BinDiMap_t        > BinTriMap_t;
 typedef std::map< std::string    , BinTriMap_t       > BinQuadMap_t;
 typedef std::map< std::string    , BinQuadMap_t      > BinPentaMap_t;
 typedef std::map< std::string    , BinPentaMap_t     > BinSextaMap_t;
+typedef std::vector< BinSextaMap_t                   > BinSextaMapVec_t;
+typedef std::map< std::string    , BinSextaMapVec_t  > BinSeptaMapVec_t;
+typedef std::map< std::string    , BinSeptaMapVec_t  > BinOctaMapVec_t;
 typedef std::map< std::string    , BinSextaMap_t     > BinSeptaMap_t;
 typedef std::map< std::string    , BinSeptaMap_t     > BinOctaMap_t;
-typedef std::map< BinPair_t      , std::set<anabin>  > BinSetMap_t;
-typedef std::map< std::string    , BinSetMap_t       > BinSetDiMap_t;
+typedef std::map< BinPair_t      , std::set<AnaBin_t>  > BinSetMap_t;
+typedef std::map< AnaBin_t         , BinSetMap_t       > BinSetDiMap_t;
 typedef std::map< std::string    , BinSetDiMap_t     > BinSetTriMap_t;
-typedef std::map< std::string    , BinSetTriMap_t    > BinCont_t;
+typedef std::map< std::string    , BinSetTriMap_t    > BinSetQuadMap_t;
+typedef std::map< std::string    , BinSetQuadMap_t   > BinSetPentaMap_t;
+typedef std::map< std::string    , BinSetPentaMap_t  > BinCont_t;
 typedef std::map< std::string    , TGraphAsymmErrors > GraphMap_t;
-typedef std::map< std::string    , GraphMap_t        > GraphDiMap_t;
-typedef std::map< BinPair_t      , GraphDiMap_t      > GraphTriMap_t;
-typedef std::map< std::string    , GraphTriMap_t     > GraphQuadMap_t;
+typedef std::map< BinPair_t      , GraphMap_t        > GraphDiMap_t;
+typedef std::map< std::string    , GraphDiMap_t      > GraphTriMap_t;
+typedef std::map< AnaBin_t         , GraphTriMap_t     > GraphQuadMap_t;
 typedef std::map< std::string    , GraphQuadMap_t    > GraphPentaMap_t;
 typedef std::map< std::string    , GraphPentaMap_t   > GraphSextaMap_t;
+typedef std::map< std::string    , GraphSextaMap_t   > GraphSeptaMap_t;
+typedef std::pair< StringVector_t, IntMap_t          > StringVecIntPair_t;
+typedef std::map< std::string    , StringVecIntPair_t > StringVecIntPairMap_t;
+typedef std::map< std::string , StringVecIntPairMap_t > WSDirMap_t;
+
+// TO REMOVE
+typedef std::pair< AnaBin_t        , AnaBin_t            > BinPair2_t;
+typedef std::map< BinPair2_t      , std::set<AnaBin_t>  > BinSetMap2_t;
+typedef std::map< std::string    , BinSetMap2_t       > BinSetDiMap2_t;
+typedef std::map< std::string    , BinSetDiMap2_t     > BinSetTriMap2_t;
+typedef std::map< std::string    , BinSetTriMap2_t    > BinSetQuadMap2_t;
+typedef std::map< std::string    , BinSetQuadMap2_t   > BinCont2_t;
+typedef std::map< std::string    , TGraphAsymmErrors > GraphMap2_t;
+typedef std::map< std::string      , GraphMap2_t        > GraphDiMap2_t;
+typedef std::map< BinPair2_t      , GraphDiMap2_t       > GraphTriMap2_t;
+typedef std::map< std::string    , GraphTriMap2_t     > GraphQuadMap2_t;
+typedef std::map< std::string    , GraphQuadMap2_t    > GraphPentaMap2_t;
+typedef std::map< std::string    , GraphPentaMap2_t   > GraphSextaMap2_t;
 
 
 // ------------------ GLOBAL -------------------------------
-const auto& COLOR = std::vector<int>({kBlack, kRed, kGreen+2, kBlue+2, kAzure-7, kYellow-3, kMagenta+3, kCyan+3, kOrange+9, kSpring+4, kTeal+4, kViolet+9, kPink+8});
+const std::vector<int> COLOR({kBlack, kRed, kGreen+2, kBlue+2, kAzure-7, kYellow-3, kMagenta+3, kCyan+3, kOrange+9, kSpring+4, kTeal+4, kViolet+9, kPink+8});
+const StringVector_t   STAT({ "Err_Stat_High" , "Err_Stat_Low" });
+const StringVector_t   SYST({ "Err_Syst_High" , "Err_Syst_Low" });
 
-
-const DoubleDiMap_t MASS = {
-  { "D0",    {{"Val",  1.865}, {"Width", 0.10}, {"PID",    421.0}, {"Min",  1.7}, {"Max",   2.1}} },
-  { "LambC", {{"Val",  2.286}, {"Width", 0.10}, {"PID",   4122.0}, {"Min",  2.0}, {"Max",   2.5}} },
-  { "JPsi",  {{"Val",  3.096}, {"Width", 0.03}, {"PID",    443.0}, {"Min",  2.2}, {"Max",   3.9}} },
-  { "Psi2S", {{"Val",  3.686}, {"Width", 0.05}, {"PID", 100443.0}, {"Min",  2.6}, {"Max",   4.7}} },
-  { "Ups1S", {{"Val",  9.460}, {"Width", 0.10}, {"PID",    553.0}, {"Min",  6.1}, {"Max",  10.6}} },
-  { "Ups2S", {{"Val", 10.023}, {"Width", 0.10}, {"PID", 100553.0}, {"Min",  8.9}, {"Max",  11.1}} },
-  { "Ups3S", {{"Val", 10.355}, {"Width", 0.10}, {"PID", 200553.0}, {"Min",  9.4}, {"Max",  14.9}} },
-  { "Z",     {{"Val", 91.188}, {"Width", 3.00}, {"PID",     23.0}, {"Min", 60.0}, {"Max", 120.0}} },
-};
 
 // ------------------ FUNCTION -------------------------------
-
-
-double sumErrors(const std::vector<double>& errV)
+double symError(const double& errLow, const double& errHigh)
 {
-  double sumErrSqr = 0.;
-  for (const auto& e : errV) { sumErrSqr += std::pow(e, 2.0); }
-  return std::sqrt(sumErrSqr);
+  // check inputs
+  if (errLow<0. || isnan(errLow)) { throw std::logic_error(Form("[ERROR] symErrors: Invalid lower uncertainty ( %.6f )", errLow)); }
+  if (errHigh<0. || isnan(errHigh)) { throw std::logic_error(Form("[ERROR] symErrors: Invalid higher uncertainty ( %.6f )", errHigh)); }
+  // symmetrize uncertainties
+  const auto res = std::max(errLow, errHigh);
+  // check result
+  if (res<0. || isnan(res)) { throw std::logic_error(Form("[ERROR] Invalid symmetric error %.6f ( %.6f , %.6f )", res, errLow, errHigh)); }
+  // return result
+  return res;
 };
 
 
-void getBins(BinSetMap_t& binS, const std::set<anabin>& allBin, const std::string& obs, const StringVector_t& vars)
+void checkVec(const DoubleVec_t& vec, const bool& testNeg=false)
+{
+  for (const auto& v : vec) {
+    if ((testNeg && v<0.) || isnan(v)) { throw std::logic_error(Form("[ERROR] Invalid value %.2f", v)); }
+  }
+}
+
+  
+double sumErrors(const DoubleVec_t& errV, const TMatrixD& corrM=TMatrixD())
+{
+  //if (errV==std::vector<double>(errV.size())) { return 0.0; }
+  // check inputs
+  checkVec(errV);
+  // compute quadratic sum of uncertainties
+  double sumErrSqr = 0.0;
+  if (corrM.GetNoElements()>0) {
+    if (corrM.GetNcols()!=int(errV.size()) || !corrM.IsSymmetric()) { corrM.Print(); throw std::logic_error(Form("[ERROR] corrM(%d, %d) for errV(%lu) is not valid", corrM.GetNrows(), corrM.GetNcols(), errV.size())); }
+    for (size_t i1=0; i1<errV.size(); i1++) {
+      for (size_t i2=0; i2<errV.size(); i2++) {
+	sumErrSqr += errV[i1]*errV[i2]*corrM(i1,i2);
+      }
+    }
+  }
+  else {
+    for (const auto& e : errV) {
+      sumErrSqr += e*e;
+    }
+  }
+  const auto res = std::sqrt(sumErrSqr);
+  // check result
+  const bool isUnCorr = (corrM.GetNoElements()==0 || corrM.Determinant()==1.);
+  if ((isUnCorr && res==0.) || res<0. || isnan(res)) { throw std::logic_error(Form("[ERROR] Invalid sum of errors %.2f ( sqrt(%.2f) )", res, sumErrSqr)); }
+  // return result
+  return res;
+};
+
+
+double divide(const DoubleVec_t& numV, const DoubleVec_t& denV)
+{
+  // check inputs
+  checkVec(numV);
+  checkVec(denV);
+  // compute division
+  double num=1.0, den=1.0;
+  for (const auto& n : numV) { num *= n; }
+  for (const auto& n : denV) { den *= n; }
+  //if (den==0.0) { den = 1.0E-10; }
+  const auto res = (num / den);
+  // check division
+  if (isnan(res)) { throw std::logic_error(Form("[ERROR] Invalid divide arguments %.2f ( %.2f / %.2f )", res, num, den)); }
+  // return division
+  return res;
+};
+
+
+double divide(const double& num, const double& den)
+{
+  return divide(DoubleVec_t({num}), DoubleVec_t({den}));
+};
+
+  
+double divideError(const DoubleVec_t& numV, const DoubleVec_t& denV,
+		   const DoubleVec_t& numErrV, const DoubleVec_t& denErrV,
+		   const TMatrixD& corrIM=TMatrixD())
+{
+  // check inputs
+  checkVec(numV);
+  checkVec(denV, true);
+  checkVec(numErrV, true);
+  checkVec(denErrV, true);
+  // check input vectors
+  if (numErrV.size()!=numV.size()) { throw std::logic_error(Form("[ERROR] numErrV.size(%lu) != numV.size(%lu)", numErrV.size(), numV.size())); }
+  if (denErrV.size()!=denV.size()) { throw std::logic_error(Form("[ERROR] denErrV.size(%lu) != denV.size(%lu)", denErrV.size(), denV.size())); }
+  // compute relative errors
+  DoubleVec_t relErrV;
+  for (size_t i=0; i<numV.size(); i++) { relErrV.push_back(divide(numErrV[i], numV[i])); }
+  for (size_t i=0; i<denV.size(); i++) { relErrV.push_back(divide(denErrV[i], denV[i])); }
+  // compute correlation matrix for division
+  auto corrM = corrIM;
+  if (corrM.GetNoElements()>0) {
+    if (corrM.GetNcols()!=int(relErrV.size()) || !corrM.IsSymmetric()) { throw std::logic_error(Form("[ERROR] corrM(%d, %d) for relErrV(%lu) is not valid", corrM.GetNrows(), corrM.GetNcols(), relErrV.size())); }
+    for (int i1=0; i1<corrM.GetNrows(); i1++) {
+      for (int i2=0; i2<corrM.GetNcols(); i2++) {
+	corrM(i1, i2) = (i1<int(numV.size()) ? 1 : -1)*(i2<int(numV.size()) ? 1 : -1)*corrM(i1, i2);
+      }
+    }
+  }
+  // compute total uncertainty
+  const auto res = (std::abs(divide(numV, denV)) * sumErrors(relErrV, corrM));
+  // check total uncertainty
+  const bool isUnCorr = (corrM.GetNoElements()==0 || corrM.Determinant()==1.);
+  if ((isUnCorr && res==0.) || res<0. || isnan(res)) { throw std::logic_error(Form("[ERROR] Invalid divide uncertainty %.2f", res)); }
+  // return total uncertainty
+  return res;
+};
+
+  
+double divideError(const DoubleVec_t& numV, const DoubleVec_t& denV,
+		   const DoubleVec_t& numErrV, const DoubleVec_t& denErrV,
+		   const bool& isCorrelated)
+{
+  const auto n = numV.size() + denV.size();
+  const auto corrM = (isCorrelated ? TMatrixD(n,n,DoubleVec_t(n*n,1).data()) : TMatrixD());
+  return divideError(numV, denV, numErrV, denErrV, corrM);
+};
+
+  
+double divideError(const double& num, const double& den, const double& numErr, const double& denErr, const TMatrixD& corrM=TMatrixD())
+{
+  return divideError(DoubleVec_t({num}), DoubleVec_t({den}), DoubleVec_t({numErr}), DoubleVec_t({denErr}), corrM);
+};
+
+  
+double divideError(const double& num, const double& den, const double& numErr, const double& denErr, const bool& isCorrelated)
+{
+  return divideError(DoubleVec_t({num}), DoubleVec_t({den}), DoubleVec_t({numErr}), DoubleVec_t({denErr}), isCorrelated);
+};
+
+
+
+void getBins(BinSetMap2_t& binS, const std::set<AnaBin_t>& allBin, const std::string& obs, const StringVector_t& vars)
 {
   if (contain(vars, obs)) return;
-  std::set<BinPair_t> bSet;
+  std::set<BinPair2_t> bSet;
   for (const auto& b : allBin) {
     if (b.getbin(obs).name()=="") continue;
-    anabin varBin, incBin;
+    AnaBin_t varBin, incBin;
     bool keepBin = true;
     for (const auto& p : b) {
       if (p.name()==obs) continue;
       if (contain(vars, p.name())) { varBin.setbin(p); } else { incBin.setbin(p); }
       bool isInc = false;
-      if      (p.name()=="Cand_Rap"   ) { isInc = (isEqual(p.high(),   2.4, 1) && isEqual(p.low(), -2.4, 1)); }
-      else if (p.name()=="Cand_AbsRap") { isInc = (isEqual(p.high(),   2.4, 1) && isEqual(p.low(),  0.0, 1)); }
-      else if (p.name()=="Cand_RapCM" ) { isInc = (isEqual(p.high(),   1.93, 2) && isEqual(p.low(),  -2.86, 2)); }
-      else if (p.name()=="Centrality" ) { isInc = (isEqual(p.high(), 100.0, 1) && isEqual(p.low(),  0.0, 1)); }
+      if      (p.name()=="Cand_Rap"   ) { isInc = (isEqual(p.high(),   2.4, 1) && isEqual(p.low(),  -2.4, 1)); }
+      else if (p.name()=="Cand_AbsRap") { isInc = (isEqual(p.high(),   2.4, 1) && isEqual(p.low(),   0.0, 1)); }
+      else if (p.name()=="Cand_RapCM" ) { isInc = (isEqual(p.high(),  1.93, 2) && isEqual(p.low(), -2.86, 2)); }
+      else if (p.name()=="Centrality" ) { isInc = (isEqual(p.high(), 100.0, 1) && isEqual(p.low(),   0.0, 1)); }
       keepBin = (keepBin && (contain(vars, p.name()) ? !isInc : isInc));
     }
     const auto& binP = std::make_pair(varBin, incBin);
@@ -96,7 +238,7 @@ void getBins(BinSetMap_t& binS, const std::set<anabin>& allBin, const std::strin
   }
   // Check if we only have one main bin
   for (const auto& binP : bSet) {
-    std::set<binF> mainBin; for (const auto& b : binS.at(binP)) { mainBin.insert(b.getbin(obs)); }
+    std::set<BinF_t> mainBin; for (const auto& b : binS.at(binP)) { mainBin.insert(b.getbin(obs)); }
     if (mainBin.size()<=2) { binS.erase(binP); }
   }
 };
@@ -115,130 +257,25 @@ void combineBins(std::vector<StringVector_t>& cmbObs, const StringVector_t& allO
 };
 
 
-void defineBins(BinCont_t& binMap, const BinSextaMap_t& var)
+void defineGeneralBins(BinCont2_t& binMap, const BinSextaMap_t& var)
 {
   for (const auto& o : var) {
     for (const auto& c : o.second) {
-      // Get all bins
-      std::set<anabin> allBin;
-      for (const auto& pd : c.second) { for (const auto& b : pd.second.begin()->second.at("Val")) {  allBin.insert(b.first); } }
-      // Get all observables
-      StringVector_t allObs;
-      for (const auto& b : allBin) { for (const auto& v : b) { if (!contain(allObs, v.name())) { allObs.push_back(v.name()); } } }
-      // Combine all observables
-      std::vector<StringVector_t> cmbObs;
-      combineBins(cmbObs, allObs);
-      // Loop over each observable
-      for (const auto& p : allObs) {
-	auto& binS = binMap[o.first][c.first][p];
-	// Loop over each combination of observables
-	for (const auto& v : cmbObs) { getBins(binS, allBin, p, v); }
-      }
-    }
-  }
-};
-
-
-void iniResultsGraph(GraphSextaMap_t& graphMap, const BinCont_t& binMap, const BinSextaMap_t& var)
-{
-  //
-  const StringVector_t gType = {"Err_Tot", "Err_Stat"};
-  //
-  for (const auto& o : binMap) {
-    for (const auto& c : o.second) {
-      for (const auto& p : c.second) {
-	for (const auto& pp : p.second) {
-	  for (const auto& v : var.at(o.first).at(c.first).begin()->second) {
-	    for (const auto& t : gType) {
-	      auto& graph = graphMap[o.first][c.first][p.first][pp.first][v.first][t];
-	      graph.Set(pp.second.size());
-	      // Set Graph Name
-	      std::string ppLbl = "_"; if (pp.first.first.size()>0) { ppLbl += "_"; for (const auto& ppN : pp.first.first) { ppLbl += Form("%s_%.0f_%.0f_", ppN.name().c_str(), ppN.low()*100., ppN.high()*100.); } }
-	      const auto& name = ("gr_"+o.first+"_"+c.first+"_"+v.first+"_"+p.first+ppLbl+t);
-	      graph.SetName(name.c_str());
-	    }
-	  }
-	}
-      }
-    }
-  }
-};
-
-
-void fillResultsGraph(GraphSextaMap_t& graphMap, const BinCont_t& binMap, const BinSextaMap_t& iVar)
-{
-  //
-  std::cout << "[INFO] Filling the output graphs" << std::endl;
-  //
-  for (auto& o : graphMap) {
-    for (auto& c : o.second) {
-      for (auto& p : c.second) {
-	for (auto& pp : p.second) {
-	  //
-	  // Determine the bin index
-	  const auto& bins = binMap.at(o.first).at(c.first).at(p.first).at(pp.first);
-	  std::map<anabin , uint> binIdx; uint iBin = 0; for (const auto& b : bins) { binIdx[b] = iBin; iBin++; }
-	  //
-	  for (auto& v : pp.second) {
-	    for (auto& gr : v.second) {
-	      auto& graph = gr.second;
-	      for (const auto& b : bins) {
-		//
-		// Extract the parameters needed for each axis
-		//
-		// X Value
-		const auto& binX = b.getbin(p.first);
-		const auto& X = binX.mean(); // Mean value of bin
-		// X Error
-		const auto& Err_X = binX.width(); ; // Width of bin
-		const auto& Err_X_High = Err_X;
-		const auto& Err_X_Low  = Err_X;
-		//
-		double norm = 1.0;
-		if (v.first=="Cross_Section") {
-		  norm *= (binX.high()-binX.low());
-		  if (binX.name()=="Centrality") { norm *= 0.01; }
-		}
-		//
-		for (const auto& pd : iVar.at(o.first).at(c.first)) {
-		  const auto& var = pd.second.at(v.first);
-		  if (!contain(var.at("Val"), b)) continue;
-		  //
-		  // Y Value
-		  const auto& Y = var.at("Val").at(b)/norm;
-		  //
-		  // Compute total systematic error
-		  const auto& Err_Y_Syst_High = var.at("Err_Syst_High").at(b)/norm;
-		  const auto& Err_Y_Syst_Low  = var.at("Err_Syst_Low" ).at(b)/norm;
-		  //
-		  // Compute total statistic error
-		  const auto& Err_Y_Stat_High = var.at("Err_Stat_High").at(b)/norm;
-		  const auto& Err_Y_Stat_Low  = var.at("Err_Stat_Low" ).at(b)/norm;
-		  //
-		  // Y Error
-		  double Err_Y_High = 0.0 , Err_Y_Low  = 0.0;
-		  if (gr.first=="Err_Tot") {
-		    Err_Y_High = sumErrors({Err_Y_Stat_High , Err_Y_Syst_High});
-		    Err_Y_Low  = sumErrors({Err_Y_Stat_Low  , Err_Y_Syst_Low });
-		  }
-		  else if (gr.first=="Err_Stat") {
-		    Err_Y_High = Err_Y_Stat_High;
-		    Err_Y_Low  = Err_Y_Stat_Low;
-		  }
-		  else if (gr.first=="Err_Syst") {
-		    Err_Y_High = Err_Y_Syst_High;
-		    Err_Y_Low  = Err_Y_Syst_Low;
-		  }
-		  //
-		  // Fill the nominal graph
-		  //
-		  const auto& iBin = binIdx.at(b);
-		  graph.SetPoint(iBin, X, Y);
-		  graph.SetPointError(iBin, Err_X_Low, Err_X_High, Err_Y_Low, Err_Y_High);
-		}
-	      }
-	    }
-	  }
+      for (const auto& vv : c.second.begin()->second) {
+	// Get all bins
+	std::set<AnaBin_t> allBin;
+	for (const auto& pd : c.second) { for (const auto& b : pd.second.at(vv.first).at("Val")) {  allBin.insert(b.first); } }
+	// Get all observables
+	StringVector_t allObs;
+	for (const auto& b : allBin) { for (const auto& v : b) { if (!contain(allObs, v.name())) { allObs.push_back(v.name()); } } }
+	// Combine all observables
+	std::vector<StringVector_t> cmbObs;
+	combineBins(cmbObs, allObs);
+	// Loop over each observable
+	for (const auto& p : allObs) {
+	  auto& binS = binMap[o.first][c.first][vv.first][p];
+	  // Loop over each combination of observables
+	  for (const auto& v : cmbObs) { getBins(binS, allBin, p, v); }
 	}
       }
     }
@@ -264,14 +301,14 @@ std::string formatObsTag(const std::string& obs)
 std::string formatObsName(const std::string& obs)
 {
   const auto& obsL = StringMap_t({{"Cand_Mass", "Mass [GeV/c^{2}]"}, {"Cand_Pt", "p_{T} [GeV/c]"}, {"Cand_Rap", "y"}, {"Cand_RapCM", "y_{CM}"},
-				  {"Cand_AbsRap", "|y|"}, {"Centrality", "Centrality [%]"}, {"NTrack", "Track Multiplicity"}});
+				  {"Cand_AbsRap", "|y|"}, {"Centrality", "Centrality [%]"}, {"NTrack", "Track multiplicity"}});
   std::string obsF = (obs.rfind("Cand_",0)==0 ? "#mu^{+}#mu^{#font[122]{\55}} " : "");
   obsF += (contain(obsL, obs) ? obsL.at(obs) : "");
   return obsF;
 };
 
 
-std::string formatObsRange(const binF& bin)
+std::string formatObsRange(const BinF_t& bin)
 {
   const auto& bName = bin.name();
   const auto& bN = formatObsTag(bName);
@@ -281,9 +318,9 @@ std::string formatObsRange(const binF& bin)
   const auto& min = (contain(obsMin, bName) ? obsMin.at(bName) : -999.0);
   const auto& max = (contain(obsMax, bName) ? obsMax.at(bName) :  999.0);
   std::string label = "";
-  if (bin.low()>min && bin.high()>=max) { label = Form("%g%s #leq %s", bin.low(), bU.c_str(), bN.c_str()); }
-  else if (bin.low()<=min && bin.high()<max) { label = Form("%s < %g%s", bN.c_str(), bin.high(), bU.c_str()); }
-  else if (bin.low()>min && bin.high()<max) { label = Form("%g #leq %s < %g%s", bin.low(), bN.c_str(), bin.high(), bU.c_str()); }
+  if (bin.low()>min && bin.high()>=max) { label = Form("%g %s #leq %s", bin.low(), bU.c_str(), bN.c_str()); }
+  else if (bin.low()<=min && bin.high()<max) { label = Form("%s < %g %s", bN.c_str(), bin.high(), bU.c_str()); }
+  else if (bin.low()>min && bin.high()<max) { label = Form("%g #leq %s < %g %s", bin.low(), bN.c_str(), bin.high(), bU.c_str()); }
   return label;
 };
 
@@ -293,6 +330,8 @@ std::string formatObjName(const std::string& obj)
   const auto& objL = StringMap_t({{"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"}, {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
 				  {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
   auto ob = obj;
+  if (ob.find("NoPR")!=std::string::npos) { ob.erase(ob.find("NoPR"), 4); }
+  else if (ob.find("PR")!=std::string::npos) { ob.erase(ob.find("PR"), 2); }
   for (const auto& o : objL) { stringReplace(ob, o.first, o.second); }
   return ob;
 };
@@ -321,12 +360,29 @@ std::string formatResultVarName(const std::string& var, const std::string& par, 
     label = "B #times d#sigma/d"+parF+" ["+unit+"]";
   }
   else if (var=="RatioTo1S" || var=="R") {
-    label = ratioLbl+" Ratio";
+    label = "N("+objF+") / N("+ref+")";
+  }
+  else if (var=="ForwardBackward_Ratio") {
+    label = "N(+y_{CM}) / N(#font[122]{\55}y_{CM})";
   }
   // Add fit parameter
   else {
     const auto& varF = formatParName(var);
     label = (isRatio? ratioLbl : objF)+" "+varF;
+  }
+  return label;
+};
+
+
+std::string formatDecayLabel(const std::string& var, const std::string& obj)
+{
+  std::string label = formatObjName(obj);
+  if (var=="R" || var=="RatioTo1S") { label = (obj.rfind("Ups",0)==0 ? "#Upsilon(nS)" : (obj.rfind("Psi",0)==0 ? "#psi(nS)" : label)); }
+  if (obj.find("NoPR")!=std::string::npos) {
+    label = "b#rightarrow "+ label +"#rightarrow #mu^{+}#mu^{#font[122]{\55}}";
+  }
+  else {
+    label += "#rightarrow #mu^{+}#mu^{#font[122]{\55}}";
   }
   return label;
 };
@@ -360,23 +416,25 @@ void formatLegendEntry(TLegendEntry& e, const double& size=0.040)
 };
 
 
-void setRangeYAxisGraph(TGraphAsymmErrors& graph, const double& fracDo = 0.1, const double& fracUp = 0.5)
+void setRangeYAxisGraph(TGraphAsymmErrors& graph, const double& fracDo = 0.1, const double& fracUp = 0.5, const double& yMin=-99., const double& yMax=-99.)
 {
   // Find maximum and minimum points of Plot to rescale Y axis
   double YMax = -1e99;
-  for (int i=0; i<=graph.GetN(); i++) { double x, y; graph.GetPoint(i, x, y); y += graph.GetErrorY(i); YMax = std::max(YMax, y); }
+  if (yMax!=-99.) { YMax = yMax; }
+  else { for (int i=0; i<=graph.GetN(); i++) { double x, y; graph.GetPoint(i, x, y); y += graph.GetErrorY(i); YMax = std::max(YMax, y); } }
   double YMin = 1e99;
-  for (int i=0; i<=graph.GetN(); i++) { double x, y; graph.GetPoint(i, x, y); y -= graph.GetErrorY(i); YMin = std::min(YMin, y); }
+  if (yMin!=-99.) { YMin = yMin; }
+  else { for (int i=0; i<=graph.GetN(); i++) { double x, y; graph.GetPoint(i, x, y); y -= graph.GetErrorY(i); YMin = std::min(YMin, y); } }
   //
-  const double YTot = (YMax - YMin)/(1.0 - fracUp - fracDo);
+  const double YTot = (fracDo>=0. ? (YMax - YMin)/(1.0 - fracUp - fracDo) : YMax/(1.0 - fracUp));
   const double Yup   = YMax + fracUp*YTot;
-  const double Ydown = YMin - fracDo*YTot;
+  const double Ydown = (fracDo>=0. ? YMin - fracDo*YTot : 0.0);
   //
   graph.GetYaxis()->SetRangeUser(Ydown, Yup);
 };
 
 
-void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const std::string& par, const std::string& obj, const std::string& col, const int& color=-1, const bool& isRatio=false)
+void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const std::string& par, const std::string& obj, const std::string& col, const int& color=-1, const bool& isRatio=false, const std::vector<double>& pRange={})
 {
   //
   // Set the Axis Titles
@@ -397,13 +455,15 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const 
   graph.GetXaxis()->SetTitleOffset(0.75);
   graph.GetXaxis()->SetTitleSize(0.065);
   graph.GetXaxis()->SetLabelSize(0.035);
-  double xMin = graph.GetXaxis()->GetXmin()-0.1;
-  double xMax = graph.GetXaxis()->GetXmax()+0.1;
-  if      (par=="Cand_Pt"    ) { xMin = -0.1; xMax = 32.0; }
+  double xMin = graph.GetXaxis()->GetXmin();
+  double xMax = graph.GetXaxis()->GetXmax();
+  if (!pRange.empty()) { xMin = pRange[0]; xMax = pRange[2]; }
+  xMin -= 0.1; xMax += 0.1;
+  if      (par=="Cand_Pt"    ) { xMin = -0.1; xMax = 66.0; }
   else if (par=="Cand_Rap"   ) { xMin = -2.6; xMax = 2.6; }
   else if (par=="Cand_RapCM" ) { xMin = -2.9; xMax = 2.0; }
   else if (par=="Cand_AbsRap") { xMin = -0.1; xMax = 2.6; }
-  else if (par=="NTrack") { xMin = 0.0; xMax = 260.0; }
+  else if (par=="NTrack") { xMin = 0.0; xMax = 275.0; }
   graph.GetXaxis()->SetRangeUser(xMin, xMax);
   graph.GetXaxis()->SetLimits(xMin, xMax);
   if (par=="NTrack") graph.GetXaxis()->SetNdivisions(510);
@@ -413,11 +473,46 @@ void formatResultsGraph(TGraphAsymmErrors& graph, const std::string& var, const 
   graph.GetYaxis()->SetTitleOffset(1.05);
   graph.GetYaxis()->SetTitleSize(0.065);
   graph.GetYaxis()->SetLabelSize(0.035);
-  setRangeYAxisGraph(graph, 0.1, 0.4);
+  double fracD = ((var=="ForwardBackward_Ratio" || var=="RatioTo1S") ? -0.1 : 0.1); 
+  if (pRange.empty()) { setRangeYAxisGraph(graph, fracD, 0.4); }
+  else { setRangeYAxisGraph(graph, fracD, 0.4, pRange[1], pRange[3]); }
 };
 
 
-void drawResultsGraph(GraphSextaMap_t& graphMap, const std::string& outDir, const bool& isMC)
+std::tuple<double, double, double> computeStats(TGraphAsymmErrors& gr)
+{
+  double mean = 0;
+  double N = 0;
+  for (int i=0; i<gr.GetN(); i++) {
+    const auto& y = gr.GetY()[i];
+    const auto& yErrLo = gr.GetEYlow()[i];
+    const auto& yErrHi = gr.GetEYhigh()[i];
+    auto yErr = std::max(yErrLo, yErrHi);
+    if (yErr==0.) { yErr = 1E-9; }
+    const auto yVar = yErr*yErr;
+    const auto w = 1./yVar;
+    mean += w*y;
+    N += w;
+  }
+  mean /= N;
+  const auto& meanErr = 1./std::sqrt(N);
+  double RMS = 0;
+  for (int i=0; i<gr.GetN(); i++) {
+    const auto& y = gr.GetY()[i];
+    const auto& yErrLo = gr.GetEYlow()[i];
+    const auto& yErrHi = gr.GetEYhigh()[i];
+    auto yErr = std::max(yErrLo, yErrHi);
+    if (yErr==0.) { yErr = 1E-9; }
+    const auto yVar = yErr*yErr;
+    const auto w = 1./yVar;
+    RMS += w*(y-mean)*(y-mean);
+  }
+  RMS = std::sqrt(RMS/N);
+  return std::make_tuple(mean, meanErr, RMS);
+};
+
+
+void drawParametersGraph(GraphSextaMap2_t& graphMap, const std::string& outDir, const bool& isMC)
 {
   //
   // Set Style
@@ -437,21 +532,65 @@ void drawResultsGraph(GraphSextaMap_t& graphMap, const std::string& outDir, cons
 	    const std::string& var = v.first;
 	    const std::string& par = p.first;
 	    //
-	    // Extract inclusive bin
-	    int incBin = -1;
-	    TGraphAsymmErrors incGraph;
 	    auto& ggr = graphMap.at(obj).at(col).at(par).at(pp.first).at(var);
+	    //
+	    // Sort points
+	    for (auto& gr : ggr) { gr.second.Sort(); }
+	    //
+	    // Extract inclusive bin (largest width bin)
+	    int incBin = -1;
+	    double xMaxErr = -9999999999.;
+	    TGraphAsymmErrors incGraph;
 	    for (int i=0; i<ggr.at("Err_Stat").GetN(); i++) {
-	      if (i>0 && ggr.at("Err_Stat").GetX()[i]<ggr.at("Err_Stat").GetX()[i-1]) {
-		incBin = i-1;
-		incGraph.Set(1);
-		incGraph.SetPoint(0, 0.0, ggr.at("Err_Stat").GetY()[incBin]);
-		incGraph.SetPointEYlow(0, ggr.at("Err_Stat").GetEYlow()[incBin]);
-		incGraph.SetPointEYhigh(0, ggr.at("Err_Stat").GetEYhigh()[incBin]);
-		break;
+	      const auto& xErr = ggr.at("Err_Stat").GetEXlow()[i];
+	      if (xErr > xMaxErr) {
+		incBin = i;
+		xMaxErr = xErr;
 	      }
 	    }
-	    if (incBin>=0) { for (auto& gr : ggr) { gr.second.RemovePoint(incBin); } }
+	    if (incBin>=0) {
+	      incGraph.Set(1);
+	      incGraph.SetPoint(0, 0.0, ggr.at("Err_Stat").GetY()[incBin]);
+	      incGraph.SetPointEYlow(0, ggr.at("Err_Stat").GetEYlow()[incBin]);
+	      incGraph.SetPointEYhigh(0, ggr.at("Err_Stat").GetEYhigh()[incBin]);
+	      for (auto& gr : ggr) { gr.second.RemovePoint(incBin); }
+	    }
+	    //
+	    // Exclude intermediate bins
+	    std::vector<int> excBin;
+	    for (int i=0; i<ggr.at("Err_Stat").GetN(); i++) {
+	      const auto& xVal1 = ggr.at("Err_Stat").GetX()[i];
+	      const auto& xErr1 = ggr.at("Err_Stat").GetEXlow()[i];
+	      for (int j=1; j<ggr.at("Err_Stat").GetN(); j++) {
+		const auto& xVal2 = ggr.at("Err_Stat").GetX()[j];
+		const auto& xErr2 = ggr.at("Err_Stat").GetEXlow()[j];
+		if (xVal1>xVal2 && xVal1-xErr1+0.001 < xVal2+xErr2) {
+		  const auto& excB = (xErr1>xErr2 ? i : j);
+		  if (xErr1!=xErr2 && !contain(excBin, excB)) { excBin.push_back(excB); }
+		}
+	      }
+	    }
+	    TGraphAsymmErrors midGraph; midGraph.Set(excBin.size());
+	    for (uint i=0; i<excBin.size(); i++) {
+	      const auto& excB = excBin[i];
+	      midGraph.SetPoint(i, ggr.at("Err_Stat").GetX()[excB], ggr.at("Err_Stat").GetY()[excB]);
+	      midGraph.SetPointEYlow(i, ggr.at("Err_Stat").GetEYlow()[excB]);
+	      midGraph.SetPointEYhigh(i, ggr.at("Err_Stat").GetEYhigh()[excB]);
+	      midGraph.SetPointEXlow(i, ggr.at("Err_Stat").GetEXlow()[excB]);
+	      midGraph.SetPointEXhigh(i, ggr.at("Err_Stat").GetEXhigh()[excB]);
+	    }
+	    for (int i=0; i<midGraph.GetN(); i++) {
+	      const auto& xVal1 = midGraph.GetX()[i];
+	      const auto& xErr1 = midGraph.GetEXlow()[i];
+	      for (int j=1; j<ggr.at("Err_Stat").GetN(); j++) {
+		const auto& xVal2 = ggr.at("Err_Stat").GetX()[j];
+		const auto& xErr2 = ggr.at("Err_Stat").GetEXlow()[j];
+		if (xVal1==xVal2 && xErr1==xErr2) {
+		  for (auto& gr : ggr) { gr.second.RemovePoint(j); }
+		  break;
+		}
+	      }
+	    }
 	    //
 	    // Create Canvas
 	    TCanvas c("c", "c", 1000, 1000); c.cd();
@@ -459,10 +598,7 @@ void drawResultsGraph(GraphSextaMap_t& graphMap, const std::string& outDir, cons
 	    // Create the Text Info
 	    TLatex tex; tex.SetNDC(); tex.SetTextSize(0.035); float dy = 0;
 	    std::vector< std::string > textToPrint;
-	    std::string sampleLabel = formatObjName(obj);
-	    if (var=="R" || var=="RatioTo1S") { sampleLabel = (obj.rfind("Ups",0)==0 ? "#Upsilon(nS)" : (obj.rfind("Psi",0)==0 ? "#psi(nS)" : sampleLabel)); }
-	    sampleLabel += " #rightarrow #mu^{+} + #mu^{#font[122]{\55}}";
-	    textToPrint.push_back(sampleLabel);
+	    textToPrint.push_back(formatDecayLabel(var, obj));
 	    for (const auto& ppN : pp.first.first) { textToPrint.push_back(formatObsRange(ppN)); }
 	    for (const auto& ppN : pp.first.second) { textToPrint.push_back(formatObsRange(ppN)); }
 	    //
@@ -493,25 +629,31 @@ void drawResultsGraph(GraphSextaMap_t& graphMap, const std::string& outDir, cons
 	      }
 	    }
 	    if (incBin>=0) {
-	      std::cout << incGraph.GetY()[0] << "  " <<  grVec[0].GetXaxis()->GetXmax() << std::endl;
 	      incGraph.SetPoint(0, grVec[0].GetXaxis()->GetXmax()-0.1, incGraph.GetY()[0]);
 	      incGraph.SetMarkerColor(kRed);
 	      incGraph.SetMarkerSize(2.0);
 	      incGraph.SetMarkerStyle(21);
 	    }
+	    if (excBin.size()>0) {
+	      midGraph.SetMarkerColor(kBlue);
+	      midGraph.SetMarkerSize(2.0);
+	      midGraph.SetMarkerStyle(21);
+	    }
 	    //for (int i=0; i<grVec[0].GetN(); i++) { grVec[0].SetPointEXhigh(i, 0.0); grVec[0].SetPointEXlow(i, 0.0); }
-	    // Fit the distribution
-	    TF1 fit("lin", "[0]", grVec[0].GetXaxis()->GetXmin(), grVec[0].GetXaxis()->GetXmax());
-	    grVec[0].Fit(&fit, "QMNCF");
-	    fit.SetLineStyle(7);
-	    fit.SetLineColor(kBlack);
-	    fit.SetLineWidth(4);
-	    const auto meanVal = fit.GetParameter(0);
-	    const auto meanErr = fit.GetParError(0);
+	    // Compute the weighted mean and RMS
+	    const auto& grStat = computeStats(grVec[0]);
+	    const auto meanVal = std::get<0>(grStat);
+	    const auto meanErr = std::get<1>(grStat);
+	    const auto RMS = std::get<2>(grStat);
+	    TLine line(grVec[0].GetXaxis()->GetXmin(), meanVal, grVec[0].GetXaxis()->GetXmax(), meanVal);
+	    line.SetLineStyle(7);
+	    line.SetLineColor(kBlack);
+	    line.SetLineWidth(4);
 	    // Draw the graphs
 	    grVec[0].Draw("ap");
-	    fit.Draw("same");
+	    line.Draw("same");
 	    incGraph.Draw("samep");
+	    midGraph.Draw("samep");
 	    if (contain(graph, "Err_Syst")) {grVec[1].Draw("samep"); grVec[2].Draw("samep"); }
 	    grVec[0].Draw("samep");
 	    // Add legend text
@@ -539,7 +681,8 @@ void drawResultsGraph(GraphSextaMap_t& graphMap, const std::string& outDir, cons
 	    for (uint i=1; i<textToPrint.size(); i++) { tex.SetTextSize(0.045); tex.DrawLatex(0.22, 0.76-dy, textToPrint[i].c_str()); dy+=0.060; }
 	    if (var=="Cross_Section") { tex.SetTextSize(0.030); tex.DrawLatex(0.25, 0.17, "Lumi. uncertainty not shown"); }
 	    tex.SetTextSize(0.030); tex.DrawLatex(0.66, 0.74, Form("Mean: %.3f #pm %.3f", meanVal, meanErr));
-	    if (incBin>=0) { tex.SetTextSize(0.030); tex.DrawLatex(0.66, 0.69, Form("Incl.: %.3f #pm %.3f", incGraph.GetY()[0], std::max(incGraph.GetEYlow()[0], incGraph.GetEYhigh()[0]))); }
+	    tex.SetTextSize(0.030); tex.DrawLatex(0.66, 0.69, Form("RMS: %.3f", RMS));
+	    if (incBin>=0) { tex.SetTextSize(0.030); tex.DrawLatex(0.66, 0.64, Form("Incl.: %.3f #pm %.3f", incGraph.GetY()[0], std::max(incGraph.GetEYlow()[0], incGraph.GetEYhigh()[0]))); }
 	    // Update
 	    c.Modified(); c.Update(); // Pure paranoia
 	    //
@@ -574,7 +717,7 @@ void drawResultsGraph(GraphSextaMap_t& graphMap, const std::string& outDir, cons
 };
 
 
-void compareObjectGraph(GraphSextaMap_t& graphMap, const std::string& outDir, const bool& isMC, const StringVector_t& objTags)
+void compareObjectGraph(GraphSextaMap2_t& graphMap, const std::string& outDir, const bool& isMC, const StringVector_t& objTags)
 {
   //
   // Set Style
@@ -594,20 +737,6 @@ void compareObjectGraph(GraphSextaMap_t& graphMap, const std::string& outDir, co
 	  const std::string& col = c.first;
 	  const std::string& var = v.first;
 	  const std::string& par = p.first;
-	  //
-	  // Extract inclusive bin
-	  for (const auto& obj : objTags) {
-	    int incBin = -1;
-	    auto& graph = graphMap.at(obj).at(col).at(par).at(pp.first).at(var);
-	    for (int i=0; i<graph.at("Err_Stat").GetN(); i++) {
-	      if (i>0 && graph.at("Err_Stat").GetX()[i]<graph.at("Err_Stat").GetX()[i-1]) {
-		incBin = i-1;
-		std::cout << var << "  " << graph.at("Err_Stat").GetX()[i-1] << "  " << graph.at("Err_Stat").GetX()[i] << "  " << graph.at("Err_Stat").GetY()[i] << std::endl;
-		break;
-	      }
-	    }
-	    if (incBin>=0) { for (auto& gr : graph) { gr.second.RemovePoint(incBin); } }
-	  }
 	  //
 	  const auto mainObjGraph = graphMap.at(mainObj).at(col).at(par).at(pp.first).at(var);
 	  //
@@ -651,7 +780,65 @@ void compareObjectGraph(GraphSextaMap_t& graphMap, const std::string& outDir, co
 		objGr.SetPointEYhigh(i, oErrUp);
 		objGr.SetPointEYlow (i, oErrDw);
 	      }
-	    } 
+	    }
+	    //
+	    // Sort points
+	    for (auto& gr : graph) { gr.second.Sort(); }
+	    //
+	    // Extract inclusive bin (largest width bin)
+	    int incBin = -1;
+	    double xMaxErr = -9999999999.;
+	    TGraphAsymmErrors incGraph;
+	    for (int i=0; i<graph.at("Err_Stat").GetN(); i++) {
+	      const auto& xErr = graph.at("Err_Stat").GetEXlow()[i];
+	      if (xErr > xMaxErr) {
+		incBin = i;
+		xMaxErr = xErr;
+	      }
+	    }
+	    if (incBin>=0) {
+	      incGraph.Set(1);
+	      incGraph.SetPoint(0, 0.0, graph.at("Err_Stat").GetY()[incBin]);
+	      incGraph.SetPointEYlow(0, graph.at("Err_Stat").GetEYlow()[incBin]);
+	      incGraph.SetPointEYhigh(0, graph.at("Err_Stat").GetEYhigh()[incBin]);
+	      for (auto& gr : graph) { gr.second.RemovePoint(incBin); }
+	    }
+	    //
+	    // Exclude intermediate bins
+	    std::vector<int> excBin;
+	    for (int i=0; i<graph.at("Err_Stat").GetN(); i++) {
+	      const auto& xVal1 = graph.at("Err_Stat").GetX()[i];
+	      const auto& xErr1 = graph.at("Err_Stat").GetEXlow()[i];
+	      for (int j=1; j<graph.at("Err_Stat").GetN(); j++) {
+		const auto& xVal2 = graph.at("Err_Stat").GetX()[j];
+		const auto& xErr2 = graph.at("Err_Stat").GetEXlow()[j];
+		if (xVal1>xVal2 && xVal1-xErr1+0.001 < xVal2+xErr2) {
+		  const auto& excB = (xErr1>xErr2 ? i : j);
+		  if (xErr1!=xErr2 && !contain(excBin, excB)) { excBin.push_back(excB); }
+		}
+	      }
+	    }
+	    TGraphAsymmErrors midGraph; midGraph.Set(excBin.size());
+	    for (uint i=0; i<excBin.size(); i++) {
+	      const auto& excB = excBin[i];
+	      midGraph.SetPoint(i, graph.at("Err_Stat").GetX()[excB], graph.at("Err_Stat").GetY()[excB]);
+	      midGraph.SetPointEYlow(i, graph.at("Err_Stat").GetEYlow()[excB]);
+	      midGraph.SetPointEYhigh(i, graph.at("Err_Stat").GetEYhigh()[excB]);
+	      midGraph.SetPointEXlow(i, graph.at("Err_Stat").GetEXlow()[excB]);
+	      midGraph.SetPointEXhigh(i, graph.at("Err_Stat").GetEXhigh()[excB]);
+	    }
+	    for (int i=0; i<midGraph.GetN(); i++) {
+	      const auto& xVal1 = midGraph.GetX()[i];
+	      const auto& xErr1 = midGraph.GetEXlow()[i];
+	      for (int j=1; j<graph.at("Err_Stat").GetN(); j++) {
+		const auto& xVal2 = graph.at("Err_Stat").GetX()[j];
+		const auto& xErr2 = graph.at("Err_Stat").GetEXlow()[j];
+		if (xVal1==xVal2 && xErr1==xErr2) {
+		  for (auto& gr : graph) { gr.second.RemovePoint(j); }
+		  break;
+		}
+	      }
+	    }
 	    // Draw graph
 	    std::vector<TGraphAsymmErrors> grV;
 	    grV.push_back(graph.at("Err_Stat"));
@@ -672,18 +859,32 @@ void compareObjectGraph(GraphSextaMap_t& graphMap, const std::string& outDir, co
 		for (int i=0; i<grVec[j].GetN(); i++) { grVec[j].SetPointEXhigh(i, 0.5*grVec[j].GetErrorXhigh(i)); grVec[j].SetPointEXlow(i, 0.5*grVec[j].GetErrorXlow(i)); }
 	      }
 	    }
+	    if (incBin>=0) {
+	      incGraph.SetPoint(0, grVec[0].GetXaxis()->GetXmax()-0.1, incGraph.GetY()[0]);
+	      incGraph.SetMarkerColor(kRed);
+	      incGraph.SetMarkerSize(2.0);
+	      incGraph.SetMarkerStyle(21);
+	    }
+	    if (excBin.size()>0) {
+	      midGraph.SetMarkerColor(kBlue);
+	      midGraph.SetMarkerSize(2.0);
+	      midGraph.SetMarkerStyle(21);
+	    }
 	    //for (int i=0; i<grVec[0].GetN(); i++) { grVec[0].SetPointEXhigh(i, 0.0); grVec[0].SetPointEXlow(i, 0.0); }
-	    // Fit the distribution
-	    TF1 fit("lin", "[0]", grVec[0].GetXaxis()->GetXmin(), grVec[0].GetXaxis()->GetXmax());
-	    grVec[0].Fit(&fit, "QMNCF");
-	    fit.SetLineStyle(7);
-	    fit.SetLineColor(kBlack);
-	    fit.SetLineWidth(4);
-	    const auto meanVal = fit.GetParameter(0);
-	    const auto meanErr = fit.GetParError(0);
+	    // Compute the weighted mean and RMS
+	    const auto& grStat = computeStats(grVec[0]);
+	    const auto meanVal = std::get<0>(grStat);
+	    const auto meanErr = std::get<1>(grStat);
+	    const auto RMS = std::get<2>(grStat);
+	    TLine line(grVec[0].GetXaxis()->GetXmin(), meanVal, grVec[0].GetXaxis()->GetXmax(), meanVal);
+	    line.SetLineStyle(7);
+	    line.SetLineColor(kBlack);
+	    line.SetLineWidth(4);
 	    // Draw the graphs
 	    grVec[0].Draw("ap");
-	    fit.Draw("same");
+	    incGraph.Draw("samep");
+	    midGraph.Draw("samep");
+	    line.Draw("same");
 	    if (contain(graph, "Err_Syst")) {grVec[1].Draw("samep"); grVec[2].Draw("samep"); }
 	    grVec[0].Draw("samep");
 	    // Add legend text
@@ -710,8 +911,10 @@ void compareObjectGraph(GraphSextaMap_t& graphMap, const std::string& outDir, co
 	    tex.SetTextSize(0.046); tex.SetTextFont(52); tex.DrawLatex(0.69, 0.79, "Preliminary"); tex.SetTextFont(62);
 	    for (uint i=1; i<textToPrint.size(); i++) { tex.SetTextSize(0.045); tex.DrawLatex(0.22, 0.76-dy, textToPrint[i].c_str()); dy+=0.060; }
 	    if (var=="Cross_Section") { tex.SetTextSize(0.030); tex.DrawLatex(0.25, 0.17, "Lumi. uncertainty not shown"); }
-	    tex.SetTextSize(0.030); tex.DrawLatex(0.62, 0.74, Form("Mean: %.2f #pm %.2f", meanVal, meanErr));
-	    if (var.rfind("Sigma",0)==0 || var=="m") { tex.SetTextSize(0.030); tex.DrawLatex(0.62, 0.69, Form("PDG mass ratio: %.2f", MASS.at(obj).at("Val")/MASS.at(mainObj).at("Val"))); }
+	    tex.SetTextSize(0.030); tex.DrawLatex(0.66, 0.74, Form("Mean: %.3f #pm %.3f", meanVal, meanErr));
+	    tex.SetTextSize(0.030); tex.DrawLatex(0.66, 0.69, Form("RMS: %.3f", RMS));
+	    if (incBin>=0) { tex.SetTextSize(0.030); tex.DrawLatex(0.66, 0.64, Form("Incl.: %.3f #pm %.3f", incGraph.GetY()[0], std::max(incGraph.GetEYlow()[0], incGraph.GetEYhigh()[0]))); }
+	    if (var.rfind("Sigma",0)==0 || var=="m") { tex.SetTextSize(0.030); tex.DrawLatex(0.62, 0.58, Form("PDG mass ratio: %.2f", ANA::MASS.at(obj).at("Val")/ANA::MASS.at(mainObj).at("Val"))); }
 	    // Update
 	    c.Modified(); c.Update(); // Pure paranoia
 	    //

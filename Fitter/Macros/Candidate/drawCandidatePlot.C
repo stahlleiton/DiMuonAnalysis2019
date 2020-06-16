@@ -353,6 +353,7 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
   if (checkFit(status, ws, pdfName)) {
     makeDir(failDir+"FAILED/");
     cFig->SaveAs((failDir+"FAILED/"+fileName+".png").c_str());
+    for (const auto& s : status) { std::cout << "[WARNING] " << s << std::endl; }
   }
   else if (existFile(failDir+"FAILED/"+fileName+".png")) {
     std::remove((failDir+"FAILED/"+fileName+".png").c_str());
@@ -413,11 +414,14 @@ bool checkFit(std::vector<std::string>& status, const RooWorkspace& ws, const st
     if (sta==1) { status.push_back("Fit failed due to MINIMIZE"); }
     if (sta==2) { status.push_back("Fit failed due to HESSE"); }
   }
-  // 3) check if f parameter is outside range [0, 1]
+  // 3) check if f parameter is outside range [0, 1] or sigma is negative
   for (const auto& var : vars) {
     const std::string name = var.GetName();
     if (name.rfind("f_",0)==0 && (var.getValV()>1. || var.getValV()<0.)) {
       status.push_back(Form("Parameter %s value %.2f is outside of [0, 1] range", var.GetName(), var.getValV()));
+    }
+    if ((name.rfind("sigma",0)==0 || name.rfind("rSigma",0)==0) && var.getValV()<0.) {
+      status.push_back(Form("Parameter %s value %.2f is negative", var.GetName(), var.getValV()));
     }
   }
   return !status.empty();

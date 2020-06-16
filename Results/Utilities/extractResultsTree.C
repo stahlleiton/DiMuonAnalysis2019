@@ -2,8 +2,8 @@
 #define extractResultsTree_C
 
 // Auxiliary Files
-#include "../Utilities/dataUtils.h"
-#include "Utilities/resultsUtils.h"
+#include "../../Utilities/dataUtils.h"
+#include "resultsUtils.h"
 #include "storeWS2ResultsTree.C"
 // ROOT headers
 #include "TFile.h"
@@ -23,7 +23,8 @@ bool extractResultsTree(
 			const std::string& colTag  = "PA8Y16",
 			const std::string& objTag  = "JPsi",
 			const std::string& dataTag = "DATA",
-			const std::string& varTag  = "Cand_Mass"
+			const std::string& varTag  = "Cand_Mass",
+			const bool& useMean = true
 			)
 {
   //
@@ -72,7 +73,7 @@ bool extractResultsTree(
     const auto& obj = objTag;
     //
     // Determine the analysis bin
-    anabin bin;
+    AnaBin_t bin;
     for (const auto& v : info.Var) {
       if (v.first.rfind("OBS_",0)!=0) continue;
       auto name = v.first; name.erase(name.find("OBS_"), 4);
@@ -80,7 +81,10 @@ bool extractResultsTree(
       auto min = var.at("Min");
       auto max = var.at("Max");
       // Check if bin was properly set
-      if (min==-99. || max==-99.) { std::cout << "[WARNING] The bin of " << v.first << " was not set properly!" << std::endl; continue; }
+      if (min==-99. || max==-99.) {
+	if (name.rfind("Rap")==std::string::npos) { std::cout << "[WARNING] The bin of " << v.first << " was not set properly!" << std::endl; }
+	continue;
+      }
       // Ignore fit variable
       if (name=="Cand_Mass") continue;
       // Check if bin is set to default values
@@ -92,12 +96,13 @@ bool extractResultsTree(
       // Round up the bin boundaries to 3rd decimal
       roundValue(min, 3); roundValue(max, 3);
       // Get mean and width
-      auto mean = var.at("Val");
-      auto width = var.at("Err");
+      auto mean = (useMean ? var.at("Val") : (max+min)/2.0);
+      auto width = (useMean ? var.at("Err") : (max-min)/2.0);
       roundValue(mean, 3); roundValue(width, 3);
       // Store the bin
       bin.setbin(name, min, max, mean, width);
     }
+    if (bin.hasbin("Cand_AbsRap") || bin.hasbin("Cand_RapCM")) { bin.removebin("Cand_Rap"); } // BUG FIX
     //
     // Store the parameter information
     for (const auto& v : info.Var) {
@@ -117,6 +122,11 @@ bool extractResultsTree(
 	}
       }
     }
+    //
+    // Store the model
+    const std::string& modelName = *info.StrP.at(Form("ModelCandMass_%sToMuMuOS_%s", obj.c_str(), col.c_str()));
+    inputVar[obj][col][PD][bin]["Model_Chi2"][modelName] = info.Var.at("PAR_testStat_BCChi2_Cand_Mass").at("Val");
+    inputVar[obj][col][PD][bin]["Model_NDoF"][modelName] = info.Var.at("PAR_ndofc_BCChi2_Cand_Mass").at("Val");
   }
   //
   // Close the input file

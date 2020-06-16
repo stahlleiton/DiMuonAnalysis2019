@@ -2,14 +2,14 @@
 #define storeWS2ResultsTree_C
 
 // Auxiliary Headers
-#include "../Utilities/dataUtils.h"
-#include "../Utilities/RunInfo/eventUtils.h"
+#include "../../Utilities/dataUtils.h"
+#include "../../Utilities/RunInfo/eventUtils.h"
 // ROOT headers
 #include "TFile.h"
 #include "TTree.h"
 // RooFit headers
 #include "RooWorkspace.h"
-#include "RooAbsData.h"
+#include "RooDataSet.h"
 #include "RooRealVar.h"
 #include "RooAddPdf.h"
 #include "RooFormulaVar.h"
@@ -116,8 +116,23 @@ bool storeWS2ResultsTree(
     }
     //
     // Get the dataset
-    auto ds = dynamic_cast<RooAbsData*>(ws->data(("CutAndCount_"+info.Par.at("dsName")).c_str()));
-    if (!ds) { ds = dynamic_cast<RooAbsData*>(ws->data(info.Par.at("dsName").c_str())); }
+    auto ds = dynamic_cast<RooDataSet*>(ws->data(("CutAndCount_"+info.Par.at("dsName")).c_str()));
+    if (!ds) { ds = dynamic_cast<RooDataSet*>(ws->data(info.Par.at("dsName").c_str())); }
+    // BUG FIX
+    if (ds) {
+      for (const auto& v : StringMap_t({{"Cand_AbsRap", "abs(Cand_Rap)"}, {"Cand_RapCM", "Cand_Rap-0.465"}})) {
+	if (contain(info.Var, "OBS_"+v.first) && ws->var(v.first.c_str())) {
+	  RooFormulaVar rapVar(v.first.c_str(), v.second.c_str(), RooArgList(*ws->var("Cand_Rap")));
+	  if (v.first=="Cand_AbsRap") { ws->var("Cand_AbsRap")->setMin("DEFAULT", 0.0); }
+	  ds->addColumn(rapVar);
+	  if (ds->get()->find(v.first.c_str())) {
+	    const auto& var = dynamic_cast<RooRealVar*>(ws->var(v.first.c_str()));
+	    ws->factory(Form("%sMean[%g]", v.first.c_str(), ds->meanVar(*var)->getVal()));
+	    ws->factory(Form("%sRMS[%g]", v.first.c_str(), ds->rmsVar(*var)->getVal()));
+	  }
+	}
+      }
+    }
     //
     // Fill the observables
     for (auto& v : info.Var) {
@@ -125,14 +140,13 @@ bool storeWS2ResultsTree(
       auto obsName = v.first; obsName.erase(obsName.find("OBS_"), 4);
       //
       const auto& var  = dynamic_cast<RooRealVar*>(ws->var(obsName.c_str()));
-      const auto& inDS  = (ds ? (ds->get()->find(obsName.c_str())!=NULL) : false);
-      const auto& mean = ((var && inDS) ? dynamic_cast<RooRealVar*>(ds->meanVar(*var)) : NULL);
-      const auto& rms  = ((var && inDS) ? dynamic_cast<RooRealVar*>(ds->rmsVar(*var))  : NULL);
+      const auto& mean = dynamic_cast<RooRealVar*>(ws->var((obsName+"Mean").c_str()));
+      const auto& rms  = dynamic_cast<RooRealVar*>(ws->var((obsName+"RMS").c_str()));
       //
-      if (contain(v.second, "Min")) { v.second.at("Min") = var  ? var->getMin()   : -99.0; }
-      if (contain(v.second, "Max")) { v.second.at("Max") = var  ? var->getMax()   : -99.0; }
-      if (contain(v.second, "Val")) { v.second.at("Val") = mean ? mean->getVal()  : -99.0; }
-      if (contain(v.second, "Err")) { v.second.at("Err") = rms  ? rms->getVal() : -99.0; }
+      if (contain(v.second, "Min")) { v.second.at("Min") = var  ? var->getMin()  : -99.0; }
+      if (contain(v.second, "Max")) { v.second.at("Max") = var  ? var->getMax()  : -99.0; }
+      if (contain(v.second, "Val")) { v.second.at("Val") = mean ? mean->getVal() : -99.0; }
+      if (contain(v.second, "Err")) { v.second.at("Err") = rms  ? rms->getVal()  : -99.0; }
       if (contain(v.second, "DefaultMin")) { v.second.at("DefaultMin") = var ? var->getMin("DEFAULT") : -99.0; }
       if (contain(v.second, "DefaultMax")) { v.second.at("DefaultMax") = var ? var->getMax("DEFAULT") : -99.0; }
     }
@@ -239,7 +253,8 @@ void iniResultsTreeInfo(GlobalInfo& info , const RooWorkspace& ws)
   //
   // Find the dataset name
   const auto& dsStr = dynamic_cast<RooStringVar*>(ws.obj("dsName"));
-  const std::string& dsName = (dsStr ? dsStr->getVal() : "");
+  std::string dsName = (dsStr ? dsStr->getVal() : "");
+  if (dsName=="") { dsName = dynamic_cast<RooStringVar*>(ws.obj("dsNameFit"))->GetTitle(); }
   // Find the observable names
   StringSet_t obsNames, catNames;
   const auto& listObs = const_cast<RooWorkspace*>(&ws)->set(("SET_"+dsName).c_str());
@@ -250,15 +265,9 @@ void iniResultsTreeInfo(GlobalInfo& info , const RooWorkspace& ws)
       else if (dynamic_cast<RooCategory*>(it)) { catNames.insert(it->GetName()); }
     }
   }
-  else { obsNames = StringSet_t({"Cand_Mass", "Cand_APhi", "Cand_Pt", "Cand_Rap", "Cand_Len", "Centrality", "NTrack"}); } // BUG FIX
+  else { obsNames = StringSet_t({"Cand_Mass", "Cand_Pt", "Cand_Rap", "Cand_DLen", "Centrality", "NTrack"}); } // BUG FIX
   // Add CM and abs variables
-  for (const auto& obs : obsNames) {
-    bool found = false;
-    const auto varAbs = ("Cand_Abs")+obs.substr(obs.rfind("_")+1);
-    if (ws.var((obs+"CM").c_str())) {  obsNames.insert(obs+"CM"); found = true; }
-    else if (ws.var(varAbs.c_str())) { obsNames.insert(varAbs); obsNames.insert(obs+"CM"); found = true; }
-    if (found) { obsNames.erase(obsNames.find(obs)); }
-  }
+  obsNames.insert("Cand_RapCM"); obsNames.insert("Cand_AbsRap"); // BUF FIX
   // Initialize the observables
   const StringSet_t obsType = { "Min" , "Max" , "DefaultMin" , "DefaultMax" , "Val" , "Err" };
   for (const auto& o : obsNames) { for (const auto& t : obsType) { info.Var["OBS_"+o][t] = -99.0; } }
@@ -272,8 +281,10 @@ void iniResultsTreeInfo(GlobalInfo& info , const RooWorkspace& ws)
   auto parIt = std::unique_ptr<TIterator>(ws.componentIterator());
   if (parIt) {
     for (auto it = parIt->Next(); it!=NULL; it = parIt->Next()) {
-      if (contain(obsNames, it->GetName())) continue;
-      if (dynamic_cast<RooRealVar*>(it) || dynamic_cast<RooFormulaVar*>(it)) { parNames.insert(it->GetName()); }
+      const std::string& name = it->GetName();
+      if (contain(obsNames, name)) continue;
+      if (name.rfind("RMS")!=std::string::npos || name.rfind("Mean")!=std::string::npos) continue;
+      if (dynamic_cast<RooRealVar*>(it) || dynamic_cast<RooFormulaVar*>(it)) { parNames.insert(name); }
     }
   }
   const StringSet_t parType = {"Min" , "Max" , "Val" , "Err" , "ErrLo" , "ErrHi" , "iniVal" , "iniErr"};
@@ -295,10 +306,6 @@ void iniResultsTreeInfo(GlobalInfo& info , const RooWorkspace& ws)
   // Initialize the information strings
   const auto& listObj = ws.allGenericObjects();
   for (const auto& its : listObj) { const auto& it = dynamic_cast<RooStringVar*>(its); if (it) { info.Par[it->GetTitle()] = ""; } }
-  //
-  // Boolean flags
-  info.Flag["useCand_RapCM"] = false;
-  info.Flag["useCand_AbsRap"] = false;
   //
 
 };

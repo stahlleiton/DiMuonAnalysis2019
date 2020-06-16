@@ -111,7 +111,7 @@ void correctEfficiency(const std::string& workDirName, const std::string& PD)
   std::cout << "[INFO] Starting to compute efficiencies" << std::endl;
   //
   // Initialize the Kinematic Bin info
-  BinMapMap_t  ANA_BIN;
+  BinBDiMap_t  ANA_BIN;
   if (workDirName.rfind("Psi2SBins")!=std::string::npos) { ANA_BIN = BINMAP_Psi2S; }
   if (workDirName.rfind("Psi1SBins")!=std::string::npos) { ANA_BIN = BINMAP_Psi1S; }
   AnaVarMap_t ANA_BIN_MAP;
@@ -119,7 +119,7 @@ void correctEfficiency(const std::string& workDirName, const std::string& PD)
     const auto& var1 = v1.first;
     for (const auto& v2 : v1.second) {
       const auto& var2 = v2.first;
-      const auto& anaBin = AnaBin_t({var1, var2});
+      const auto& anaBin = AnaBin_t(std::vector<AnaBin_t>({var1, var2}));
       const auto& v3 = v2.second;
       for (uint i=0; i<v3.size(); i++) {
 	const auto& anaBinPair = std::make_pair(anaBin, Form("%s_%d", std::get<0>(v3[i]).c_str(), i));
@@ -890,7 +890,7 @@ bool getEffObjectsFromFile(EffMap_t& ef, Unc1DMap_t& un, const std::string& file
 	//
 	const auto var3 = tmp1.substr(tmp1.rfind("Cand"));
 	//
-	const auto anaBin = AnaBin_t({var1, var2});
+	const auto anaBin = AnaBin_t(std::vector<AnaBin_t>({var1, var2}));
 	const auto bin = AnaBinPair_t({anaBin, var3});
 	//
         for (const auto& co : getK(binDir->GetListOfKeys())) {
