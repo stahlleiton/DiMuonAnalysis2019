@@ -38,6 +38,9 @@
 #include "../Utilities/initClasses.h"
 
 
+const int DS_MAX_ENTRIES = 5000000;
+
+
 bool checkVertexCompositeDS ( const RooDataSet& ds , const std::string& analysis );
 
 
@@ -60,7 +63,9 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
   const auto& type = info.Par.at("analysis");
   if (type.rfind("CandTo", 0)!=0) { std::cout << "[ERROR] The analysis: " << type << " is not supported!" << std::endl; return false; }
   // Create RooDataSets
-  std::vector< std::unique_ptr<RooDataSet> > dataOS, dataSS;
+  std::vector< std::vector< std::unique_ptr<RooDataSet> > > dataOS, dataSS;
+  dataOS.resize(outputFileNames.size());
+  dataSS.resize(outputFileNames.size());
   bool createDS = updateDS;
   bool doSS = true;
   // Check if RooDataSets exist and are not corrupt
@@ -69,10 +74,28 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
       std::cout << "[INFO] Loading RooDataSets from " << outputFileNames[i] << std::endl;
       auto dbFile = std::unique_ptr<TFile>(TFile::Open(outputFileNames[i].c_str(),"READ"));
       if (!dbFile || !dbFile->IsOpen() || dbFile->IsZombie()) { std::cout << "[ERROR] File: " << outputFileNames[i] << " is corrupted!" << std::endl; return false; }
-      dataOS.push_back( std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(dbFile->Get(Form("dOS_RAW_%s", dsNames[i].c_str())))) );
-      dataSS.push_back( std::unique_ptr<RooDataSet>(dynamic_cast<RooDataSet*>(dbFile->Get(Form("dSS_RAW_%s", dsNames[i].c_str())))) );
-      if (dataOS[i]==NULL || checkVertexCompositeDS(*dataOS[i], type)==false) { createDS = true; }
-      if (dataSS[i]==NULL || checkVertexCompositeDS(*dataSS[i], type)==false) { doSS = false; }
+      std::cout << "[INFO] Proceed to load RooDataSets" << std::endl;
+      std::vector< std::unique_ptr<RooDataSet> > tmpDataOS, tmpDataSS;
+      if (dbFile->Get(Form("dOS_RAW_%s_0", dsNames[i].c_str())) || dbFile->Get(Form("dSS_RAW_%s_0", dsNames[i].c_str()))) {
+	for (uint j=0; j<100; j++) {
+	  std::cout << "[INFO] Loading RooDataSets RAW_" << dsNames[i] << "_" << j << std::endl;
+	  if (!dbFile->Get(Form("dOS_RAW_%s_%d", dsNames[i].c_str(), j)) && !dbFile->Get(Form("dSS_RAW_%s_%d", dsNames[i].c_str(), j))) break;
+	  if (dbFile->Get(Form("dOS_RAW_%s_%d", dsNames[i].c_str(), j))) {
+	    dataOS[i].emplace_back(dynamic_cast<RooDataSet*>(dbFile->Get(Form("dOS_RAW_%s_%d", dsNames[i].c_str(), j))));
+	  }
+	  if (dbFile->Get(Form("dSS_RAW_%s_%d", dsNames[i].c_str(), j))) {
+	    dataSS[i].emplace_back(dynamic_cast<RooDataSet*>(dbFile->Get(Form("dSS_RAW_%s_%d", dsNames[i].c_str(), j))));
+	  }
+	}
+      }
+      if (dataOS[i].empty()) {
+        dataOS[i].emplace_back(dynamic_cast<RooDataSet*>(dbFile->Get(Form("dOS_RAW_%s", dsNames[i].c_str()))));
+      }
+      if (dataSS[i].empty()) {
+        dataSS[i].emplace_back(dynamic_cast<RooDataSet*>(dbFile->Get(Form("dSS_RAW_%s", dsNames[i].c_str()))));
+      }
+      if (dataOS[i][0]==NULL || checkVertexCompositeDS(*dataOS[i][0], type)==false) { createDS = true; }
+      if (dataSS[i][0]==NULL || checkVertexCompositeDS(*dataSS[i][0], type)==false) { doSS = false; }
       dbFile->Close();
     }
     else { createDS = true; break; }
@@ -125,16 +148,16 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
     if (isMC) { cols.add(isSwap); cols.add(candDLenGen); cols.add(candDLenGen2D); }
     //
     ///// Initiliaze RooDataSets
-    dataOS.clear(); dataSS.clear();
     for (uint i=0; i<dsNames.size(); i++) {
+      dataOS[i].clear(); dataSS[i].clear();
       if (isMC) {
         cols.add(weight);
-        dataOS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), snentries, cols, RooFit::WeightVar(weight))) );
-        if (doSS) { dataSS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dSS_RAW_%s", dsNames[i].c_str()), snentries, cols, RooFit::WeightVar(weight))) ); }
+        dataOS[i].emplace_back(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), snentries, cols, RooFit::WeightVar(weight)));
+        if (doSS) { dataSS[i].emplace_back(new RooDataSet(Form("dSS_RAW_%s", dsNames[i].c_str()), snentries, cols, RooFit::WeightVar(weight))); }
       }
       else {
-        dataOS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), snentries, cols)) );
-        if (doSS) { dataSS.push_back( std::unique_ptr<RooDataSet>(new RooDataSet(Form("dSS_RAW_%s", dsNames[i].c_str()), snentries, cols)) ); }
+        dataOS[i].emplace_back(new RooDataSet(Form("dOS_RAW_%s", dsNames[i].c_str()), snentries, cols));
+        if (doSS) { dataSS[i].emplace_back(new RooDataSet(Form("dSS_RAW_%s", dsNames[i].c_str()), snentries, cols)); }
       }
     }
     //
@@ -201,6 +224,7 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
       // Check Trigger Decisions
       std::map<uint, bool> trigMap;
       for (const auto& idx : allTrig) { trigMap[idx.first] = candOSTree->trigHLT()[idx.first]; }
+      if (PD=="MINBIAS" && evtCol=="PbPb5Y18") { trigMap[8] = true; }
       uint evtTrig = 0;
       for (const auto& idx : trigMap) { if (idx.second) { evtTrig += std::pow(2.0, idx.first); } }
       if (evtTrig==0) continue;
@@ -233,7 +257,6 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& isSoftCand   = candOSTree->softCand(iC);
           int candQ = 0; if (isSoftCand) { candQ += 1; }; if (isHybridCand) { candQ += 2; }; if (isTightCand) { candQ += 4; }
           if (candQ==0) continue;
-          if (isData  && evtCol.rfind("PbPb", 0)==0 && centV<50 && candQ==1) continue;
           //
           // Apply muon trigger matching
           bool matchTrig = false;
@@ -325,7 +348,10 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           //
           // Fill the RooDataSets
           for (uint i=0; i<dsNames.size(); i++) {
-            if (dsNames[i].rfind(evtCol)!=std::string::npos) { dataOS[i]->add(cols, weight.getVal()); }
+            if (dsNames[i].rfind(evtCol)!=std::string::npos) {
+	      if (dataOS[i].back()->numEntries() >= DS_MAX_ENTRIES) { dataOS[i].emplace_back( dynamic_cast<RooDataSet*>( dataOS[i][0]->emptyClone(Form("dOS_RAW_%s_%zu", dsNames[i].c_str(), dataOS[i].size()))) ); }
+	      dataOS[i].back()->add(cols, weight.getVal());
+	    }
           }
         }
       }
@@ -351,7 +377,6 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           const auto& isSoftCand   = candSSTree->softCand(iC);
           int candQ = 0; if (isSoftCand) { candQ += 1; }; if (isHybridCand) { candQ += 2; }; if (isTightCand) { candQ += 4; }
           if (candQ==0) continue;
-          if (isData && evtCol.rfind("PbPb", 0)==0 && centV<50 && candQ==1) continue;
           //
           // Apply muon trigger matching
           bool matchTrig = false;
@@ -417,7 +442,10 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
           //
           // Fill the RooDataSets
           for (uint i=0; i<dsNames.size(); i++) {
-            if (dsNames[i].rfind(evtCol)!=std::string::npos) { dataSS[i]->add(cols, weight.getVal()); }
+            if (dsNames[i].rfind(evtCol)!=std::string::npos) {
+	      if (dataSS[i].back()->numEntries() >= DS_MAX_ENTRIES) { dataSS[i].emplace_back( dynamic_cast<RooDataSet*>( dataSS[i][0]->emptyClone(Form("dSS_RAW_%s_%zu", dsNames[i].c_str(), dataSS[i].size()))) ); }
+	      dataSS[i].back()->add(cols, weight.getVal());
+	    }
           }
         }
       }
@@ -429,27 +457,45 @@ bool VertexCompositeTree2DataSet(RooWorkspaceMap_t& workspaces, const StringVect
       auto dbFile = std::unique_ptr<TFile>(TFile::Open(outputFileNames[i].c_str(),"RECREATE"));
       dbFile->cd();
       std::cout << "[INFO] Converting datasets " << dsNames[i] << " to tree store" << std::endl;
-      dataOS[i]->convertToTreeStore();
-      if (doSS) { dataSS[i]->convertToTreeStore(); }
-      std::cout << "[INFO] Saving datasets " << dsNames[i] << " in " << outputFileNames[i] << std::endl;
-      dataOS[i]->Write(Form("dOS_RAW_%s", dsNames[i].c_str()));
-      if (doSS) { dataSS[i]->Write(Form("dSS_RAW_%s", dsNames[i].c_str())); }
+      for (auto& tmpDataOS : dataOS[i]) { tmpDataOS->convertToTreeStore(); }
+      if (doSS) { for (auto& tmpDataSS : dataSS[i]) { tmpDataSS->convertToTreeStore(); } }
+      for (size_t j=0; j<dataOS[i].size(); j++) {
+        std::cout << "[INFO] Saving " << dataOS[i][j]->numEntries() << " entries from OS dataset " << dsNames[i] << " in " << outputFileNames[i] << std::endl;
+        dataOS[i][j]->Write(Form("dOS_RAW_%s%s", dsNames[i].c_str(), dataOS[i].size()>1 ? Form("_%zu", j) : ""));
+      }
+      if (doSS) {
+	for (size_t j=0; j<dataSS[i].size(); j++) {
+	  std::cout << "[INFO] Saving " << dataSS[i][j]->numEntries() << " entries from SS dataset " << dsNames[i] << " in " << outputFileNames[i] << std::endl;
+	  dataSS[i][j]->Write(Form("dSS_RAW_%s%s", dsNames[i].c_str(), dataSS[i].size()>1 ? Form("_%zu", j) : ""));
+	}
+      }
       std::cout << "[INFO] Closing output file " << outputFileNames[i] << std::endl;
       dbFile->Write(); dbFile->Close();
       std::cout << "[INFO] Converting datasets " << dsNames[i] << " back to vector store" << std::endl;
-      dataOS[i]->convertToVectorStore();
-      if (doSS) { dataSS[i]->convertToVectorStore(); }
+      for (auto& tmpDataOS : dataOS[i]) { tmpDataOS->convertToVectorStore(); }
+      if (doSS) { for (auto& tmpDataSS : dataSS[i]) { tmpDataSS->convertToVectorStore(); } }
+    }
+  }
+  // Merge datasets
+  for (uint i=0; i<dsNames.size(); i++) {
+    for (size_t j=1; j<dataOS[i].size(); j++) {
+      dataOS[i][0]->append(*dataOS[i][j]);
+      dataOS[i][j].reset();
+    }
+    for (size_t j=1; j<dataSS[i].size(); j++) {
+      dataSS[i][0]->append(*dataSS[i][j]);
+      dataSS[i][j].reset();
     }
   }
   // Import datasets to the workspaces
   for (uint i=0; i<dsNames.size(); i++) {
-    if (!dataOS[i]) { std::cout << "[ERROR] " << dsNames[i] << " OS dataset was not found" << std::endl; return false; }
-    if (dataOS[i]->numEntries()==0) { std::cout << "[ERROR] " << dsNames[i] << " OS dataset is empty!" << std::endl; return false; }
-    workspaces[dsNames[i]].import(*dataOS[i]);
+    if (!dataOS[i][0]) { std::cout << "[ERROR] " << dsNames[i] << " OS dataset was not found" << std::endl; return false; }
+    if (dataOS[i][0]->numEntries()==0) { std::cout << "[ERROR] " << dsNames[i] << " OS dataset is empty!" << std::endl; return false; }
+    workspaces[dsNames[i]].import(*dataOS[i][0], RooFit::Rename(Form("dOS_RAW_%s", dsNames[i].c_str())));
     if (doSS) {
-      if (!dataSS[i]) { std::cout << "[ERROR] " << dsNames[i] << " SS dataset was not found" << std::endl; return false; }
-      if (dataSS[i]->numEntries()==0) { std::cout << "[WARNING] " << dsNames[i] << " SS dataset is empty!" << std::endl; }
-      workspaces[dsNames[i]].import(*dataSS[i]);
+      if (!dataSS[i][0]) { std::cout << "[ERROR] " << dsNames[i] << " SS dataset was not found" << std::endl; return false; }
+      if (dataSS[i][0]->numEntries()==0) { std::cout << "[WARNING] " << dsNames[i] << " SS dataset is empty!" << std::endl; }
+      workspaces[dsNames[i]].import(*dataSS[i][0], RooFit::Rename(Form("dSS_RAW_%s", dsNames[i].c_str())));
     }
     RooStringVar strVar("PD", "PD", PD.c_str(), 20);
     workspaces[dsNames[i]].import(*dynamic_cast<TObject*>(&strVar), "PD");

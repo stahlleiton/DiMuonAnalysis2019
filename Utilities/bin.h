@@ -48,7 +48,7 @@ class AnaBin_t
    public:
     ANABINITER() : ANABINTYPE::iterator() {};
     ANABINITER(ANABINTYPE::iterator s) : ANABINTYPE::iterator(s) {};
-    BinF_t* operator->() { return (BinF_t* const)&(ANABINTYPE::iterator::operator->()->second); }
+    BinF_t* operator->() { return (BinF_t*)&(ANABINTYPE::iterator::operator->()->second); }
     BinF_t operator*() { return ANABINTYPE::iterator::operator*().second; };
   };
   ANABINITER begin() { return cont_.begin(); };
@@ -58,7 +58,7 @@ class AnaBin_t
    public:
     ANABINCITER() : ANABINTYPE::const_iterator() {};
     ANABINCITER(ANABINTYPE::const_iterator s) : ANABINTYPE::const_iterator(s) {};
-    const BinF_t* operator->() const { return (BinF_t* const)&(ANABINTYPE::const_iterator::operator->()->second); }
+    const BinF_t* operator->() const { return (BinF_t*)&(ANABINTYPE::const_iterator::operator->()->second); }
     const BinF_t operator*() const { return ANABINTYPE::const_iterator::operator*().second; };
   };
   ANABINCITER begin() const { return cont_.begin(); };

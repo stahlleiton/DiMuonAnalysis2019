@@ -16,7 +16,8 @@ namespace PbPb {
         HLT_HIL1MuOpen_Centrality_80_100 = 5,
         HLT_HIL3Mu12 = 6,
         HLT_HIUPC_SingleMuOpen_NotMBHF2AND = 7,
-        HLT_INVALID = 8,
+	HLT_HIMinimumBias = 8,
+        HLT_INVALID = 9,
       };
       static const std::map< TRIGGERBIT , std::string > TRIGNAME =
 	{
@@ -28,6 +29,7 @@ namespace PbPb {
 	 { HLT_HIL1MuOpen_Centrality_80_100          , "HLT_HIL1MuOpen_Centrality_80_100"          },
 	 { HLT_HIL3Mu12                              , "HLT_HIL3Mu12"                              },
 	 { HLT_HIUPC_SingleMuOpen_NotMBHF2AND        , "HLT_HIUPC_SingleMuOpen_NotMBHF2AND"        },
+	 { HLT_HIMinimumBias                         , "HLT_HIMinimumBias"                         },
 	};
       std::string HLTPath(const TRIGGERBIT& bit)
       {
@@ -48,6 +50,7 @@ namespace PbPb {
         trigBits.at(HLT_HIL1MuOpen_Centrality_80_100) = "Muon";
         trigBits.at(HLT_HIL3Mu12) = "Muon";
         trigBits.at(HLT_HIUPC_SingleMuOpen_NotMBHF2AND) = "Muon";
+	trigBits.at(HLT_HIMinimumBias) = "";
 	return trigBits;
       };
       static const std::map< std::string , std::vector<uint> > PDTRIG =
@@ -56,6 +59,7 @@ namespace PbPb {
 	 { "DIMUON"     , { HLT_HIL3Mu2p5NHitQ10_L2Mu2_M7toinf } },
 	 { "DIMUONPERI" , { HLT_HIL1DoubleMuOpen_OS_Centrality_40_100 } },
 	 { "UPC"        , { HLT_HIUPC_SingleMuOpen_NotMBHF2AND } },
+	 { "MINBIAS"    , { HLT_HIMinimumBias } },
 	};
       std::vector<uint> HLTBitsFromPD(const std::string& PD)
       {
@@ -81,6 +85,7 @@ namespace PbPb {
 	 { HLT_HIL1MuOpen_Centrality_80_100          , 1550.64 },
 	 { HLT_HIL3Mu12                              , 1606.05 },
 	 { HLT_HIUPC_SingleMuOpen_NotMBHF2AND        , 1586.30 },
+	 { HLT_HIMinimumBias                         , 1606.05/6. },
 	};
       double LumiFromHLTBit(const TRIGGERBIT& bit)
       {
@@ -94,6 +99,7 @@ namespace PbPb {
 	 { "DIMUON"     , TRIGLUMI.at(HLT_HIL3Mu2p5NHitQ10_L2Mu2_M7toinf) },
 	 { "DIMUONPERI" , TRIGLUMI.at(HLT_HIL1DoubleMuOpen_OS_Centrality_40_100) },
 	 { "UPC"        , TRIGLUMI.at(HLT_HIUPC_SingleMuOpen_NotMBHF2AND) },
+	 { "MINBIAS"    , TRIGLUMI.at(HLT_HIMinimumBias) },
 	};
       double LumiFromPD(const std::string& PD)
       {
