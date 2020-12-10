@@ -110,7 +110,7 @@ void get_acceptance()
   auto h_test = new TH1D();
   h_test->SetDefaultSumw2(true);
 
-  std::string obj = "Psi2S";
+  std::string obj = "JPsi";
   //****** Open the tree and make it scan branches one by one (SetMakeClass, to study one branch at a time)
   const auto& inputFile = "/eos/cms/store/group/phys_heavyions/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_"+obj+"ToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root"
   const auto& treeDir = "dimucontana_mc"; // For MC use dimucontana_mc
