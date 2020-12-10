@@ -8,7 +8,7 @@
 using namespace std;
 
 void 
-CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label, bool isPreliminary, float lumiSize, bool printCMS )
+CMS_lumi( TPad* pad, int iPosX, TString lumiText, TString lumiText2, bool isPreliminary, float lumiSize, bool printCMS )
 {
   if (printCMS==false) { cmsText = ""; }
   if (lumiSize>0) { lumiTextSize = lumiSize; }
@@ -39,213 +39,6 @@ CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label, bool isPreliminary, 
 
   pad->cd();
 
-  TString lumiText, lumiText2;
-  if( iPeriod==1 )
-    {
-      lumiText += lumi_7TeV;
-      lumiText += " (7 TeV)";
-    }
-  else if ( iPeriod==2 )
-    {
-      lumiText += lumi_8TeV;
-      lumiText += " (8 TeV)";
-    }
-  else if( iPeriod==3 ) 
-    {
-      lumiText = lumi_8TeV; 
-      lumiText += " (8 TeV)";
-      lumiText += " + ";
-      lumiText += lumi_7TeV;
-      lumiText += " (7 TeV)";
-    }
-  else if ( iPeriod==4 )
-    {
-      lumiText += lumi_13TeV;
-      lumiText += " (13 TeV)";
-    }
-  else if ( iPeriod==7 )
-    { 
-      if( outOfFrame ) lumiText += "#scale[0.85]{";
-      lumiText += lumi_13TeV; 
-      lumiText += " (13 TeV)";
-      lumiText += " + ";
-      lumiText += lumi_8TeV; 
-      lumiText += " (8 TeV)";
-      lumiText += " + ";
-      lumiText += lumi_7TeV;
-      lumiText += " (7 TeV)";
-      if( outOfFrame) lumiText += "}";
-    }
-  else if ( iPeriod==12 )
-    {
-      lumiText += "8 TeV";
-    }
-  else if ( iPeriod==99 )
-    {
-      lumiText += lumi_5TeV;
-      // lumiText += " (#sqrt{s_{NN}} = 5.02 TeV)";
-      lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
-    }
-  else if (iPeriod==101)
-    {
-      lumiText += lumi_PbPb2011;
-      lumiText2 += " #sqrt{s_{NN}} = 2.76 TeV";
-      // lumiText += " (2.76 TeV)";
-    }
-  else if (iPeriod==102)
-    {
-      lumiText += lumi_pp2013;
-      lumiText2 += " #sqrt{s} = 2.76 TeV";
-      // lumiText += " (2.76 TeV)";
-    }
-  else if (iPeriod==103)
-    {
-      lumiText += lumi_PbPb2011;
-      lumiText += ", ";
-      lumiText += lumi_pp2013;
-      lumiText2 += " #sqrt{s_{NN}} = 2.76 TeV";
-      // lumiText += " (2.76 TeV)";
-    }
-  else if (iPeriod==104)
-    {
-      lumiText += label;
-      lumiText2 += " #sqrt{s} = 5.02 TeV";
-    }
-  else if (iPeriod==105)
-    {
-      lumiText += label;
-      lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
-    }
-  else if (iPeriod==106)
-    {
-      // lumiText += lumi_PbPb2015;
-      // lumiText += ", ";
-      // lumiText += lumi_pp2015;
-      // lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
-      lumiText2 += lumi_PbPb2015 + ", ";
-      lumiText2 += lumi_pp2015 + " (5.02 TeV)";
-    }
-  else if (iPeriod==107)
-    {
-      // lumiText += lumi_pp2015;
-      // lumiText2 += " #sqrt{s} = 5.02 TeV";
-      lumiText2 += lumi_pp2015 + " (5.02 TeV)";
-    }
-  else if (iPeriod==108)
-    {
-      // lumiText += lumi_PbPb2015;
-      // lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
-      lumiText2 += lumi_PbPb2015 + " (5.02 TeV)";
-    }
-  else if (iPeriod==109)
-    {
-      // lumiText += lumi_PbPb2015;
-      // lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
-      lumiText2 += lumi_pPb2016 + " (8.16 TeV)";
-    }
-  else if (iPeriod==110)
-    {
-      // lumiText += lumi_PbPb2015;
-      // lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
-      lumiText2 += lumi_Pbp2016 + " (8.16 TeV)";
-    }
-  else if (iPeriod==111)
-    {
-      // lumiText += lumi_PbPb2015;
-      // lumiText2 += " #sqrt{s_{NN}} = 5.02 TeV";
-      lumiText2 += lumi_PA2016 + " (8.16 TeV)";
-    }
-  else if (iPeriod==112)
-    {
-      lumiText2 += lumi_pPbMC2016 + " (8.16 TeV)";
-    }
-  else if (iPeriod==113)
-    {
-      lumiText2 += lumi_PbpMC2016 + " (8.16 TeV)";
-    }
-  else if (iPeriod==114)
-    {
-      lumiText2 += lumi_PAMC2016 + " (8.16 TeV)";
-    }
-  else if (iPeriod==1141)
-    {
-      lumiText2 += "pPb                       #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==1142)
-    {
-      lumiText2 += "pPb Simulation        #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==1143)
-    {
-      lumiText2 += "pPb Simulation            #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==115)
-    {
-      lumiText2 += lumi_pPb2016_alt + " (8.16 TeV)";
-    }
-  else if (iPeriod==116)
-    {
-      lumiText2 += lumi_Pbp2016_alt + " (8.16 TeV)";
-    }
-  else if (iPeriod==117)
-    {
-      lumiText2 += lumi_PA2016_alt + " (8.16 TeV)";
-    }
-  else if (iPeriod==1118)
-    {
-      lumiText2 += lumi_PA2016_alt2 + "         #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==118)
-    {
-      lumiText2 += lumi_PA2016_alt2 + "             #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==11888)
-    {
-      lumiText2 += lumi_PA2016_alt2 + "       #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==11830)
-    {
-      lumiText2 += lumi_PA2016_alt2 + "         #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==11820)
-    {
-      lumiText2 += lumi_pPb2016_alt + "          #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==11821)
-    {
-      lumiText2 += lumi_Pbp2016_alt + "          #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==11822)
-    {
-      lumiText2 += lumi_PA2016_alt2 + "          #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==11830)
-    {
-      lumiText2 += lumi_pPb2016_alt + "                #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==11831)
-    {
-      lumiText2 += lumi_Pbp2016_alt + "                #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==11832)
-    {
-      lumiText2 += lumi_PA2016_alt2 + "                #sqrt{s_{NN}} = 8.16 TeV";
-    }
-  else if (iPeriod==120)
-    {
-      lumiText2 += lumi_PA2016_alt3 + "  (p-Pb 8.16 TeV)";
-    }
-  else if (iPeriod==121)
-    {
-      lumiText2 += lumi_PA2016_alt3 + "  (Pb-p 8.16 TeV)";
-    }
-  else if (iPeriod==122)
-    {
-      lumiText2 += lumi_PA2016_alt3 + "  (p-Pb 8.16 TeV)";
-    }
-   
-  cout << lumiText << endl;
-
   TLatex latex;
   latex.SetNDC();
   latex.SetTextAngle(0);
@@ -257,9 +50,8 @@ CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label, bool isPreliminary, 
   latex.SetTextAlign(31); 
   latex.SetTextSize(lumiTextSize*t);    
   latex.DrawLatex(1-r,1-t+lumiTextOffset*t,lumiText2);
-  // latex.DrawLatex(1-r,1-t+lumiTextOffset*t,lumiText);
   latex.SetTextAlign(11); 
-  latex.DrawLatex(l,1-t+lumiTextOffset*t,lumiText);
+  latex.DrawLatex(0.06+l,1-t+lumiTextOffset*t,lumiText);
 
   if( outOfFrame )
     {
@@ -286,7 +78,6 @@ CMS_lumi( TPad* pad, int iPeriod, int iPosX, TString label, bool isPreliminary, 
     }
   float posY_ = 1-t - relPosY*(1-t-b);
   if (pad->GetTickx()) posX_ -= cmsTextOffset;
-  cout << pad->GetTickx() << endl;
   if (pad->GetTicky()) posY_ -= cmsTextOffset;
   if( !outOfFrame )
     {

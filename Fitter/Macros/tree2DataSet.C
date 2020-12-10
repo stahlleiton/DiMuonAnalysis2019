@@ -15,7 +15,7 @@
 #define tree2DataSet_C
 
 #include "Utilities/initClasses.h"
-#include "Candidate/VertexCompositeNtuple2DataSet.C"
+#include "Candidate/VertexCompositeTree2DataSet.C"
 
 
 bool checkFileInfo    ( const StringVectorMap_t& fileInfo );
@@ -28,8 +28,8 @@ bool tree2DataSet(RooWorkspaceMap_t& workspaces, const StringVectorMap_t& fileIn
   // Check if Analysis type is supported
   if (!checkAnalysis(userInfo)) return false;
   // Make RooDatasets
-  if (userInfo.Par.at("treeType") == "VertexCompositeNtuple") {
-    if (!VertexCompositeNtuple2DataSet(workspaces, fileInfo, userInfo, updateDS)) return false;
+  if (userInfo.Par.at("treeType") == "VertexCompositeTree") {
+    if (!VertexCompositeTree2DataSet(workspaces, fileInfo, userInfo, updateDS)) return false;
   }
   return true;
 };
@@ -39,7 +39,7 @@ bool checkAnalysis(const GlobalInfo& info)
 {
   const auto& analysis = info.Par.at("analysis");
   if (analysis.rfind("CandTo", 0)==0) {
-    if (info.Par.at("treeType") == "VertexCompositeNtuple") {
+    if (info.Par.at("treeType") == "VertexCompositeTree") {
       std::cout << "[INFO] Proceed to make "<<info.Par.at("PD")<<" datasets for Mass Resonance analysis using VertexComposite Ntuple" << std::endl; return true;
     }
     else if (info.Par.at("treeType") == "OniaTree") {
@@ -56,9 +56,9 @@ bool checkAnalysis(const GlobalInfo& info)
 
 bool checkFileInfo(const StringVectorMap_t& fileInfo)
 {
-  if ( fileInfo.at("outputFileDir").size()==0  ) { std::cout << "[ERROR] OutputFileDir is empty!" << std::endl; return false;  }
-  if ( fileInfo.at("inputFileNames").size()==0 ) { std::cout << "[ERROR] InputFileNames is empty!" << std::endl; return false; }
-  if ( fileInfo.at("dsNames").size()==0        ) { std::cout << "[ERROR] DSNames is empty!" << std::endl; return false;        }
+  if (fileInfo.at("outputFileDir").empty() ) { std::cout << "[ERROR] OutputFileDir is empty!" << std::endl; return false;  }
+  if (fileInfo.at("inputFileNames").empty()) { std::cout << "[ERROR] InputFileNames is empty!" << std::endl; return false; }
+  if (fileInfo.at("dsNames").empty()       ) { std::cout << "[ERROR] DSNames is empty!" << std::endl; return false;        }
   return true;
 };
 

@@ -1,24 +1,41 @@
 # Data Input Files
 
-DATA_MUON_DIMUON_PbPb5Y18       , /store/user/anstahll/RiceHIN/PbPb2018/Tree/VertexCompositeTree_HISingleMuon_HIRun2018_DiMuMassMin7.root 
-DATA_DIMUON_DIMUON_PbPb5Y18     , /store/user/anstahll/RiceHIN/PbPb2018/Tree/VertexCompositeTree_HIDoubleMuon_HIRun2018_DiMuMassMin7.root
-DATA_DIMUONPERI_DIMUON_PbPb5Y18 , /store/user/anstahll/RiceHIN/PbPb2018/Tree/VertexCompositeTree_HIDoubleMuonPsiPeri_HIRun2018_DiMuMassMin7.root
-DATA_UPC_DIMUON_PbPb5Y18        , /store/user/anstahll/RiceHIN/PbPb2018/Tree/VertexCompositeTree_HIForward_HIRun2018_DiMuMassMin7.root
 
-DATA_MUON_DIMUON_PP5Y17         , /store/user/anstahll/RiceHIN/ppRef2017/Tree/VertexCompositeTree_SingleMuon_Run2017G_DiMuMassMin7.root 
-DATA_DIMUON_DIMUON_PP5Y17       , /store/user/anstahll/RiceHIN/ppRef2017/Tree/VertexCompositeTree_DoubleMuon_Run2017G_DiMuMassMin7.root
+DATA_MUON_DIMUON_PbPb5Y18       , /storage1/users/wl33/DiMuTrees/PbPb2018/Tree/VertexCompositeTree_HISingleMuon_HIRun2018_04Apr2019_DiMuMassMin7.root 
+DATA_DIMUON_DIMUON_PbPb5Y18     , /storage1/users/wl33/DiMuTrees/PbPb2018/Tree/VertexCompositeTree_HIDoubleMuon_HIRun2018_04Apr2019_DiMuMassMin7.root
+DATA_DIMUONPERI_DIMUON_PbPb5Y18 , /storage1/users/wl33/DiMuTrees/PbPb2018/Tree/VertexCompositeTree_HIDoubleMuonPsiPeri_HIRun2018_04Apr2019_DiMuMassMin7.root
+DATA_UPC_DIMUON_PbPb5Y18        , /storage1/users/wl33/DiMuTrees/PbPb2018/Tree/VertexCompositeTree_HIForward_HIRun2018_04Apr2019_DiMuMassMin7.root
 
-DATA_MUON_DIMUON_PA8Y16         , /store/user/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_PASingleMuon_PARun2016C_DiMuMassMin2.root
-DATA_DIMUON_DIMUON_PA8Y16       , /store/user/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_PADoubleMuon_PARun2016C_DiMuMassMin2.root
-DATA_HIGHMULT185_DIMUON_PA8Y16  , /store/user/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_PAHighMultiplicity_PARun2016C_DiMuMassMin2.root
-DATA_HIGHMULT250_DIMUON_PA8Y16  , /store/user/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_PAHighMultiplicity7_PARun2016C_DiMuMassMin2.root
-DATA_MINBIAS_DIMUON_PA8Y16      , /store/user/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_PAMinimumBias_PARun2016C_DiMuMassMin2.root
+DATA_DIMUON_DIMUON_PP13Y18      , /storage1/users/wl33/DiMuTrees/pp2018/Tree/VertexCompositeTree_DoubleMuonLowPU_Run2018C_Run2018LowPU_DiMuMassMin2.root
+DATA_HIGHMULT_DIMUON_PP13Y18    , /storage1/users/wl33/DiMuTrees/pp2018/Tree/VertexCompositeTree_HighMultiplicity100_Run2018LowPU_DiMuMassMin2.root
+DATA_HIGHMULT2_DIMUON_PP13Y18   , /storage1/users/wl33/DiMuTrees/pp2018/Tree/VertexCompositeTree_HighMultiplicity_Run2018LowPU_DiMuMassMin2.root
+DATA_MINBIAS_DIMUON_PP13Y18     , /storage1/users/wl33/DiMuTrees/pp2018/Tree/VertexCompositeTree_MinimumBias_Run2018LowPU_DiMuMassMin2.root
 
-DATA_MUON_DIMUON_PbPb5Y15       , /store/user/anstahll/RiceHIN/PbPb2015/Tree/VertexCompositeTree_HISingleMuon_HIRun2015_DiMuMassMin7.root
-DATA_DIMUON_DIMUON_PbPb5Y15     , /store/user/anstahll/RiceHIN/PbPb2015/Tree/VertexCompositeTree_HIDoubleMuon_HIRun2015_DiMuMassMin7.root
-DATA_DIMUON_DIMUON_PbPb5Y15     , /store/user/anstahll/RiceHIN/PbPb2015/Tree/VertexCompositeTree_HIDoubleMuonBCD_HIRun2015_DiMuMassMin7.root
-DATA_DIMUONPERI_DIMUON_PbPb5Y15 , /store/user/anstahll/RiceHIN/PbPb2015/Tree/VertexCompositeTree_HIDoubleMuonPeri_HIRun2015_DiMuMassMin7.root
-DATA_UPC_DIMUON_PbPb5Y15        , /store/user/anstahll/RiceHIN/PbPb2015/Tree/VertexCompositeTree_HIForward_HIRun2015_DiMuMassMin7.root
+DATA_MUON_DIMUON_PP5Y17         , /storage1/users/wl33/DiMuTrees/ppRef2017/Tree/VertexCompositeTree_SingleMuon_Run2017G_DiMuMassMin7.root
+DATA_DIMUON_DIMUON_PP5Y17       , /storage1/users/wl33/DiMuTrees/ppRef2017/Tree/VertexCompositeTree_DoubleMuon_Run2017G_DiMuMassMin7.root
+
+DATA_MUON_DIMUON_PA8Y16         , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_PASingleMuon_PARun2016C_DiMuMassMin2.root
+DATA_DIMUON_DIMUON_PA8Y16       , /storage1/users/ags9/pPb2016/Charmonia/VertexCompositeTree_PADoubleMuon_PARun2016C_Charmonia.root
+DATA_HIGHMULT0_DIMUON_PA8Y16    , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_PAHighMultiplicity0_PARun2016C_DiMuMassMin2.root
+DATA_HIGHMULT_DIMUON_PA8Y16     , /storage1/users/ags9/pPb2016/Charmonia/VertexCompositeTree_PAHighMultiplicity_PARun2016C_Charmonia.root
+DATA_HIGHMULT2_DIMUON_PA8Y16    , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_PAHighMultiplicity7_PARun2016C_DiMuMassMin2.root
+DATA_MINBIAS_DIMUON_PA8Y16      , /storage1/users/ags9/pPb2016/Charmonia/VertexCompositeTree_PAMinimumBias_PARun2016C_Charmonia.root
+
+DATA_MUON_DIMUON_PbPb5Y15       , /storage1/users/wl33/DiMuTrees/PbPb2015/Tree/VertexCompositeTree_HISingleMuon_HIRun2015_DiMuMassMin7.root
+DATA_DIMUON_DIMUON_PbPb5Y15     , /storage1/users/wl33/DiMuTrees/PbPb2015/Tree/VertexCompositeTree_HIDoubleMuon_HIRun2015_DiMuMassMin7.root
+DATA_DIMUON_DIMUON_PbPb5Y15     , /storage1/users/wl33/DiMuTrees/PbPb2015/Tree/VertexCompositeTree_HIDoubleMuonBCD_HIRun2015_DiMuMassMin7.root
+DATA_DIMUONPERI_DIMUON_PbPb5Y15 , /storage1/users/wl33/DiMuTrees/PbPb2015/Tree/VertexCompositeTree_HIDoubleMuonPeri_HIRun2015_DiMuMassMin7.root
+DATA_UPC_DIMUON_PbPb5Y15        , /storage1/users/wl33/DiMuTrees/PbPb2015/Tree/VertexCompositeTree_HIForward_HIRun2015_DiMuMassMin0.root
 
 
 # Monte Carlo Input Files
+
+MC_JPsiCatPR_DIMUON_pPb8Y16     , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_JPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root
+MC_JPsiCatPR_DIMUON_Pbp8Y16     , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_JPsiToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root
+MC_Psi2SCatPR_DIMUON_pPb8Y16    , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_Psi2SToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root
+MC_Psi2SCatPR_DIMUON_Pbp8Y16    , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_Psi2SToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root
+
+MC_JPsiCatNoPR_DIMUON_pPb8Y16   , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_BToPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root
+MC_JPsiCatNoPR_DIMUON_Pbp8Y16   , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_BToPsiToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root
+MC_Psi2SCatNoPR_DIMUON_pPb8Y16  , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_BToPsiToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root
+MC_Psi2SCatNoPR_DIMUON_Pbp8Y16  , /storage1/users/ags9/pPb2016/Tree/VertexCompositeTree_BToPsiToMuMu_PbP-Bst_pPb816Summer16_DiMuMC.root

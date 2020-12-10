@@ -1,0 +1,4 @@
+PD,Cand_Rap,Cand_Pt,NTrack,ModelCandMass_JPsiToMuMuOS_PA8Y16,Alpha_JPsiToMuMuOS_PA8Y16,AlphaR_JPsiToMuMuOS_PA8Y16,n_JPsiToMuMuOS_PA8Y16,nR_JPsiToMuMuOS_PA8Y16,rSigma21_JPsiToMuMuOS_PA8Y16
+DIMUON,0.0-1.4,6.5-9.0,0.0-300.0,DoubleExtCrystalBall[JPsi]+DoubleExtCrystalBall[Psi2S]+Chebychev2[Bkg],[1.95],[2.5],[1.64],[5.5],[1.8]
+HIGHMULT,1.4-2.4,3.0-6.5,0.0-300.0,DoubleExtCrystalBall[JPsi]+DoubleExtCrystalBall[Psi2S]+Chebychev2[Bkg],[1.95],[2.5],[1.64],[5.5],[1.5]
+MINBIAS,1.4-2.4,3.0-6.5,0.0-300.0,DoubleExtCrystalBall[JPsi]+DoubleExtCrystalBall[Psi2S]+Chebychev2[Bkg],[1.95],[2.5],[1.64],[5.5],[1.5]

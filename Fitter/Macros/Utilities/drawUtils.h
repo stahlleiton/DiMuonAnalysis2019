@@ -1,7 +1,6 @@
 #ifndef drawUtils_h
 #define drawUtils_h
 
-#include "TROOT.h"
 #include "TSystem.h"
 #include "TIterator.h"
 #include "TH1.h"
@@ -22,6 +21,7 @@
 #include "RooPlot.h"
 #include "RooAbsPdf.h"
 #include "RooAddPdf.h"
+#include "RooExtendPdf.h"
 #include "RooRealVar.h"
 #include "RooStringVar.h"
 #include "RooCurve.h"
@@ -32,6 +32,7 @@
 #include "../../../Utilities/CMS/tdrstyle.C"
 #include "../../../Utilities/CMS/CMS_lumi.C"
 #include "../../../Utilities/RooGoF.C"
+#include "../../../Utilities/dataUtils.h"
 
 #include <iostream>
 #include <sstream>
@@ -40,13 +41,95 @@
 #include <vector>
 
 
-typedef std::map< std::string , std::string > StringMap_t;
-typedef std::map< std::string , StringMap_t > StringDiMap_t;
+typedef std::map< std::string , StringMap_t > StringDiMap_d;
+typedef std::map< std::string , TPad*       > PadPtrMap_d; // Unique Pointer does produce Segmentation Fault, so don't use it
+typedef std::map< std::string , std::unique_ptr<RooPlot> > RooPlotPtrMap_d;
+
+
+const std::map< std::string , std::vector<int> > PDFMAP_ =
+  {
+   {"JPsi", {11, kRed+1}}, {"Ups1S", {10, kGreen+3}}, {"Ups2S", {9, kGreen-5}}, {"Psi2S", {8, kRed-7}},
+   {"Ups3S", {7, kGreen-6}}, {"DY", {6, kBlue+2}}, {"Z", {5, kBlue-4}}, {"TTbar", {4, kOrange+1}},
+   {"D0", {3, kViolet+9}}, {"D0Swap", {2, kViolet-6}}, {"Bkg", {1, kAzure-9}}
+  };
+
+
+bool changeToHistPdf(RooWorkspace& ws, std::string& pdfName, const std::string& varName)
+{
+  if (pdfName.find("pdfHIST")!=std::string::npos) { return true; }
+  const auto& oPDF = ws.pdf(pdfName.c_str());
+  if (!oPDF) { std::cout << "[ERROR] changeToHistPdf: PDF " << pdfName << " was not found!" << std::endl; return false; }
+  const auto& aPDF = dynamic_cast<RooAddPdf*>(oPDF);
+  if (!aPDF) { std::cout << "[ERROR] changeToHistPdf: PDF " << pdfName << " does not derive from RooAddPdf!" << std::endl; return false; }
+  const auto& var = ws.var(varName.c_str());
+  if (!var) { std::cout << "[ERROR] changeToHistPdf: Variable " << varName << " was not found!" << std::endl; return false; }
+  // Loop over the sub PDFs
+  RooArgList pdfs;
+  auto pdfIt = std::unique_ptr<TIterator>(aPDF->pdfList().createIterator());
+  for (auto itp = pdfIt->Next(); itp!=NULL; itp = pdfIt->Next()) {
+    const auto& it = dynamic_cast<RooAbsPdf*>(itp); if (!it) continue;
+    // Check if PDF is already a RooHistPdf
+    if (dynamic_cast<RooHistPdf*>(itp)){ pdfs.add(*it); continue; }
+    // Define the Hist PDF name
+    std::string hPDFName = it->GetName(); stringReplace(hPDFName, "pdf", "pdfHIST");
+    std::string hDSName = hPDFName; stringReplace(hDSName, "pdf", "ds");
+    // Create the Hist PDF
+    if (!ws.data(hDSName.c_str())) {
+      auto data = std::unique_ptr<RooDataHist>(it->generateBinned(RooArgSet(*var), 1000000, RooFit::Name(hDSName.c_str()), RooFit::ExpectedData()));
+      if (!data) { std::cout << "[ERROR] changeToHistPdf: RooDataHist " << hDSName << " was not created!" << std::endl; return false; }
+      if (ws.import(*data)) { return false; }
+    }
+    if (!ws.pdf(hPDFName.c_str())) {
+      auto pdf = std::unique_ptr<RooHistPdf>(new RooHistPdf(hPDFName.c_str(), hPDFName.c_str(), *var, *dynamic_cast<RooDataHist*>(ws.data(hDSName.c_str()))));
+      if (!pdf) { std::cout << "[ERROR] changeToHistPdf: RooHistPdf " << hPDFName << " was not created!" << std::endl; return false; }
+      if (ws.import(*pdf)) { return false; }
+      pdfs.add(*pdf);
+    }
+  }
+  stringReplace(pdfName, "pdf", "pdfHIST");
+  const auto& addPDF = RooAddPdf(pdfName.c_str(), pdfName.c_str(), pdfs);
+  if (!ws.pdf(pdfName.c_str()) && ws.import(addPDF)) { return false; }
+  return true;
+};
+
+
+bool addPdfToList(RooArgList& pdfs, RooArgList& yields, const RooWorkspace& ws, const RooArgList& pdfList)
+{
+  auto pdfIt = std::unique_ptr<TIterator>(pdfList.createIterator());
+  for (auto it = pdfIt->Next(); it!=NULL; it = pdfIt->Next()) {
+    std::string label = it->GetName(); label = label.substr(label.find("_")+1);
+    std::string pTag = it->GetName(); pTag = pTag.substr(0, pTag.find("Tot_"));
+    // Add the PDF
+    const auto& pName = (ws.pdf((pTag+"BIN_"+label).c_str()) ? (pTag+"BIN_"+label) : (pTag+"_"+label));
+    const auto& pdf = ws.pdf(pName.c_str());
+    if (!pdf) { std::cout << "[ERROR] addPdfToList: PDF " << pName << " was not found!" << std::endl; return false; }
+    pdfs.add(*pdf);
+    // Add the yield
+    const auto& yield = (ws.var(("N_"+label).c_str()) ? ws.var(("N_"+label).c_str()) : ws.function(("N_"+label).c_str()));
+    if (!yield) { std::cout << "[ERROR] addPdfToList: Parameter N_" << label << " was not found!" << std::endl; return false; }
+    yields.add(*yield);
+  }
+  return true;
+};
 
 
 void formatLegendEntry(TLegendEntry& e, const double& size=0.060)
 {
   e.SetTextSize(size);
+};
+
+
+void setVarToTag(RooWorkspace& ws, const std::string& varName, const std::string& tag="")
+{
+  const auto& var = ws.var(varName.c_str());
+  if (!var || tag=="") return;
+  // Extract the info
+  const auto& varMin = var->getMin(tag.c_str());
+  const auto& varMax = var->getMax(tag.c_str());
+  const auto& varBin = var->getBins(tag.c_str());
+  // Set the info
+  var->setBins(varBin);
+  var->setRange(varMin, varMax);
 };
 
 
@@ -67,89 +150,95 @@ void getPoint(const RooHist& rH, const uint& i, double& x, double& y, double& ex
 };
 
 
-bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool& useAverage = true)
+bool rooPlotToTH1(TH1D& hData, TH1D& hFit, const RooPlot& frame, const bool& useAverage = true, const int& sBinFit=1, const bool& limit=true)
 {
   // Find curve object
-  auto rFit = (RooCurve*) frame.findObject(0, RooCurve::Class());
+  const auto& rFit = dynamic_cast<RooCurve*>(frame.findObject(0, RooCurve::Class()));
   if (!rFit) { std::cout << "[ERROR] The latest RooCurve was not found" << std::endl; return false; }
   // Find histogram object
-  auto rData = (RooHist*) frame.findObject(0, RooHist::Class());
+  const auto& rData = dynamic_cast<RooHist*>(frame.findObject(0, RooHist::Class()));
   if (!rData) { std::cout << "[ERROR] The latest RooHist was not found" << std::endl; return false; }
   // Determine range of curve
   double xstart, xstop, yDummy;
   rFit->GetPoint(0, xstart, yDummy);
   rFit->GetPoint((rFit->GetN()-1), xstop, yDummy);
   // Get Binning
-  std::vector<double> binV;
+  std::vector<double> binDataN, binDataV, binFitV;
   for (int i = 0; i < rData->GetN(); i++) {
     double x, y; rData->GetPoint(i, x, y);
     // Only consider bins inside curve range
-    if (x<xstart || x>xstop) continue;
+    if (limit && (x<xstart || x>xstop)) continue;
     const double& binW = rData->getNominalBinWidth();
-    binV.push_back(x - (binW*0.5));
-    if (i==(rData->GetN()-1)) { binV.push_back(x + (binW*0.5)); }
+    for (int j = 0; j < sBinFit; j++) { binFitV.push_back(x - (binW*0.5) + j*(binW/sBinFit)); }
+    binDataV.push_back(x - (binW*0.5));
+    if (i==(rData->GetN()-1)) { binFitV.push_back(x + (binW*0.5)); }
+    if (i==(rData->GetN()-1)) { binDataV.push_back(x + (binW*0.5)); }
+    binDataN.push_back(i);
   }
-  const uint& nBin = (binV.size()-1);
-  double bin[nBin+1];
-  for (uint i = 0; i < binV.size(); i++) { bin[i] = binV[i]; }
+  const uint& nBinFit = (binFitV.size()-1), nBinData = (binDataV.size()-1);
+  double binFit[nBinFit+1], binData[nBinData+1];
+  for (uint i = 0; i < binFitV.size(); i++) { binFit[i] = binFitV[i]; }
+  for (uint i = 0; i < binDataV.size(); i++) { binData[i] = binDataV[i]; }
   //
-  hData.Reset(); hData = TH1D(Form("hData_%s", rData->GetName()), rData->GetTitle(), nBin, bin); hData.Sumw2();
-  hFit.Reset();  hFit  = TH1D(Form("hFit_%s" , rFit->GetName()) , rFit->GetTitle() , nBin, bin); hFit.Sumw2();
+  hData.Reset(); hData = TH1D(Form("hData_%s", rData->GetName()), rData->GetTitle(), nBinData, binData); hData.Sumw2();
+  hFit.Reset();  hFit  = TH1D(Form("hFit_%s" , rFit->GetName()) , rFit->GetTitle() , nBinFit,  binFit);  hFit.Sumw2();
   // Set Histogram entries
-  for (uint i = 0; i < nBin; i++) {
+  for (uint i = 0; i < nBinData; i++) {
     double x, dataVal, exl, exh, eyl, eyh;
-    getPoint(*rData, i, x, dataVal, exl, exh, eyl, eyh);
-    double fitVal = 0.0;
-    if (useAverage) { fitVal = rFit->average(x-exl, x+exh); }
-    else            { fitVal = rFit->interpolate(x);        }
+    getPoint(*rData, binDataN[i], x, dataVal, exl, exh, eyl, eyh);
     hData.SetBinContent((i+1), dataVal);
     hData.SetBinError((i+1), std::sqrt((eyl*eyl + eyh*eyh)/2.0));
-    hFit.SetBinContent((i+1), fitVal);
-    hFit.SetBinError((i+1), 0.0);
+    for (int j = 0; j < sBinFit; j++) {
+      double fitVal = 0.0, binW = (exh+exl), x1 = x-exl+j*(binW/sBinFit), x2 = x-exl+(j+1)*(binW/sBinFit);
+      if (useAverage) { fitVal = rFit->average(x1, x2);         }
+      else            { fitVal = rFit->interpolate((x1+x2)/2.); }
+      hFit.SetBinContent((sBinFit*i+j+1), fitVal);
+      hFit.SetBinError((sBinFit*i+j+1), 0.0);
+    }
   }
   return true;
 };
 
 
-void setPlotRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName, const std::string& dsName, const bool& setLogScale, const int& nBins)
+void setPlotRange(RooPlot& frame, const RooWorkspace& ws, const std::string& varName, const std::string& dsName, const bool& setLogScale)
 {
   // Find maximum and minimum points of Plot to rescale Y axis
   TH1D hData, hFit;
-  if (ws.data(dsName.c_str())!=NULL) {
-    auto h = std::unique_ptr<TH1>(ws.data(dsName.c_str())->createHistogram("hist", *ws.var(varName.c_str()), RooFit::Binning(nBins, frame.GetXaxis()->GetXmin(), frame.GetXaxis()->GetXmax())));
-    hData = *((TH1D*)h.get());
-  }
-  else {
-    if (!rooPlotToTH1(hData, hFit, frame)) { std::cout << "[ERROR] Could not find the RooHist from the frame!" << std::endl; return; }
-  }
-  double YMax = hData.GetBinContent(hData.GetMaximumBin());
+  if (!rooPlotToTH1(hData, hFit, frame, true, 4)) { std::cout << "[ERROR] Could not find the RooHist from the frame!" << std::endl; return; }
+  double YMax = std::max(hData.GetBinContent(hData.GetMaximumBin()), hFit.GetBinContent(hFit.GetMaximumBin()));
   double YMin = 1e99;
-  for (int i=1; i<=hData.GetNbinsX(); i++) if (hData.GetBinContent(i)>0) YMin = min(YMin, hData.GetBinContent(i));
-  double Yup(0.),Ydown(0.);
+  for (int i=1; i<=hData.GetNbinsX(); i++) if (hData.GetBinContent(i)>0) YMin = std::min(YMin, hData.GetBinContent(i));
+  double Yup(0.), Ydown(0.), rDown=0.05, rUp=0.45;
   if(setLogScale)
   {
-    Yup = YMax*pow((YMax), 0.55);
-    Ydown = 1.0;
+    YMin = std::max(YMin, 0.1); YMax = std::max(YMax, 0.1);
+    Ydown = std::max(YMin/(std::pow(YMax/YMin, (rDown/(1.0-rUp-rDown)))), 0.1);
+    Yup = Ydown*std::pow(YMax/Ydown, (1.0/(1.0 - rUp)));
   }
   else
   {
-    Yup = YMax+(YMax-0.0)*0.55;
-    Ydown = 0.0;
+    Ydown = std::max(YMin - (rDown/(1.0-rUp-rDown))*(YMax-YMin), 0.0);
+    Yup = Ydown + (YMax - Ydown)/(1.0 - rUp);
   }
-  frame.GetYaxis()->SetRangeUser(Ydown,Yup);
+  frame.GetYaxis()->SetRangeUser(Ydown, Yup);
+  std::cout << "[INFO] Setting plot y-axis range to: " << Ydown << " - " << Yup << std::endl;
   //
   // Draw Lines for the var range if cut
-  if (varName=="MET" && ws.data((dsName+"_FIT").c_str())!=NULL) {
-    const double& varMin = ws.var(varName.c_str())->getMin(Form("%sWindow", varName.c_str()));
-    if (varMin > 0.0) {
+  if (dsName.rfind("_FIT")!=std::string::npos || ws.data((dsName+"_FIT").c_str())) {
+    const auto& varMin = ws.var(varName.c_str())->getMin("FitWindow");
+    const auto& varPlotMin = ws.var(varName.c_str())->getMin("PlotWindow");
+    if (varMin >= ws.var(varName.c_str())->getMin("DSWindow") && varMin >= varPlotMin) {
       auto minline = new TLine(varMin, 0.0, varMin, (setLogScale?(Ydown*TMath::Power((Yup/Ydown),0.5)):(Ydown + (Yup-Ydown)*0.5)));
       minline->SetLineStyle(2); minline->SetLineColor(1); minline->SetLineWidth(3);
       frame.addObject(minline);
     }
-    double varMax = ws.var(varName.c_str())->getMax(Form("%sWindow", varName.c_str()));
-    auto maxline = new TLine(varMax, 0.0, varMax, (setLogScale?(Ydown*TMath::Power((Yup/Ydown),0.5)):(Ydown + (Yup-Ydown)*0.5)));
-    maxline->SetLineStyle(2); maxline->SetLineColor(1); maxline->SetLineWidth(3);
-    frame.addObject(maxline);
+    const auto& varMax = ws.var(varName.c_str())->getMax("FitWindow");
+    const auto& varPlotMax = ws.var(varName.c_str())->getMax("PlotWindow");
+    if (varMax <= ws.var(varName.c_str())->getMax("DSWindow") && varMax <= varPlotMax) {
+      auto maxline = new TLine(varMax, 0.0, varMax, (setLogScale?(Ydown*TMath::Power((Yup/Ydown),0.5)):(Ydown + (Yup-Ydown)*0.5)));
+      maxline->SetLineStyle(2); maxline->SetLineColor(1); maxline->SetLineWidth(3);
+      frame.addObject(maxline);
+    }
   }
   //
   return;
@@ -176,15 +265,15 @@ bool printGoF(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& v
   //
   if (ws.data(dataLabel.c_str())==NULL) { std::cout << "[ERROR] Dataset " << dataLabel << " was not found!" << std::endl; return false; }
   if (ws.pdf (pdfLabel.c_str() )==NULL) { std::cout << "[ERROR] PDF "     << pdfLabel  << " was not found!" << std::endl; return false; }
-  auto dataP = (RooDataSet*)ws.data(dataLabel.c_str());
-  auto pdfP  = (RooAbsPdf* )ws.pdf (pdfLabel.c_str() );
-  auto varP  = (RooRealVar*)ws.var (varLabel.c_str() );
+  const auto& dataP = dynamic_cast<RooDataSet*>(ws.data(dataLabel.c_str()));
+  const auto& pdfP  = dynamic_cast<RooAbsPdf* >(ws.pdf (pdfLabel.c_str() ));
+  const auto& varP  = dynamic_cast<RooRealVar*>(ws.var (varLabel.c_str() ));
   //
   // Find curve object
   RooCurve* rFit = frame.getCurve(Form("plot_%s", pdfLabel.c_str()));
   if (!rFit) { std::cout << "[ERROR] The latest RooCurve was not found" << std::endl; return false; }
   // Find histogram object
-  RooHist* rData = frame.getHist(Form("plot_Tot%s", dataLabel.c_str()));
+  RooHist* rData = frame.getHist(Form("plot_%s", dataLabel.c_str()));
   if (!rData) { std::cout << "[ERROR] The latest RooHist was not found" << std::endl; return false; }
   //
   pad.cd();
@@ -217,11 +306,13 @@ bool printGoF(TPad& pad, RooWorkspace& ws, const RooPlot& frame, const string& v
   //
   RooFit::RooGoF GoF_Binned(rData, rFit);
   GoF_Binned.setRange(varP->getMin(), varP->getMax());
-  GoF_Binned.setRebin(5, false); // We use 5 in approval plots
+  GoF_Binned.setRebin(5, true);
+  //GoF_Binned.setRebin(2, true);
   //
   // Determine the number of free parameters
   auto parList = std::unique_ptr<RooArgSet>(ws.pdf(pdfLabel.c_str())->getParameters(*ws.data(dataLabel.c_str())));
-  const int& nFitPar = parList->selectByAttrib("Constant", kFALSE)->getSize();
+  auto varList = std::unique_ptr<RooAbsCollection>(parList->selectByAttrib("Constant", false));
+  const int& nFitPar = varList->getSize();
   //
   // Baker-Cousins chi2 test
   int ndof_BCChi2 = -1;
@@ -277,26 +368,27 @@ void divideBand(RooCurve& band, const RooCurve& cDen)
 };
 
 
-bool addRatioBand(RooPlot& outFrame, RooPlot& frame, const RooWorkspace& ws, const std::string& pdfName, const std::string& dsName, const std::string& curvename = "", const double& Z = 1.0)
+bool addRatioBand(RooPlot& outFrame, RooPlot& frame, const RooWorkspace& ws, const std::string& pdfName, const std::string& dsName,
+		  const std::string& varRange, const std::string& cName = "cenCurve", const double& Z = 1.0)
 {
   // Get normalization
   const double& norm = ws.data(dsName.c_str())->sumEntries();
   // Find central curve
-  ws.pdf(pdfName.c_str())->plotOn(&frame, RooFit::Name("cenCurve"), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
+  ws.pdf(pdfName.c_str())->plotOn(&frame, RooFit::Name(cName.c_str()), RooFit::Range(varRange.c_str()), RooFit::NormRange(varRange.c_str()),
                                   RooFit::Normalization(norm, RooAbsReal::NumEvent)
                                   );
-  auto rFit = (RooCurve*) frame.findObject("cenCurve");
-  if (!rFit) { std::cout << "[ERROR] addRatioBand(cenCurve) cannot find curve" << std::endl; return false; }
+  const auto& rFit = dynamic_cast<RooCurve*>(frame.findObject(cName.c_str()));
+  if (!rFit) { std::cout << "[ERROR] addRatioBand("<<cName<<") cannot find curve" << std::endl; return false; }
   RooCurve cenCurve = *rFit;
   frame.remove(0, kFALSE);
   // Get the fit results
-  RooFitResult* fitResult = (RooFitResult*) ws.obj(Form("fitResult_%s", pdfName.c_str()));
+  const auto& fitResult = dynamic_cast<RooFitResult*>(ws.obj(Form("fitResult_%s", pdfName.c_str())));
   // Create the Error Band
-  ws.pdf(pdfName.c_str())->plotOn(&frame, RooFit::Name("band"), RooFit::Range("METWindowPlot"), RooFit::NormRange("METWindowPlot"),
-                                  RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::VisualizeError(*fitResult, 1, true)
+  ws.pdf(pdfName.c_str())->plotOn(&frame, RooFit::Name("band"), RooFit::Range(varRange.c_str()), RooFit::NormRange(varRange.c_str()),
+                                  RooFit::Normalization(norm, RooAbsReal::NumEvent), RooFit::VisualizeError(*fitResult, Z, true)
                                   );
   // Find band
-  auto band = (RooCurve*) frame.getCurve("band");
+  const auto& band = dynamic_cast<RooCurve*>(frame.getCurve("band"));
   if (!band) { std::cout << "[ERROR] addRatioBand(band) cannot find curve" << std::endl; return false; }
   frame.remove(0, kFALSE);
   // Normalize the cenCurve
@@ -312,10 +404,10 @@ bool addRatioBand(RooPlot& outFrame, RooPlot& frame, const RooWorkspace& ws, con
 bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string& histname, const std::string& curvename, const bool& useAverage)
 {
   // Find curve object
-  auto rFit = (RooCurve*) frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class());
+  const auto& rFit = dynamic_cast<RooCurve*>(frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class()));
   if (!rFit) { std::cout << "[ERROR] makePullHist(" << curvename << ") cannot find curve" << std::endl; return false; }
   // Find histogram object
-  auto rData = (RooHist*) frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class());
+  const auto& rData = dynamic_cast<RooHist*>(frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class()));
   if (!rData) { std::cout << "[ERROR] makePullHist(" << histname  << ") cannot find histogram" << std::endl; return false; }
   // Determine range of curve
   double xstart, xstop, yDummy;
@@ -335,7 +427,7 @@ bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string& histn
     // Compute the Residual
     double y = (dataVal - fitVal);
     // Get the Norm factor
-    const double& norm = ( (y>0) ? eyl : eyh );
+    const double norm = ( (y>0) ? eyl : eyh );
     // Set Values
     if (norm>0.0) {
       y   /= norm;
@@ -354,10 +446,10 @@ bool makePullHist(RooHist& pHist, const RooPlot& frame, const std::string& histn
 bool makeRatioHist(RooHist& rHist, const RooPlot& frame, const std::string& histname, const std::string& curvename, const bool& useAverage)
 {
   // Find curve object
-  auto rFit = (RooCurve*) frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class());
+  const auto& rFit = dynamic_cast<RooCurve*>(frame.findObject(((curvename=="") ? 0 : curvename.c_str()), RooCurve::Class()));
   if (!rFit) { std::cout << "[ERROR] makeRatioHist(" << curvename << ") cannot find curve" << std::endl; return false; }
   // Find histogram object
-  auto rData = (RooHist*) frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class());
+  const auto& rData = dynamic_cast<RooHist*>(frame.findObject(((histname=="") ? 0 : histname.c_str()), RooHist::Class()));
   if (!rData) { std::cout << "[ERROR] makeRatioHist(" << histname  << ") cannot find histogram" << std::endl; return false; }
   // Determine range of curve
   double xstart, xstop, yDummy;
@@ -403,64 +495,203 @@ double getErrorLo(const RooRealVar& var)
 };
 
 
+bool isParAtLimit(std::pair<double, double>& limit, const RooRealVar& var)
+{
+  limit = {-99., -99.};
+  bool isAtLimit = false;
+  if ((std::abs(var.getValV() - var.getMin())/getErrorLo(var)) <= 3.0) {
+    limit.first = var.getValV() - 3.1*getErrorLo(var);
+    isAtLimit = true;
+  }
+  if ((std::abs(var.getValV() - var.getMax())/getErrorHi(var)) <= 3.0) {
+    limit.second = var.getValV() + 3.1*getErrorHi(var);
+    isAtLimit = true;
+  }
+  return isAtLimit;
+};
+
+
 bool isParAtLimit(const RooRealVar& var)
 {
-  if (
-      ( (std::abs(var.getValV() - var.getMin())/getErrorLo(var)) <= 3.0 ) ||
-      ( (std::abs(var.getValV() - var.getMax())/getErrorHi(var)) <= 3.0 )
-      )
-    { return true; }
-  return false;
+  std::pair<double, double> limit;
+  return isParAtLimit(limit, var);
 };
 
 
-bool getVar(std::vector<RooRealVar>& varVec, const RooWorkspace& ws, const std::string& name, const std::string& pdfName)
+RooAbsCollection* skimSet(const RooArgSet& set, const std::string& varStr="*", const StringVector_t& excV={}, const std::string& state="Constant")
 {
-  varVec.clear();
-  std::unique_ptr<TIterator> parIt = std::unique_ptr<TIterator>(ws.allVars().selectByAttrib("Constant", kFALSE)->createIterator());
-  for (RooRealVar* it = (RooRealVar*)parIt->Next(); it!=NULL; it = (RooRealVar*)parIt->Next() ) {
-    std::string s(it->GetName());
-    if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
-    if((s.find("OS")!=std::string::npos)!=(pdfName.find("OS")!=std::string::npos)){ continue; }
-    if (s.find(name)!=std::string::npos) { varVec.push_back(*it);}
+  // Select variables passing varStr
+  auto vSet = std::unique_ptr<RooAbsCollection>(set.selectByName(varStr.c_str(), true));
+  // Remove variables passing state
+  const auto& sSet = vSet->selectByAttrib(state.c_str(), false);
+  // Remove variables in excV
+  for (const auto& o : excV) { const auto& p = sSet->find(o.c_str()); if (p) { sSet->remove(*p); } }
+  return sSet;
+};
+  
+
+std::vector<RooRealVar> getModelVar(const RooWorkspace& ws, const std::string& pdfName, const std::string& name="*")
+{
+  // Get information from workspace
+  const std::string& cha     = (ws.obj("channel") ? dynamic_cast<RooStringVar*>(ws.obj("channel"))->getVal() : "");
+  const std::string& dsName  = (ws.obj("dsName")  ? dynamic_cast<RooStringVar*>(ws.obj("dsName") )->getVal() : "");
+  // Define the var name
+  const auto& label = (pdfName.find("_")!=std::string::npos ? pdfName.substr(pdfName.find(cha)) : "");
+  const auto& varStr = name + "_*" + (label=="" ? "" : label);
+  // Define the list of observables
+  StringVector_t obsV;
+  if (ws.data(dsName.c_str())) {
+    const  auto& listObs = const_cast<RooWorkspace*>(&ws)->set(("SET_"+dsName).c_str());
+    auto parIt = std::unique_ptr<TIterator>(listObs->createIterator());
+    for (auto it = parIt->Next(); it!=NULL; it = parIt->Next() ) { obsV.push_back(it->GetName()); }
   }
-  if (varVec.size()>0) return true;
-  std::unique_ptr<TIterator> fncIt = std::unique_ptr<TIterator>(ws.allFunctions().selectByAttrib("Constant", kFALSE)->createIterator());
-  for (RooRealVar* it = (RooRealVar*)fncIt->Next(); it!=NULL; it = (RooRealVar*)fncIt->Next() ) {
-    std::string s(it->GetName());
-    if((s.find("Pl")!=std::string::npos)!=(pdfName.find("Pl")!=std::string::npos)){ continue; }
-    if((s.find("OS")!=std::string::npos)!=(pdfName.find("OS")!=std::string::npos)){ continue; }
-    if (s.find(name)!=std::string::npos) { varVec.push_back(*it); }
+  // Get the var set
+  auto parSet = std::unique_ptr<RooArgSet>(ws.pdf(pdfName.c_str()) ? ws.pdf(pdfName.c_str())->getParameters(RooArgSet()) : NULL);
+  auto varSet = std::unique_ptr<RooAbsCollection>(skimSet((parSet ? *parSet : ws.allVars()), varStr, obsV));
+  if (varSet->getSize()==0) { varSet.reset(skimSet(ws.allFunctions(), varStr, obsV)); }
+  // Fill the vector of variables
+  std::vector<RooRealVar> varV;
+  auto parIt = std::unique_ptr<TIterator>(varSet->createIterator());
+  for (auto itp = parIt->Next(); itp!=NULL; itp = parIt->Next()) {
+    const auto& it = dynamic_cast<RooRealVar*>(itp); if (!it) continue;
+    varV.push_back(*it);
   }
-  return (varVec.size()>0);
+  // Set yields at the beginning and order based on object
+  std::vector<RooRealVar> varVec;
+  for (const auto& v : varV) { if (std::string(v.GetName()).rfind("N_",0)==0) { varVec.push_back(v); } }
+  for (const auto& v : varV) { if (std::string(v.GetName()).rfind("R_",0)==0) { varVec.push_back(v); } }
+  for (const auto& v : varV) { if (std::string(v.GetName()).rfind("b_",0)==0) { varVec.push_back(v); } }
+  for (const auto& p : PDFMAP_) {
+    if (p.first=="Bkg") continue;
+    for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.rfind("R_",0)!=0 && vv.rfind("b_",0)!=0 && vv.find(p.first)!=std::string::npos) { varVec.push_back(v); } }
+  }
+  for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.rfind("b_",0)!=0 && vv.find("Bkg")!=std::string::npos) { varVec.push_back(v); } }
+  for (const auto& v : varV) { const std::string& vv = v.GetName(); if (vv.rfind("N_",0)!=0 && vv.find("DLenRes")!=std::string::npos) { varVec.push_back(v); } }
+  return varVec;
 };
 
 
-void parseVarName(const std::string& name, std::string& label)
+std::string formatCut(const std::string& cut)
 {
-  label = "";
+  if (cut=="") return cut;
+  auto str = cut;
+  str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
+  // Format the variable string
+  const auto& objN = "J/#psi";
+  const auto& varL = StringMap_t({{"Cand_DLen", Form("#font[12]{l}_{%s}", objN)}, {"Cand_DLenErr", Form("#sigma_{#font[12]{l}_{%s}}", objN)},
+				  {"Cand_DLenGen", Form("#font[12]{l}^{gen}_{%s}", objN)}, {"Cand_DLenRes", Form("#font[12]{l}_{%s}/#sigma_{#font[12]{l}_{%s}}", objN, objN)}});
+  for (const auto& vL : varL) { stringReplace(str, vL.first, vL.second); }
+  // Format the observables
+  for (const auto& elem : VARLABEL_) { stringReplace(str, elem.first, elem.second); }
+  // Format the object string
+  const auto& objL = StringMap_t({{"Pl", "^{+}+x"}, {"Mi", "^{#font[122]{\55}}+x"}, {"To", "#rightarrow"},
+				  {"El", "e"}, {"Mu", "#mu"}, {"Tau","#tau"},
+				  {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+				  {"JPsi", "J/#psi"}, {"Psi(2S)", "#psi(2S)"},
+				  {"Ups(1S)", "#Upsilon(1S)"}, {"Ups(2S)", "#Upsilon(2S)"}, {"Ups(3S)", "#Upsilon(3S)"},
+				  {"&&", " & "}, {"(", ""}, {")", ""}, {"<=", "#leq"}, {"<", " < "}, {">=", " #geq "}, {">", " > "}});
+  for (const auto& oL : objL) { stringReplace(str, oL.first, oL.second); }
+  return str;
+};
+
+
+std::string formatPar(const std::string& name, const std::string& cha)
+{
+  auto label = cha;
+  if (label=="ToMuMu") { label = "#mu^{+}#mu^{#font[122]{\55}} "; }
+  const auto& objN = "J/#psi";
+  const auto& parL = StringMap_t({{"Cand_Mass", "Mass [GeV/c^{2}]"}, {"Cand_Pt", "p_{T} [GeV/c]"}, {"Cand_DLen", Form("#font[12]{l}_{%s} [mm]", objN)},
+				  {"Cand_DLenErr", Form("#font[12]{l}_{%s} Error [mm]", objN)}, {"Cand_DLenGen", Form("GEN #font[12]{l}_{%s} [mm]", objN)},
+				  {"Cand_DLenRes", Form("#font[12]{l}_{%s}/#sigma_{#font[12]{l}}", objN)}});
+  for (const auto& pL : parL) { if (name==pL.first) { label += pL.second; break; } }
+  return label;
+};
+
+
+std::string formatCutLbl(const std::string& cut)
+{
+  if (cut=="") return cut;
+  auto str = cut;
+  const auto& cutL = StringMap_t({{"Prompt", "Pr"}, {"Decay", "Dec"}, {"[0.","["}, {"Psi2S", "#psi(2S)"}});
+  for (const auto& cL : cutL) { stringReplace(str, cL.first, cL.second); }
+  return str;
+};
+
+
+std::string parseVarName(const std::string& name)
+{
+  std::string label = "";
   // Parse the parameter's labels
   stringstream ss(name); std::string s1, s2, s3;
   getline(ss, s1, '_'); getline(ss, s2, '_'); getline(ss, s3, '_');
   // Format model parameters
-  if (s1=="Alpha"){ s1="#alpha"; } else if (s1=="Beta"){ s1="#beta"; }
-  else if (s1=="Sigma0"){ s1="#sigma0"; } else if (s1=="Sigma1"){ s1="#sigma1"; } else if (s1=="Sigma2"){ s1="#sigma2"; } else if (s1=="rSigma21"){ s1="#frac{#sigma2}{#sigma1}"; }
-  else if (s1=="Lambda1"){ s1="#lambda1"; } else if (s1=="Lambda2"){ s1="#lambda2"; } else if (s1=="Lambda3"){ s1="#lambda3"; }
-  else if (s1=="Lambda4"){ s1="#lambda4"; } else if (s1=="Lambda5"){ s1="#lambda5"; } else if (s1=="Lambda6"){ s1="#lambda6"; }
-  else if (s1=="XSection"){ s1="#sigma"; } else if (s1=="AccXEff"){ s1="#alphax#epsilon"; }
+  const auto& varL = StringMap_t({{"Alpha", "#alpha"}, {"Beta", "#beta"}, {"Lambda", "#lambda"}, {"Sigma", "#sigma"},
+                                  {"rSigma21","#sigma2/#sigma1"}, {"rSigma32","#sigma3/#sigma2"}, {"rSigma43","#sigma4/#sigma3"},
+				  {"rLambdaSS21","#lambda2/#lambdaSS"}, {"rLambdaDS21","#lambda2/#lambdaDS"}, {"rLambdaF21","#lambda2/#lambdaF"},
+				  {"rAlphaR","#alphaR/#alpha"}, {"rnR","nR/n"},
+				  {"XSection","#sigma"}, {"AccXEff","#alphax#epsilon"}});
+  for (const auto& vL : varL) { if (s1.rfind(vL.first, 0)==0) { stringReplace(s1, vL.first, vL.second); break; } }
   // Format Object name
-  std::string chg = ""; if (s2.find("Pl")!=std::string::npos) { chg = "+"; } else if (s2.find("Mi")!=std::string::npos) { chg = "-"; }
-  if (s2.find("WToTau")!=std::string::npos) { s2 = "W#rightarrow#tau"; } else if (s2.find("WW")!=std::string::npos) { s2 = "WW"; }
-  else if (s2.find("WZ")!=std::string::npos) { s2 = "WZ"; } else if (s2.find("W")!=std::string::npos) { s2 = "W#rightarrow#mu"; }
-  else if (s2.find("DYToTau")!=std::string::npos) { s2 = "Z/#gamma*#rightarrow#tau"; }
-  else if (s2.find("DY")!=std::string::npos) { s2 = "Z/#gamma*"; } else if (s2.find("Z")!=std::string::npos) { s2 = "Z"; }
-  else if (s2.find("QCD")!=std::string::npos) { s2 = "QCD"; } else if (s2.find("TTbar")!=std::string::npos) { s2 = "t#bar{t}"; }
-  else if (s2.find("JPsi")!=std::string::npos) { s2 = "J/#psi"; } else if (s2.find("Psi2S")!=std::string::npos) { s2 = "#psi(2S)"; }
-  else if (s2.find("Ups1S")!=std::string::npos) { s2 = "#Upsilon(1S)"; } else if (s2.find("Ups2S")!=std::string::npos) { s2 = "#Upsilon(2S)"; }
-  else if (s2.find("Ups3S")!=std::string::npos) { s2 = "#Upsilon(3S)"; } else if (s2.find("Bkg")!=std::string::npos) { s2 = "Bkg"; }
-  s2 = ( s2 + chg );
-  if(s3!=""){ label = Form("%s_{%s}^{%s}", s1.c_str(), s2.c_str(), s3.c_str()); } else { label = Form("%s^{%s}", s1.c_str(), s2.c_str()); }
-  return;
+  const auto& objL = StringMap_t({{"Z", "Z"}, {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+				  {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
+				  {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"},
+				  {"Bkg", "Bkg"}, {"DLenRes", "#font[12]{l}Res"}});
+  for (const auto& oL : objL) { if (s2.find(oL.first)!=std::string::npos) { s2 = oL.second; break; } }
+  // Format System name
+  const auto& s3V = parseColStr(s3);
+  auto col = (!s3V.empty() ? s3V[0] : ""); if (col=="PA") { col = "pA"; } else if (col=="PP") { col = "pp"; }
+  if (col!="") { label = Form("%s_{%s}^{%s}", s1.c_str(), s2.c_str(), col.c_str()); } else { label = Form("%s^{%s}", s1.c_str(), s2.c_str()); }
+  return label;
+};
+
+
+std::string parseObject(const std::string& inObj)
+{
+  // Format Object name
+  const auto& objL = StringMap_t({{"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+				  {"PsinS", "#psi(nS)"}, {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
+				  {"UpsnS", "#Upsilon(nS)"}, {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
+  return (objL.find(inObj)!=objL.end() ? objL.at(inObj) : inObj);
+};
+
+
+std::string parseProcess(const std::string& obj, const std::string& cha, const std::string& dsName)
+{
+  // Format Object name
+  std::string proc = obj;
+  if (proc=="") return proc;
+  if (dsName.find("CatNoPR_")!=std::string::npos) { proc = "b#rightarrow " + proc; }
+  const auto& objL = StringMap_t({{"To", "#rightarrow "}, {"El", "e"}, {"Mu", "#mu"}, {"Tau","#tau"},
+				  {"DY", "Z/#gamma*"}, {"TTbar", "t#bar{t}"},
+				  {"PsinS", "#psi(nS)"}, {"JPsi", "J/#psi"}, {"Psi2S", "#psi(2S)"},
+				  {"UpsnS", "#Upsilon(nS)"}, {"Ups1S", "#Upsilon(1S)"}, {"Ups2S", "#Upsilon(2S)"}, {"Ups3S", "#Upsilon(3S)"}});
+  for (const auto& oL : objL) { stringReplace(proc, oL.first, oL.second); }
+  // Format the channel
+  proc += cha;
+  const auto& chaL = StringMap_t({{"ToMuMu", "#rightarrow #mu^{+} #mu^{#font[122]{\55}}"}});
+  for (const auto& cL : chaL) { stringReplace(proc, cL.first, cL.second); }
+  proc = ("#font[62]{#scale[1.1]{"+proc+"}}");
+  return proc;
+};
+
+
+std::string parseProcess(const std::set<std::string>& inObjV, const std::string& cha, const std::string& dsName)
+{
+  std::string obj="";
+  auto objV = inObjV;
+  if (objV.size()>1) {
+    objV.clear();
+    for (const auto& o : inObjV) { if (o.rfind("Bkg",0)!=0 && o!="DLenRes") { objV.insert(o); } }
+    if (objV.empty()) { objV.insert("Bkg"); }
+    else if (objV.size()>1) {
+      auto objS = objV; objV.clear();
+      for (const auto& o : objS) { objV.insert(o.substr(0,o.rfind("Cat"))); }
+    }
+  }
+  if (objV.size()==1) { obj = *objV.begin(); }
+  else if (objV.find("Ups1S")!=objV.end()) { obj = "UpsnS"; }
+  else if (objV.find("JPsi")!=objV.end()) { obj = "PsinS"; }
+  return parseProcess(obj, cha, dsName);
 };
 
 
