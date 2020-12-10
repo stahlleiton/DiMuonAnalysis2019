@@ -112,7 +112,7 @@ void get_acceptance()
 
   std::string obj = "Psi2S";
   //****** Open the tree and make it scan branches one by one (SetMakeClass, to study one branch at a time)
-  const auto& inputFile = "/Users/andre/DiMuonAnalysis2019/Tree/VertexCompositeTree_"+obj+"ToMuMu_pPb-Bst_pPb816Summer16_DiMuMC_20190719.root";
+  const auto& inputFile = "/eos/cms/store/group/phys_heavyions/anstahll/RiceHIN/pPb2016/Tree/VertexCompositeTree_"+obj+"ToMuMu_pPb-Bst_pPb816Summer16_DiMuMC.root"
   const auto& treeDir = "dimucontana_mc"; // For MC use dimucontana_mc
 
   VertexCompositeTree tree;
