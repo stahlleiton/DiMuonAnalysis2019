@@ -3,8 +3,10 @@
 
 
 #include "../Utilities/drawUtils.h"
+#include <fstream>
 
 
+bool     checkFit                  ( std::vector<std::string>& status   , const RooWorkspace& ws , const std::string& pdfName );
 void     printCandidateParameters  ( TPad& pad , const RooWorkspace& ws , const std::string& pdfName , const uint& drawMode );
 void     printCandidateTextInfo    ( TPad& pad , const RooWorkspace& ws , const std::string& varN , const uint& drawMode , const int& plotStyle );
 TLegend* printCandidateLegend      ( TPad& pad , const RooPlot& frame   , const StringMap_t& legInfo , const int& plotStyle );
@@ -59,8 +61,8 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
   fitVar->setRange("DSPlotWindow", minDSRange, maxDSRange);
   fitVar->setBins(nDSBins, "DSPlotWindow");
   setVarToTag(ws, varName, "DSPlotWindow");
-  const auto& minPDFRange = std::max(fitVar->getMin("FitWindow"), minDSRange);
-  const auto& maxPDFRange = std::min(fitVar->getMax("FitWindow"), maxDSRange);
+  const auto minPDFRange = std::max(fitVar->getMin("FitWindow"), minDSRange);
+  const auto maxPDFRange = std::min(fitVar->getMax("FitWindow"), maxDSRange);
   const auto& nPDFBins    = getNBins(minPDFRange, maxPDFRange, binWidth);
   fitVar->setRange("PDFPlotWindow", minPDFRange, maxPDFRange);
   fitVar->setBins(nPDFBins, "PDFPlotWindow");
@@ -74,8 +76,9 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
   projSet.remove(*fitVar, true, true);
   if (projSet.find("Cand_Mass")!=NULL) { projSet.remove(*ws.var("Cand_Mass"), true, true); } // Remove mass variable
   const bool& useProjWData = (projSet.getSize() > 0);
-  auto projDS = std::unique_ptr<RooAbsData>(useProjWData ? ws.data(dsNameFit.c_str())->reduce(RooFit::Name("projDS"), RooFit::SelectVars(projSet)) : new RooDataSet("projDS", "", RooArgSet()));
+  auto projDS = std::unique_ptr<RooAbsData>(useProjWData ? ws.data(dsNameFit.c_str())->reduce(RooFit::Name("projDS"), RooFit::SelectVars(projSet)) : NULL);
   const auto& NORM = (useProjWData ? projDS->sumEntries() : 1.0);
+  const auto& projWData = (useProjWData ? RooFit::ProjWData(projSet, *projDS, true) : RooCmdArg());
   if (useProjWData) { std::cout << "[INFO] Using projected dataset for " << fitPDF->GetName() << std::endl; }
   //
   int drawMode = 0;
@@ -114,16 +117,17 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
       if (fitPDFList.getSize()==1) {
 	std::string label = fitPDFList.at(0)->GetName(); label = label.substr(label.find("_")+1);
 	const auto& pdf = dynamic_cast<RooAddPdf*>(ws.pdf(("pdf"+varTag+"_"+label).c_str()));
-	if (pdf && pdf->pdfList().getSize()>1) {
+	const auto& pdfList = pdf->pdfList();
+	if (pdf && pdfList.getSize()>1) {
 	  const auto& norm = fitPDF->expectedEvents(fitSet);
 	  const auto& pdfColor = std::vector<int>({kRed+1, kBlue+2, kGreen+3, kViolet+2, kAzure-7});
-	  auto pdfIt = std::unique_ptr<TIterator>(pdf->pdfList().createIterator()); int iPdf = 0;
+	  auto pdfIt = std::unique_ptr<TIterator>(pdfList.createIterator()); int iPdf = 0;
 	  for (auto it = pdfIt->Next(); it!=NULL; it = pdfIt->Next(), iPdf++) {
 	    RooArgList pdfL; pdfL.add(*dynamic_cast<RooAbsPdf*>(it));
 	    ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(Form("plot_%s", it->GetName())), RooFit::Components(pdfL),
 					    RooFit::Range("PDFPlotWindow"), RooFit::NormRange("PDFPlotWindow"), RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent),
 					    RooFit::LineColor(pdfColor[iPdf]), RooFit::LineStyle(2),
-					    RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
+					    projWData, RooFit::NumCPU(32, 1));
 	  }
 	}
       }
@@ -162,9 +166,9 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
 	      if (!ws.pdf(pdfPlotName.c_str()) && ws.import(addPDF)) { return false; }
 	      // Plot the sum of PDFs
 	      ws.pdf(pdfPlotName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PDFPlotWindow"),
-						  RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
+						  RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-8),
 						  RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("B"),
-						  RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
+						  projWData, RooFit::NumCPU(32, 1));
 	    }
 	    norm -= yield->getVal();
 	    pdfList.remove(*pdf);
@@ -177,9 +181,9 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
 	  std::string obj = pName; obj = obj.substr(obj.find("_")+1); obj = obj.substr(0, obj.find("To"));
 	  // Plot the PDF
 	  ws.pdf(pName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Range("PDFPlotWindow"),
-					RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-7),
+					RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-8),
 					RooFit::FillStyle(1001), RooFit::FillColor(PDFMAP_.at(obj)[1]), RooFit::VLines(), RooFit::DrawOption("B"),
-					RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
+					projWData, RooFit::NumCPU(32, 1));
 	}
 	// Loop over the non-stacked PDFs
 	if (!pdfDrawMap.empty()) {
@@ -195,7 +199,7 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
 	    ws.pdf(pdfName.c_str())->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pName).c_str()), RooFit::Components(pdfs),
 					    RooFit::Range("PDFPlotWindow"), RooFit::NormRange("PDFPlotWindow"), RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent),
 					    RooFit::LineColor(PDFMAP_.at(obj)[1]), RooFit::LineStyle(2),
-					    RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
+					    projWData, RooFit::NumCPU(32, 1));
 	  }
 	}
       }
@@ -210,7 +214,7 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
       const auto& norm = fitDS->sumEntries();
       fitPDF->plotOn(frame.at("MAIN").get(), RooFit::Name(("plot_"+pdfName).c_str()), RooFit::Range("PDFPlotWindow"), RooFit::NormRange("PDFPlotWindow"),
 		     RooFit::Normalization(norm/NORM, RooAbsReal::NumEvent), RooFit::Precision(1e-7), RooFit::LineColor(kBlack), RooFit::LineStyle(1),
-		     RooFit::ProjWData(projSet, *projDS, true), RooFit::NumCPU(32, 1));
+		     projWData, RooFit::NumCPU(32, 1));
     }
     // Store the frame
     frame.at("MAIN")->SetTitle(frameName.c_str());
@@ -333,13 +337,28 @@ bool drawCandidatePlot( RooWorkspace& ws,  // Local Workspace
   // Set log scale if requested
   pad.at("MAIN")->SetLogy(setLogScale);
   pad.at("MAIN")->Update();
-   //
+  //
   // Save the plot in different formats
   StringVector_t formats = {"png", "pdf", "root", "C"};
   for (const auto& f : formats) {
     makeDir(outputDir+"plot/"+varTag+"/"+f+"/");
     cFig->SaveAs((outputDir+"plot/"+varTag+"/"+f+"/"+fileName+"."+f).c_str());
   }
+  //
+  // Check fit quality and store plot if failed
+  std::vector<std::string> status;
+  auto failDir = outputDir;
+  if (failDir.find("DATA_")!=std::string::npos) { failDir = failDir.substr(0, failDir.find("DATA_")); }
+  else if (failDir.find("MC_")!=std::string::npos) { failDir = failDir.substr(0, failDir.find("MC_")); }
+  if (checkFit(status, ws, pdfName)) {
+    makeDir(failDir+"FAILED/");
+    cFig->SaveAs((failDir+"FAILED/"+fileName+".png").c_str());
+    for (const auto& s : status) { std::cout << "[WARNING] " << s << std::endl; }
+  }
+  else if (existFile(failDir+"FAILED/"+fileName+".png")) {
+    std::remove((failDir+"FAILED/"+fileName+".png").c_str());
+  }
+  //
   // Close canvas
   cFig->Clear();
   cFig->Close();
@@ -377,6 +396,38 @@ bool drawCandidatePlot( RooWorkspace& ws,
 };
 
 
+bool checkFit(std::vector<std::string>& status, const RooWorkspace& ws, const std::string& pdfName)
+{
+  // 1) check if parameters are hitting limits (within 3 sigma)
+  const auto& vars = getModelVar(ws, pdfName, "*");
+  for (const auto& var : vars) {
+    if ((std::abs(var.getValV() - var.getMin())/getErrorLo(var)) <= 3.0) {
+      status.push_back(Form("Parameter: %s reach lower limit. Suggest to use as lower limit: %.3f", var.GetName(), (var.getValV() - 3.1*getErrorLo(var))));
+    }
+    if ((std::abs(var.getValV() - var.getMax())/getErrorHi(var)) <= 3.0) {
+      status.push_back(Form("Parameter: %s reach upper limit. Suggest to use as upper limit: %.3f", var.GetName(), (var.getValV() + 3.1*getErrorHi(var))));
+    }
+  }
+  // 2) check if fit failed
+  if (ws.var("FIT_FAILED")) {
+    const auto sta = ws.var("FIT_FAILED")->getVal();
+    if (sta==1) { status.push_back("Fit failed due to MINIMIZE"); }
+    if (sta==2) { status.push_back("Fit failed due to HESSE"); }
+  }
+  // 3) check if f parameter is outside range [0, 1] or sigma is negative
+  for (const auto& var : vars) {
+    const std::string name = var.GetName();
+    if (name.rfind("f_",0)==0 && (var.getValV()>1. || var.getValV()<0.)) {
+      status.push_back(Form("Parameter %s value %.2f is outside of [0, 1] range", var.GetName(), var.getValV()));
+    }
+    if ((name.rfind("sigma",0)==0 || name.rfind("rSigma",0)==0) && var.getValV()<0.) {
+      status.push_back(Form("Parameter %s value %.2f is negative", var.GetName(), var.getValV()));
+    }
+  }
+  return !status.empty();
+};
+
+
 void printCandidateParameters(TPad& pad, const RooWorkspace& ws, const std::string& pdfName, const uint& drawMode)
 {
   pad.cd();
@@ -391,7 +442,7 @@ void printCandidateParameters(TPad& pad, const RooWorkspace& ws, const std::stri
     // Parse the parameter's labels
     const auto& parLbl = parseVarName(s); if (parLbl=="") continue;
     // Get number of decimals
-    const int& n = std::max(-std::floor(std::log10(v.getError()>0. ? v.getError() : 1.)), 0.);
+    const int n = std::min(std::max(-std::floor(std::log10(v.getError()>0. ? v.getError() : 1.)), 0.), 3.);
     // Print the parameter's results
     std::string txtLbl;
     if (s.rfind("N_",0)==0) { txtLbl = Form("%s = %.0f#pm%.0f", parLbl.c_str(), v.getValV(), v.getError()); }
@@ -399,8 +450,16 @@ void printCandidateParameters(TPad& pad, const RooWorkspace& ws, const std::stri
     else if (n==1) { txtLbl = Form("%s = %.1f#pm%.1f", parLbl.c_str(), v.getValV(), v.getError()); }
     else if (n==2) { txtLbl = Form("%s = %.2f#pm%.2f", parLbl.c_str(), v.getValV(), v.getError()); }
     else           { txtLbl = Form("%s = %.3f#pm%.3f", parLbl.c_str(), v.getValV(), v.getError()); }
-    const bool& isAtLimit = isParAtLimit(v);
-    if (isAtLimit) { txtLbl += " (!)"; }
+    std::pair<double, double> limit;
+    const bool& isAtLimit = isParAtLimit(limit, v);
+    if (isAtLimit) {
+      txtLbl += " (!)#frac{";
+      if (limit.second!=-99.) { txtLbl += Form((n==0? "%.1f" : (n==1? "%.2f" : "%.3f")), limit.second); }
+      txtLbl += "}{";
+      if (limit.first!=-99.) { txtLbl += Form((n==0? "%.1f" : (n==1? "%.2f" : "%.3f")), limit.first); }
+      txtLbl += "}";
+    }
+    else if (s.rfind("f_",0)==0 && (v.getValV()>1. || v.getValV()<0.)) { txtLbl += " (!!!)"; }
     const bool printTxt = (isAtLimit || (s.rfind("b_",0)==0) ||  (s.rfind("N_",0)==0) || (s.find("BkgTo")==std::string::npos));
     if (printTxt) { t.DrawLatex(xPos, yPos-dy, txtLbl.c_str()); dy+=dYPos; }
   }
@@ -484,7 +543,11 @@ void printCandidateTextInfo(TPad& pad, const RooWorkspace& ws, const std::string
   if (cutDS) { t.DrawLatex(xPos, yPos-dy, formatCut(cutDS->getVal()).c_str()); dy+=dYPos; }
   const std::string& cutSel = (ws.obj("cutSelStr") ? dynamic_cast<RooStringVar*>(ws.obj("cutSelStr"))->getVal() : "");
   if (cutSel!="") { t.DrawLatex(xPos, yPos-dy, (formatCutLbl(cutSel)+" cut").c_str()); dy+=dYPos; }
-  if (ws.var("FAILED")) { t.DrawLatex(xPos, yPos-dy, "FIT FAILED"); dy+=dYPos; }
+  if (ws.var("FIT_FAILED")) {
+    const auto status = ws.var("FIT_FAILED")->getVal();
+    if (status==1) { t.DrawLatex(xPos, yPos-dy, "MINIMIZE FAILED"); dy+=dYPos; }
+    if (status==2) { t.DrawLatex(xPos, yPos-dy, "HESSE FAILED"); dy+=dYPos; }
+  }
   //
   // Display the number of events lost if the dataset was reduced before fitting
   const auto& dsEntries = ws.var(("numEntries_"+dsName).c_str());

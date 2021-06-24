@@ -38,6 +38,7 @@ public :
   virtual Long64_t     GetTreeEntries  (void) const { return ((fChain_ && fChain_->GetTree()) ? fChain_->GetTree()->GetEntriesFast() : -1); }
   virtual Int_t        GetTreeNumber   (void) const { return fCurrent_; }
   virtual void         Clear           (void);
+  static  void         GenerateDictionaries (void);
 
   // EVENT INFO GETTERS
   UInt_t    RunNb()                       { SetBranch("RunNb");                       return RunNb_;                      }
@@ -235,7 +236,7 @@ public :
   Bool_t    tightCand   (const UInt_t& iC, const std::string& type="") { return (tightMuon1(iC, type) && tightMuon2(iC, type));   }
   Bool_t    hybridCand  (const UInt_t& iC, const std::string& type="") { return (hybridMuon1(iC, type) && hybridMuon2(iC, type)); }
   Bool_t    softCand    (const UInt_t& iC, const std::string& type="") { return (softMuon1(iC, type) && softMuon2(iC, type));     }
-  Bool_t    trigCand    (const UInt_t& iT, const UInt_t& iC, const bool& OR=false) { if (trigMuon1().size()<=iT) { std::cout << "[ERROR] Trigger index1: "<<iT<<">"<<trigMuon1().size() << std::endl; return false; }; return (OR ? (trigMuon1()[iT][iC] || trigMuon2()[iT][iC]) : (trigMuon1()[iT][iC] && trigMuon2()[iT][iC])); }
+  Bool_t    trigCand    (const UInt_t& iT, const UInt_t& iC, const bool& OR=false) { if (trigMuon1().size()<=iT) { throw std::runtime_error(Form("[ERROR] Trigger index1: %d > %lu", iT, trigMuon1().size())); }; return (OR ? (trigMuon1()[iT][iC] || trigMuon2()[iT][iC]) : (trigMuon1()[iT][iC] && trigMuon2()[iT][iC])); }
   Double_t  phiAsym     (const UInt_t& iC);
   Int_t     GenIdx      (const Short_t& iC) { for (uint iGen=0; iGen<candSize_gen(); iGen++) { if (iC==RecIdx_gen()[iGen]) { return iGen; } }; return -1; }
 
@@ -247,7 +248,6 @@ public :
   virtual void      SetBranch       (const std::string&);
   virtual void      InitTree        (void);
   virtual Int_t     LoadEntry       (void) { return fChain_->GetEntry(entry_); }
-  virtual void      GenerateDictionaries (void);
 
   template <typename T> T GET(T* x) { return ( (x) ? *x : T() ); }
   

@@ -31,7 +31,7 @@ void plotParameters(
   for (const auto& trgTag : trgTags) {
     for (const auto& colTag : colTags) {
       for (const auto& objTag : objTags) {
-	if (!extractResultsTree(inputVar, workDirName, trgTag, colTag, objTag, dataTag, varTag)) { return; }
+	if (!extractResultsTree(inputVar, workDirName, trgTag, colTag, objTag, dataTag, varTag, false)) { return; }
       }
     }
   }
@@ -58,7 +58,7 @@ void plotParameters(
   //
   // Draw the plots
   const bool& isMC = (dataTag!="DATA");
-  drawResultsGraph(graphMap, outDir, isMC);
+  drawParametersGraph(graphMap, outDir, isMC);
   //
 };
 

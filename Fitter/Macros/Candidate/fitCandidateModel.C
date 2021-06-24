@@ -89,7 +89,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
       if (importID<0) { return false; }
       else if (importID==0) { doFit = false; }
     }
-    info.Var["numEntries"][dsName] = myws.at(chg).data(dsName.c_str())->sumEntries();
+    info.Var["numEntries"][dsName] = std::max(myws.at(chg).data(dsName.c_str())->sumEntries(), double(myws.at(chg).data(dsName.c_str())->numEntries()));
     if (info.Var.at("numEntries").at(dsName)<=0) { doFit = false; }
   }
   if (!doFit) { std::cout << "[ERROR] No entries to fit!" << std::endl; return false; }
@@ -125,7 +125,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
   for (const auto& chg : info.StrS.at("fitCharge")) { if (!buildCandidateModel(myws.at(chg), info, chg))  { return false; } }
 
   // Proceed to Fit and Save the results
-  std::string cha = info.Par.at("channel");
+  const auto& cha = info.Par.at("channel");
   for (const auto& col : info.StrS.at("fitSystem")) {
     for (const auto& chg : info.StrS.at("fitCharge")) {
       // Save the info in the workspace
@@ -139,7 +139,7 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
       //
       // Define output file name
       std::string fileName = "";
-      std::string outDir = outputDir;
+      std::string outDir = info.Par.at("outputDir");
       const auto& label = cha + chg + "_" + col;
       setFileName(fileName, outDir, label, info);
       std::string fitVar = ""; for (const auto& var : info.StrS.at("fitVarName")) { fitVar += var+"_"; };
@@ -193,35 +193,46 @@ bool fitCandidateModel( const RooWorkspaceMap_t& inputWorkspaces, // Workspace w
           if (pdfConstrains!=NULL && pdfConstrains->getSize()>0) {
             std::cout << "[INFO] Using constrain PDFs to fit " << pdfName << " on " << dsNameFit << std::endl;
             cmdList.push_back(RooFit::ExternalConstraints(*pdfConstrains));
-            fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+            fitFailed = fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit) > 0;
           }
           else {
             std::cout << "[INFO] Fitting " << pdfName << " on " << dsNameFit << std::endl;
-            fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+            fitFailed = fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit) > 0;
 	    if (fitFailed) {
 	      for (uint iTry=1; iTry<=opt; iTry++) {
 		cmdList[4] = RooFit::Strategy(opt-iTry);
-		fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit, "initialParameters");
+		fitFailed = fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit, "initialParameters") > 0;
 		if (!fitFailed) break;
 	      }
 	    }
-	    if (false && isData && !fitFailed && contain(fitVars, "Cand_Mass")) {
+	    if (info.Flag["doMinos"] && isData && !fitFailed && contain(fitVars, "Cand_Mass")) {
+	      const auto varS = getModelPar(myws.at(chg), pdfName, {"N_", "R_"});
               cmdList[3] = RooFit::Minos(true);
-              fitFailed = !fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+	      cmdList.push_back(RooFit::Minos(varS));
+               auto fitStatus = fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit);
+	      if (fitStatus!=0 && fitStatus!=3) { fitStatus = fitPDF(fitResult, myws.at(chg), cmdList, pdfName, dsNameFit, "initialParameters"); }
+	      fitFailed = fitStatus > 0;
 	    }
           }
           if (fitResult) {
 	    fitResult->SetTitle(fitResult->GetName());
-	    myws.at(chg).import(*fitResult, fitResult->GetName());
+	    if (myws.at(chg).import(*fitResult, fitResult->GetName())) { std::cout << "[ERROR] Fit result object was not imported!" << std::endl; return false; }
 	  }
           else { std::cout << "[ERROR] Fit Result returned by the PDF is NULL!" << std::endl; return false; }
 	  if (fitFailed) {
-	    for (uint iSt = 0; iSt < fitResult->numStatusHistory(); iSt++) {
-	      if (fitResult->statusCodeHistory(iSt)!=0) {
-		std::cout << "[ERROR] Fit failed in " << fitResult->statusLabelHistory(iSt) << " with status " << fitResult->statusCodeHistory(iSt) << " !" << std::endl; break;
-	      }
-	    }
-	    myws.at(chg).factory("FAILED[1.0]");
+	    const auto fitStatus = failStatus(fitResult);
+	    if (fitStatus>0) { myws.at(chg).factory(Form("FIT_FAILED[%d]", fitStatus)); }
+	  }
+	  // Compute NLL results for mass fits (for LLR test)
+	  if (contain(fitVars, "Cand_Mass")) {
+	    std::cout << "[INFO] Computing NLL for " << pdfName << " on " << dsNameFit << std::endl;
+	    const auto& pdf = myws.at(chg).pdf(pdfName.c_str());
+	    const auto& data = myws.at(chg).data(dsNameFit.c_str());
+	    std::vector<RooCmdArg> cmdList = {RooFit::Extended(true), RooFit::Optimize(false), RooFit::NumCPU(numCores, 1), RooFit::BatchMode(true)};
+	    RooLinkedList fitConf; auto cmdL = cmdList; for (auto& cmd : cmdL) { fitConf.Add(dynamic_cast<TObject*>(&cmd)); }
+	    auto nll = std::unique_ptr<RooAbsReal>(pdf->createNLL(*data, fitConf));
+	    if (!nll) { std::cout << "[ERROR] NLL was not created!" << std::endl; return false; }
+	    if (!myws.at(chg).factory(Form("NLL_%s[%.4f]", pdfName.c_str(), nll->getVal()))) { std::cout << "[ERROR] Failed to create NLL" << std::endl; return false; }
 	  }
         }
         else if ( myws.at(chg).obj(pdfName.c_str()) ) {
@@ -261,41 +272,20 @@ void defineFitParameterRange(GlobalInfo& info)
     double varMin = 100000000., varMax = -100000000.;
     double plotVarMin = 100000000., plotVarMax = -100000000.;
     if (var=="Cand_Mass") {
-      if (info.Flag.at("fitMC")) {
-	const auto& vars = (contain(info.StrS, "incObject_CandMass") ? StringSet_t({"CandMass"}) : info.StrS.at("fitVarName"));
-	for (const auto& var : vars) {
-	  for (const auto& obj : info.StrS.at("incObject_"+var)) {
-	    if (contain(MASS, obj)) {
-	      varMin = std::min(varMin, MASS.at(obj).at("Min"));
-	      varMax = std::max(varMax, MASS.at(obj).at("Max"));
-	    }
-	  }
-	}
+      const auto& vars = (contain(info.StrS, "incObject_CandMass") ? StringSet_t({"CandMass"}) : info.StrS.at("fitVarName"));
+      StringSet_t objS;
+      for (const auto& var : vars) {
+	for (const auto& obj : info.StrS.at("incObject_"+var)) { objS.insert(obj); }
       }
-      else {
-	std::vector<std::tuple<std::string, double, double>> objV =
-	  {
-	   {"D0",     1.75,   2.00},
-	   {"JPsi",   2.50,   3.50},
-	   {"Psi2S",  3.40,   4.20},
-	   {"Ups1S",  8.00,  10.50},
-	   {"Ups2S",  9.00,  11.00},
-	   {"Ups3S",  9.50,  14.00},
-	   {"Z",     70.00, 110.00}
-	  };
-        // Define the Candidate Mass range
-	for (const auto& o : objV) {
-	  const auto& name = std::get<0>(o);
-	  const auto& vMin = std::get<1>(o);
-	  const auto& vMax = std::get<2>(o);
-	  if (contain(info.Flag, "inc"+name) && info.Flag.at("inc"+name)) {
-	    varMin = std::min(varMin, vMin);
-	    varMax = std::max(varMax, vMax);
-	  }
-        }
-      }
+      const bool useLooseMassRange = info.Flag.at("fitMC") && info.Flag.at("fitCand_Mass");
+      const auto massRange = ANA::getMassRange(objS, useLooseMassRange);
+      varMin = massRange.first; varMax = massRange.second;
     }
     else if (var=="Cand_DLenErr") {
+      if (info.Flag.at("fit"+var)) {
+	varMin = 0.0;
+	varMax = 10.0;
+      }
       plotVarMin = 0.0;
       plotVarMax = 0.6;
     }
@@ -308,6 +298,8 @@ void defineFitParameterRange(GlobalInfo& info)
       plotVarMax =  8.0;
     }
     else if (var=="Cand_DLen") {
+      varMin = -30.0;
+      varMax = 100.0;
       plotVarMin = -6.0;
       plotVarMax =  8.0;
     }

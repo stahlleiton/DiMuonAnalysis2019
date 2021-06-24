@@ -48,7 +48,8 @@ void saveJSON(const std::map<int, std::set<int>>& lumiMap, const std::string& fN
   ofstream jsonFile;
   jsonFile.open(fName);
   if (jsonFile.is_open()) {
-    jsonFile << "{" << std::endl;;
+    jsonFile << "{" << std::endl;
+    bool last = false;
     for (const auto& ele : lumiMap) {
       jsonFile << "  \"" << ele.first << "\": [";
       bool first = true;
@@ -56,7 +57,8 @@ void saveJSON(const std::map<int, std::set<int>>& lumiMap, const std::string& fN
         if (i==ele.second.begin() || *i>*std::prev(i)+1) { jsonFile << (first ? "[" : ", [") << *i << ", "; if (first) { first=false; } }
         if (i==std::prev(ele.second.end()) || *i<*std::next(i)-1) { jsonFile << *i << "]"; }
       }
-      jsonFile << "]" << std::endl;
+      if (ele.first==std::prev(lumiMap.end())->first) { last = true; }
+      jsonFile << (last ? "]" : "],") << std::endl;
     }
     jsonFile << "}";
     jsonFile.close();

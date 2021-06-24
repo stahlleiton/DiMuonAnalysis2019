@@ -28,18 +28,6 @@ typedef std::pair<                  int , std::string         > IntPair_t;
 typedef std::unordered_map< std::string , IntPair_t           > IntPairMap_t;
 
 
-const DoubleDiMap_t MASS = {
-  { "D0",    {{"Val",  1.865}, {"Width", 0.10}, {"PID",    421.0}, {"Min",  1.7}, {"Max",   2.1}} },
-  { "LambC", {{"Val",  2.286}, {"Width", 0.10}, {"PID",   4122.0}, {"Min",  2.0}, {"Max",   2.5}} },
-  { "JPsi",  {{"Val",  3.096}, {"Width", 0.03}, {"PID",    443.0}, {"Min",  2.2}, {"Max",   3.9}} },
-  { "Psi2S", {{"Val",  3.686}, {"Width", 0.05}, {"PID", 100443.0}, {"Min",  2.6}, {"Max",   4.7}} },
-  { "Ups1S", {{"Val",  9.460}, {"Width", 0.10}, {"PID",    553.0}, {"Min",  6.1}, {"Max",  10.6}} },
-  { "Ups2S", {{"Val", 10.023}, {"Width", 0.10}, {"PID", 100553.0}, {"Min",  8.9}, {"Max",  11.1}} },
-  { "Ups3S", {{"Val", 10.355}, {"Width", 0.10}, {"PID", 200553.0}, {"Min",  9.4}, {"Max",  14.9}} },
-  { "Z",     {{"Val", 91.188}, {"Width", 3.00}, {"PID",     23.0}, {"Min", 60.0}, {"Max", 120.0}} },
-};
-
-
 // Fit Model
 enum class Model 
 {
@@ -48,7 +36,9 @@ enum class Model
     CutAndCount,
     Template,
     SPLOT,
-    FULL,
+    KEYS,
+    DSKEYS,
+    HIST,
     // Candidate Mass Models
     SingleGaussian,
     DoubleGaussian,
@@ -101,6 +91,7 @@ enum class Model
     //
     Size
 };
+
 const IntPairMap_t ModelDictionary =
 {
   {"InvalidModel",                {int(Model::InvalidModel), "INV"}},
@@ -108,7 +99,9 @@ const IntPairMap_t ModelDictionary =
   {"CutAndCount",                 {int(Model::CutAndCount), "CutNCnt"}},
   {"Template",                    {int(Model::Template), "Temp"}},
   {"SPLOT",                       {int(Model::SPLOT), "SPLOT"}},
-  {"FULL",                        {int(Model::FULL), "FULL"}},
+  {"KEYS",                        {int(Model::KEYS), "KEYS"}},
+  {"DSKEYS",                      {int(Model::DSKEYS), "DSKEYS"}},
+  {"HIST",                        {int(Model::HIST), "HIST"}},
   // Candidate Mass Models
   {"SingleGaussian",              {int(Model::SingleGaussian), "SngGaus"}},
   {"DoubleGaussian",              {int(Model::DoubleGaussian), "DobGaus"}},

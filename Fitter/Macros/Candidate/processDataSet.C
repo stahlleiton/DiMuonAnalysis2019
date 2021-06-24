@@ -58,49 +58,18 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   //
   std::cout << "[INFO] Proceed to skim the input datasets" << std::endl;
   //
-  // Define the invariant mass range
-  double minM = 999999., maxM = -999999.;
+  // Define the objecst needed for the mass range
+  StringSet_t objS;
   for (const auto& v : info.StrS.at("incVarName")) {
     for (const auto& o : info.StrS.at("allObject_"+v)) {
       if (o.rfind("Bkg",0)==0) continue;
-      auto obj = o; if (!contain(MASS, obj)) { for (const auto& m : MASS) { if (obj.rfind(m.first,0)==0) { obj = m.first; break; } } }
-      if (contain(MASS, obj)) {
-	if (minM > MASS.at(obj).at("Min")) { minM = MASS.at(obj).at("Min"); }
-	if (maxM < MASS.at(obj).at("Max")) { maxM = MASS.at(obj).at("Max"); }
-      }
+      auto obj = o; if (!contain(ANA::MASS, obj)) { for (const auto& m : ANA::MASS) { if (obj.rfind(m.first,0)==0) { obj = m.first; break; } } }
+      objS.insert(obj);
     }
   }
-  const std::string massCut = Form("(Cand_Mass > %g && Cand_Mass < %g)", minM, maxM);
-  //
-  // Define the muon kinematic cuts
-  std::string PsiAcceptance_2015_Tight = "((abs(Dau1_Eta)<1.2 && Dau1_Pt>=3.5) || (1.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.1 && Dau1_Pt>=5.77-1.89*abs(Dau1_Eta)) || (2.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.8))";
-  PsiAcceptance_2015_Tight += " && ((abs(Dau2_Eta)<1.2 && Dau2_Pt>=3.5) || (1.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.1 && Dau2_Pt>=5.77-1.89*abs(Dau2_Eta)) || (2.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.8))";
-  std::string PsiAcceptance_2015_Loose = "((abs(Dau1_Eta)<1.0 && Dau1_Pt>=3.3) || (1.0<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.2 && Dau1_Pt*cosh(Dau1_Eta)>=2.9) || (2.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=0.8))";
-  PsiAcceptance_2015_Loose += " && ((abs(Dau2_Eta)<1.0 && Dau2_Pt>=3.3) || (1.0<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.2 && Dau2_Pt*cosh(Dau2_Eta)>=2.9) || (2.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=0.8))";
-  //
-  std::string PsiAcceptance_2016_Tight = "((abs(Dau1_Eta)<1.2 && Dau1_Pt>=3.3) || (1.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.1 && Dau1_Pt>=3.93-1.11*abs(Dau1_Eta)) || (2.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.3))";
-  PsiAcceptance_2016_Tight += " && ((abs(Dau2_Eta)<1.2 && Dau2_Pt>=3.3) || (1.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.1 && Dau2_Pt>=3.93-1.11*abs(Dau2_Eta)) || (2.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.3))";
-  std::string PsiAcceptance_2016_Loose = "((abs(Dau1_Eta)<1.0 && Dau1_Pt>=3.3) || (1.0<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.5 && Dau1_Pt>=7.5-4.2*abs(Dau1_Eta)) || (1.5<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=max(2.4-0.8*abs(Dau1_Eta), 0.8)))";
-  PsiAcceptance_2016_Loose += " && ((abs(Dau2_Eta)<1.0 && Dau2_Pt>=3.3) || (1.0<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.5 && Dau2_Pt>=7.5-4.2*abs(Dau2_Eta)) || (1.5<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=max(2.4-0.8*abs(Dau2_Eta), 0.8)))";
-  //
-  std::string PsiAcceptance_2018_Tight = "((abs(Dau1_Eta)<1.2 && Dau1_Pt>=3.5) || (1.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.1 && Dau1_Pt>=5.47-1.89*abs(Dau1_Eta)) || (2.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.5))";
-  PsiAcceptance_2018_Tight += " && ((abs(Dau2_Eta)<1.2 && Dau2_Pt>=3.5) || (1.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.1 && Dau2_Pt>=5.47-1.89*abs(Dau2_Eta)) || (2.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.5))";
-  std::string PsiAcceptance_2018_Loose = "((abs(Dau1_Eta)<0.3 && Dau1_Pt>=3.4) || (0.3<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.1 && Dau1_Pt>=3.3) || (1.1<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.4 && Dau1_Pt>=7.7-4.0*abs(Dau1_Eta)) || (1.4<=abs(Dau1_Eta) && abs(Dau1_Eta)<1.55 && Dau1_Pt>=2.1) || (1.55<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.2 && Dau1_Pt>=4.25-1.39*abs(Dau1_Eta)) || (2.2<=abs(Dau1_Eta) && abs(Dau1_Eta)<2.4 && Dau1_Pt>=1.2))";
-  PsiAcceptance_2018_Loose += " && ((abs(Dau2_Eta)<0.3 && Dau2_Pt>=3.4) || (0.3<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.1 && Dau2_Pt>=3.3) || (1.1<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.4 && Dau2_Pt>=7.7-4.0*abs(Dau2_Eta)) || (1.4<=abs(Dau2_Eta) && abs(Dau2_Eta)<1.55 && Dau2_Pt>=2.1) || (1.55<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.2 && Dau2_Pt>=4.25-1.39*abs(Dau2_Eta)) || (2.2<=abs(Dau2_Eta) && abs(Dau2_Eta)<2.4 && Dau2_Pt>=1.2))";
-  //
-  const std::string& UpsAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=3.4) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=3.4))";
-  const std::string& ZAcceptance = "((abs(Dau1_Eta)<2.4 && Dau1_Pt>=15.0) && (abs(Dau2_Eta)<2.4 && Dau2_Pt>=15.0))";
-  //
-  // Define the muon quality cuts
-  const std::string& useSoftMuons = "(int(Cand_Qual) & 1)";
-  const std::string& useHybridMuons = "(int(Cand_Qual) & 2)";
-  const std::string& useTightMuons = "(int(Cand_Qual) & 4)";
-  //
-  // Define the dimuon cuts
-  const std::string& vtxPCut = "(Cand_VtxP > 0.0001)";
   //
   // Variables to delete
-  const std::vector<std::string> delVarNames = {"Cand_Qual", "Cand_Trig", "Cand_VtxP", "Dau1_Eta", "Dau1_Pt", "Dau2_Eta", "Dau2_Pt", "Cand_DLen2D", "Cand_DLenErr2D", "Cand_DLenGen2D"};
+  const std::vector<std::string> delVarNames = {"Cand_Qual", "Cand_Trig", "Cand_VtxP", "Dau1_Eta", "Dau1_Pt", "Dau2_Eta", "Dau2_Pt", "Cand_DLen2D", "Cand_DLenErr2D", "Cand_DLenGen2D", "Event_Sel"};
   //
   // Loop over the RooDataSets
   for (auto& ws : workspaces) {
@@ -110,36 +79,10 @@ bool skimDataSet(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
     if (ws.first.rfind("_")!=std::string::npos) { evtCol = ws.first.substr(ws.first.rfind("_")+1); }
     if (evtCol=="") { std::cout << "[ERROR] Could not determine the collision system in the sample" << std::endl; return false; }
     //
-    // Define the trigger selection
-    std::vector<uint> trigIdx;
-    const std::string& PD = (ws.second.obj("PD") ? dynamic_cast<RooStringVar*>(ws.second.obj("PD"))->getVal() : "");
-    if (PD=="") { std::cout << "[ERROR] PD was not defined!" << std::endl; return false; }
-    if      (evtCol=="PP13Y18" ) { trigIdx = pp::R13TeV::Y2018::HLTBitsFromPD(PD); }
-    else if (evtCol=="PP5Y17"  ) { trigIdx = pp::R5TeV::Y2017::HLTBitsFromPD(PD); }
-    else if (evtCol=="PbPb5Y18") { trigIdx = PbPb::R5TeV::Y2018::HLTBitsFromPD(PD); }
-    else if (evtCol=="PbPb5Y15") { trigIdx = PbPb::R5TeV::Y2015::HLTBitsFromPD(PD); }
-    else if (evtCol.rfind("8Y16")!=std::string::npos) { trigIdx = pPb::R8TeV::Y2016::HLTBitsFromPD(PD); }
-    if (trigIdx.empty()) { std::cout << "[ERROR] Could not determine the trigger index for the " << PD << " sample" << std::endl; return false; }
-    std::string trigCut = "";
-    for (const auto& idx : trigIdx) { trigCut += Form("(int(Cand_Trig) & %.0f) ||", std::pow(2.0, idx)); }
-    trigCut = trigCut.substr(0, trigCut.rfind(" ||")); if (trigIdx.size()>1) { trigCut = "("+trigCut+")"; }
-    //
     // Determine the cut string
-    std::string cutStr = massCut+" && "+trigCut+" && "+vtxPCut;
-    if (minM > 30.) { cutStr += " && "+ZAcceptance+" && "+useTightMuons; }
-    else if (minM > 5.0) {
-      const bool isSoft = (PD=="UPC" || evtCol.find("5Y1")==std::string::npos);
-      cutStr += " && "+UpsAcceptance+" && "+(isSoft ? useSoftMuons : useHybridMuons);
-    }
-    else {
-      const bool isSoft = (PD=="UPC" || evtCol.find("5Y1")==std::string::npos);
-      const bool isAcc2018 = (evtCol.rfind("Y18")!=std::string::npos || evtCol.rfind("Y17")!=std::string::npos);
-      const bool isAcc2016 = !isAcc2018 && (evtCol.rfind("Y16")!=std::string::npos);
-      const bool isAcc2015 = !isAcc2016 && (evtCol.rfind("Y15")!=std::string::npos);
-      const bool useTightCut = (PD.rfind("MUON")!=std::string::npos);
-      cutStr += " && "+(isAcc2018 ? (useTightCut ? PsiAcceptance_2018_Tight : PsiAcceptance_2018_Loose) : (isAcc2016 ? (useTightCut ? PsiAcceptance_2016_Tight : PsiAcceptance_2016_Loose) : (isAcc2015 ? (useTightCut ? PsiAcceptance_2015_Tight : PsiAcceptance_2015_Loose) : "")));
-      cutStr += " && "+(isSoft ? useSoftMuons : useHybridMuons);
-    }
+    const std::string& PD = (ws.second.obj("PD") ? dynamic_cast<RooStringVar*>(ws.second.obj("PD"))->getVal() : "");
+    auto cutStr = ANA::analysisSelection("Dau1_Pt", "Dau1_Eta", "Dau2_Pt", "Dau2_Eta", "Cand_Mass", "Cand_VtxP", "Cand_Trig", "Cand_Qual", PD, evtCol, objS, true);
+    if (ws.second.var("Event_Sel")) { cutStr += " && (int(Event_Sel) & 1)"; }
     //
     // Skim the datasets
     RooWorkspace tmpWS; copyWorkspace(tmpWS, ws.second, "", false);
@@ -293,9 +236,9 @@ bool processDecayLength(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   for (const auto& v : info.StrS.at("incVarName")) {
     for (const auto& o : info.StrS.at("allObject_"+v)) {
       if (o.rfind("Bkg",0)==0 || o=="DLenRes") continue;
-      auto obj = o; if (!contain(MASS, obj)) { for (const auto& m : MASS) { if (obj.rfind(m.first,0)==0) { obj = m.first; break; } } }
-      if (contain(MASS, obj)) {
-	if (minM > MASS.at(obj).at("Min")) { ref = obj; minM = MASS.at(obj).at("Min"); }
+      auto obj = o; if (!contain(ANA::MASS, obj)) { for (const auto& m : ANA::MASS) { if (obj.rfind(m.first,0)==0) { obj = m.first; break; } } }
+      if (contain(ANA::MASS, obj)) {
+	if (minM > ANA::MASS.at(obj).at("Loose_Min")) { ref = obj; minM = ANA::MASS.at(obj).at("Loose_Min"); }
       }
     }
   }
@@ -307,8 +250,8 @@ bool processDecayLength(RooWorkspaceMap_t& workspaces, const GlobalInfo& info)
   //
   std::cout << "[INFO] Proceed to process the decay length information using " << ref << " mass" << std::endl;
   //
-  const auto& massRef   = MASS.at(ref).at("Val");
-  const auto& massJPsi  = MASS.at("JPsi").at("Val");
+  const auto& massRef   = ANA::MASS.at(ref).at("Val");
+  const auto& massJPsi  = ANA::MASS.at("JPsi").at("Val");
   const auto& massRatio = massRef/massJPsi;
   //
   // Loop over the RooWorkspaces

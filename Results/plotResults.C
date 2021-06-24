@@ -2,53 +2,70 @@
 #define plotResults_C
 
 // Auxiliary Headers
-#include "Utilities/resultsUtils.h"
-#include "extractResultsTree.C"
-#include "processResultsTree.C"
-#include "extractPromptResults.C"
+#include "Utilities2/ResultManager.h"
 
 
 void plotResults(
-		 const std::string& workDirName = "Nominal",
-		 const StringVector_t& trgTags  = {"DIMUON", "MINBIAS", "HIGHMULT"}, //"MUON", "DIMUON", "DIMUONPERI", "HIGHMULT", "HIGHMULT2", "MINBIAS", "UPC"
-		 const StringVector_t& colTags  = {"PA8Y16"}, //"PP5Y17", "PP13Y18", "pPb8Y16", "Pbp8Y16", "PA8Y16", "PbPb5Y15"
-		 const StringVector_t& objTags  = {"JPsi"}, //"Bkg", "JPsi", "Psi2S", "Ups1S", "Ups2S", "Ups3S", "Z", "D0"
-		 const std::string&    dataTag  = "DATA",
-		 const std::string&    varTag   = "Cand_Mass"
+		 const std::string& anaDirName = "Psi2S/Charmonia_Fit",
+		 const std::string& nominalWorkDirName = "Nominal",
+		 const bool& doSyst = true,
+		 const StringVector_t& colTags  = {"PA8Y16"} //"PP5Y17", "PP13Y18", "pPb8Y16", "Pbp8Y16", "PA8Y16", "PbPb5Y15"
                )
 {
   //
-  // Get the Result
-  std::map<std::string , VarBinTriMap_t> inputVar;
-  const auto& workDirNames = std::vector<std::string>({"Nominal_JJ_Prompt", "Nominal_JJ_NonPrompt"});
-  for (const auto& ws : workDirNames) {
-    if (ws!="") {
-      std::cout << "[INFO] Adding results for: " << ws << std::endl;
-      for (const auto& trgTag : trgTags) {
-	for (const auto& colTag : colTags) {
-	  for (const auto& objTag : objTags) {
-	    if (!extractResultsTree(inputVar[ws], ws, trgTag, colTag, objTag, dataTag, varTag)) { return; }
-	  }
-	}
-      }
-    }
-  }
+  // Define the Systematic varations
+  // Variation   Method: +1: Fully Uncorrelated , +2: Fully Correlated
+  // Propagation Method: -1: Fully Uncorrelated , -2: Fully Correlated
+  WSDirMap_t workDirInfo = {
+			    { "Nominal" ,
+			      {
+			       { "Nominal"  , { { nominalWorkDirName } , {{"Rap", 1}, {"Obj", 1}} } }
+			      }
+			    },
+			    // Background
+			    { "Background" ,
+			      {
+			       { "Shape" , { { "Systematic_Background_ExpCheb" } , {{"Rap", 1}, {"Obj", 2}} } },
+			       { "LLR"   , { { "Systematic_Background_LLR25",
+					       "Systematic_Background_LLR100"  } , {{"Rap", 1}, {"Obj", 2}} } }
+			      }
+			    },
+			    // Decay Length cut
+			    { "DecayCut" ,
+			      {
+			       { "Threshold" , { { "Systematic_DecayCut_85",
+						   "Systematic_DecayCut_95"    } , {{"Rap", 2}, {"Obj", 2}} } },
+			       { "Function"  , { { "Systematic_DecayCut_Alt"   } , {{"Rap", 2}, {"Obj", 2}} } },
+			       { "Object"    , { { "Systematic_DecayCut_Psi2S" } , {{"Rap", 2}, {"Obj", 2}} } }
+			      }
+			    }
+  };
   //
-  // Extract the prompt and non-prompt results
-  if (!extractPromptResults(inputVar["Nominal"], inputVar.at("Nominal_JJ_Prompt"), inputVar.at("Nominal_JJ_NonPrompt"))) { return; }
+  const std::string    dataTag  = "DATA";
+  const StringVector_t trgTags  = {"DIMUON", "MINBIAS"};
+  const StringVector_t objTags  = {"JPsi"};
+  const std::string&   varTag   = "Cand_Mass";
+  const StringVector_t dLenDirs = {"Prompt_Cut", "NonPrompt_Cut"};
+  const StringVector_t subDirs = {"Inclusive", "NTrack_15_250", "NTrack_15_50", "NTrack_120_250", "NTrack_50_80", "NTrack_80_120"};
   //
-  // Process the results
-  BinSextaMap_t var;
-  if (!processResults(var, inputVar.at("Nominal"))) { return; }
+  // initialize the result manager
+  ResultManager result;
+  result.setFitDir(anaDirName, subDirs, dLenDirs);
+  result.setFitInfo(dataTag, varTag, trgTags, colTags, objTags);
+  result.setWorkDirInfo(workDirInfo);
+  result.doSyst(doSyst);
   //
-  // Define the bins
-  BinCont_t binMap;
-  defineBins(binMap, var);
+  // extract and process the information
+  if (!result.extractAndProcess()) { return; }
+  //
+  // define binning
+  result.defineBins();
+  //
+  // plot results
+  result.plot();
+  /*
   //
   // Create the main plots
-  GraphSextaMap_t graphMap;
-  iniResultsGraph(graphMap, binMap, var);
-  fillResultsGraph(graphMap, binMap, var);
   //
   // Define the output directory
   const std::string& CWD = getcwd(NULL, 0);
@@ -56,11 +73,12 @@ void plotResults(
   auto tTag = trgTags[0]; for (uint i=1; i<trgTags.size(); i++) { tTag += "_"+trgTags[i]; }
   auto cTag = colTags[0]; for (uint i=1; i<colTags.size(); i++) { cTag += "_"+colTags[i]; }
   auto oTag = objTags[0]; for (uint i=1; i<objTags.size(); i++) { oTag += "_"+objTags[i]; }
-  const std::string& outDir = CWD + "/Output/Results/" + workDirName+"/" + vTag+"/" + dataTag+"_"+tTag+"/" + oTag+"/" + cTag;
+  const std::string& outDir = CWD + "/Output/Results/" + nominalWorkDirName+"/" + vTag+"/" + dataTag+"_"+tTag+"/" + oTag+"/" + cTag;
   //
   // Draw the plots
   const bool& isMC = (dataTag!="DATA");
   drawResultsGraph(graphMap, outDir, isMC);
+  */
   //
 };
 

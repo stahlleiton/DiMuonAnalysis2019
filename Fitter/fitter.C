@@ -4,6 +4,8 @@
 #include "TROOT.h"
 #include "TSystem.h"
 #include "TSystemDirectory.h"
+#include "ROOT/TProcessExecutor.hxx"
+#include "ROOT/TSeq.hxx"
 
 #include "RooFit.h"
 #include "RooMsgService.h"
@@ -25,9 +27,9 @@
 
 
 bool checkSettings     ( const GlobalInfo& userInput );
-bool parseFile         ( StringMapVector_t& data , const std::string& fileName );
+bool parseFile         ( StringMapVector_t& data , const std::string& fileName , const bool& addHeader=false );
 bool parseString       ( std::vector<double>& output , std::string input );
-bool iniWorkEnv        ( StringVectorMap_t& DIR , const std::string& workDirName );
+bool iniWorkEnv        ( StringVectorMap_t& DIR , const std::string& workDirName , const bool& doMakeDir=true );
 void iniFileDir        ( StringMapVector_t& inputFitDirs , StringDiMapVector_t& inputInitialFilesDirs ,
                          const StringMap_t& inputFitDir  , const StringDiMap_t& inputInitialFilesDir , const StringVectorMap_t& DIR );
 bool loadIniParameters ( std::vector< GlobalInfoVectorMap_t >& infoMapVectors , GlobalInfo& userInput ,
@@ -61,6 +63,7 @@ void fitter(
             const std::bitset<5> fitVar   = 3,            // Fit Variable: (bit 0 (1)) Cand_Mass    , (bit 1 (2)) Cand_DLen ,
 	                                                  //               (bit 2 (4)) Cand_DLenErr , (bit 3 (8)) Cand_DLenRes , (bit 4 (16)) Cand_DLenGen
             const unsigned int   numCores = 32,           // Number of cores used for fitting
+	    const unsigned int    nCores  = 8,            // Number of cores used for bin processing
             const std::string    analysis = "CandToMuMu", // Type of analysis: CandToXX (Mass Resonance)
             // Select the drawing options
             const bool setLogScale  = true                // Draw plot with log scale
@@ -87,7 +90,16 @@ void fitter(
   //
   const std::string& CWD = getcwd(NULL, 0);
   GlobalInfo userInput;
-  bool saveAll = true;
+  bool saveAll = false;
+  //
+  userInput.Flag["doMinos"] = false;
+  for (const auto& wsLbl : StringVector_t({"Nominal", "Nominal_LLR50"})) {
+    if (workDirName.find(wsLbl, workDirName.length()-wsLbl.length())!=std::string::npos ||
+	workDirName.find(wsLbl+"/")!=std::string::npos) {
+      userInput.Flag.at("doMinos") = true;
+      break;
+    }
+  }
   //
   // Set all the Parameters from the input settings
   //
@@ -280,7 +292,13 @@ void fitter(
     -> The local workspace used for each fit.
   */
 
-  for(uint j = 0; j < infoMapVectors.size(); j++) {
+  // prepare multi-threading
+  ROOT::EnableThreadSafety();
+  ROOT::EnableImplicitMT();
+  ROOT::TProcessExecutor mpe(nCores);
+  TH1::AddDirectory(kFALSE);
+
+  for(size_t j = 0; j < infoMapVectors.size(); j++) {
     const auto& index = (DIR.at("output").size()>1 ? j+1 : j); // First entry is always the main output directory
     const auto& outputDir = DIR.at("output")[index];
     //
@@ -288,33 +306,43 @@ void fitter(
       const auto& dsCol = DSTAG.substr(DSTAG.rfind("_")+1);
       //
       if (contain(iniWorkspaces, DSTAG)) {
-        //
-        for (const auto& infoMapVector : infoMapVectors[j]) {
-          const auto& col = infoMapVector.first;
-          if (userInput.Flag.at("fit"+col) && (col==dsCol)) {
-            //
-            for (const auto& infoVector : infoMapVector.second) {
-              //
-	      if (DSTAG.rfind("DATA_",0)==0 && DSTAG.rfind("DATA_"+infoVector.Par.at("PD")+"_DIMUON")==std::string::npos) continue;
-	      if (DSTAG.rfind("MC_",0)==0 && DSTAG.rfind("Cat"+infoVector.Par.at("MC_CAT")+"_DIMUON")==std::string::npos) continue;
-	      if (DSTAG.rfind("MC_",0)==0 && userInput.Par.at("PD")!=infoVector.Par.at("PD")) continue;
-	      std::cout << "[INFO] Proceed to fit the dataset " << DSTAG << std::endl;
-              if (userInput.Par.at("analysis").rfind("CandTo", 0)==0) {
-                if (!fitCandidateModel( iniWorkspaces, infoVector,
-					userInput,
-					// Select the type of datasets to fit
-					outputDir,
-					DSTAG,
-					saveAll
-					)
-                    ) { return; }
-              }
-            }
-          }
-        }
+	for (const auto& infoMapVector : infoMapVectors[j]) {
+	  const auto& col = infoMapVector.first;
+	  if (userInput.Flag.at("fit"+col) && (col==dsCol)) {
+	    // run multithreading
+	    auto processFits = [&](int idx)
+	    {
+	      //
+	      const size_t size = std::ceil(float(infoMapVector.second.size())/float(nCores));
+	      std::cout << "[INFO] Processing " << size << " of " << infoMapVector.second.size() << " bins in core " << idx << " from " << nCores << " cores" << std::endl;
+	      //
+	      for (size_t i = idx*(size); i < (idx+1)*size; i++) {
+		if (i>=infoMapVector.second.size()) break;
+		const auto& infoVector = infoMapVector.second[i];
+		//
+		if (DSTAG.rfind("DATA_",0)==0 && DSTAG.rfind("DATA_"+infoVector.Par.at("PD")+"_DIMUON")==std::string::npos) continue;
+		if (DSTAG.rfind("MC_",0)==0 && DSTAG.rfind("Cat"+infoVector.Par.at("MC_CAT")+"_DIMUON")==std::string::npos) continue;
+		if (DSTAG.rfind("MC_",0)==0 && userInput.Par.at("PD")!=infoVector.Par.at("PD")) continue;
+		std::cout << "[INFO] Proceed to fit the dataset " << DSTAG << std::endl;
+		if (userInput.Par.at("analysis").rfind("CandTo", 0)==0) {
+		  if (!fitCandidateModel( iniWorkspaces, infoVector,
+					  userInput,
+					  // Select the type of datasets to fit
+					  outputDir,
+					  DSTAG,
+					  saveAll
+					  )
+		      ) { return 0; }
+		}
+	      }
+	      return 0;
+	    };
+	    mpe.Map(processFits, ROOT::TSeqI(nCores));
+	  }
+	}
       }
       else {
-        std::cout << "[ERROR] The workspace for " << DSTAG << " was not found!" << std::endl; return;
+	std::cout << "[ERROR] The workspace for " << DSTAG << " was not found!" << std::endl; return;
       }
     }
   }
@@ -380,6 +408,7 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
   //
   gSystem->Exec(Form("rm -f %s/cpp/AutoDict*", getcwd(NULL,0)));
   userInput.StrS["DSTAG"].clear(); // Array to store the different tags in the list of trees
+  //
   for (const auto& fileCollection : inputFileCollection) {
     // Get the file tag which has the following format: DSTAG_PD_CHAN_COLL , i.e. DATA_MUON_DIMUON_pPb5Y16
     const auto& FILETAG = fileCollection.first;
@@ -412,7 +441,7 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
     if (FILETAG.rfind("MC", 0)==0) {
       bool keep = false;
       if (userInput.Flag.at("fitMC")) {
-        for (const auto& obj : userInput.StrS.at("fitObject")) {
+	for (const auto& obj : userInput.StrS.at("fitObject")) {
 	  for (const auto& cat : userInput.StrS.at("allMC_CAT")) {
 	    if (userInput.Flag.at("fit"+obj) && FILETAG.find(obj+cat+"_")!=std::string::npos) { keep = true; fitDS = true; break; }
 	  }
@@ -430,24 +459,24 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
 	}
       }
       if (keep) {
-        dir = userInput.Par.at("localDSDir");
-        if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_MC")!="" && (existDir(userInput.Par.at("extDSDir_MC"))==true)) { dir = userInput.Par.at("extDSDir_MC"); }
+	dir = userInput.Par.at("localDSDir");
+	if (userInput.Flag.at("useExtDS") && userInput.Par.at("extDSDir_MC")!="" && (existDir(userInput.Par.at("extDSDir_MC"))==true)) { dir = userInput.Par.at("extDSDir_MC"); }
       }
     }
     if (dir!="") {
       StringVectorMap_t fileInfo;
       fileInfo["inputFileNames"].clear(); fileInfo["treeTags"].clear();
       for (const auto& row : fileCollection.second) {
-        fileInfo.at("inputFileNames").push_back(row[0]);
-        if (row.size()>1) { fileInfo.at("treeTags").push_back(row[1]); }
+	fileInfo.at("inputFileNames").push_back(row[0]);
+	if (row.size()>1) { fileInfo.at("treeTags").push_back(row[1]); }
       }
       fileInfo["outputFileDir"].push_back(dir);
       fileInfo["outputFileDir"].push_back(DIR.at("dataset")[0]);
       if (FILETAG.rfind("_PA8Y16")==std::string::npos) { fileInfo["dsNames"].push_back(FILETAG); }
       else {
-        std::string NAMETAG = FILETAG; NAMETAG.erase(NAMETAG.rfind("_"), 10);
-        if (userInput.Flag.at("dopPb8Y16")) fileInfo["dsNames"].push_back(NAMETAG+"_pPb8Y16");
-        if (userInput.Flag.at("doPbp8Y16")) fileInfo["dsNames"].push_back(NAMETAG+"_Pbp8Y16");
+	std::string NAMETAG = FILETAG; NAMETAG.erase(NAMETAG.rfind("_"), 10);
+	if (userInput.Flag.at("dopPb8Y16")) fileInfo["dsNames"].push_back(NAMETAG+"_pPb8Y16");
+	if (userInput.Flag.at("doPbp8Y16")) fileInfo["dsNames"].push_back(NAMETAG+"_Pbp8Y16");
       }
       // Produce the output datasets
       if(!tree2DataSet(workspace, fileInfo, userInput)){ return false; }
@@ -455,6 +484,7 @@ bool createDataSets(RooWorkspaceMap_t& workspace, GlobalInfo& userInput, const S
       else { userInput.Flag.at("fit"+col) = false; }
     }
   }
+  //
   if (workspace.empty()) {
     std::cout << "[ERROR] No tree files were found matching the user's input settings!" << std::endl; return false;
   }
@@ -545,6 +575,7 @@ bool setParameters(GlobalInfo& info, GlobalInfo& userInfo, const StringMap_t& ro
   for (const auto& col : row) {
     bool found = false;
     const auto& colName = col.first;
+    if (colName=="ROW") continue;
     for (const auto& var : info.Var) {
       const auto& varName = var.first;
       if (colName==varName) {
@@ -704,16 +735,17 @@ bool parseString(std::vector<double>& output, std::string input)
 };
 
 
-bool parseFile(StringMapVector_t& data, const std::string& fileName)
+bool parseFile(StringMapVector_t& data, const std::string& fileName, const bool& addHeader)
 {
   StringDiVector_t content, tmp;
   if(!readFile(tmp, fileName, -1, 1)){ return false; }
   StringVector_t header = tmp.at(0);
   if (header.empty()) { std::cout << "[ERROR] The header is null!" << std::endl; return false; }
-  if(!readFile(content, fileName, header.size())){ return false; }
+  if(!readFile(content, fileName, header.size()-1)){ return false; }
   for (const auto& rHeader : header) {
     if (rHeader=="") { std::cout << "[ERROR] A column has no label!" << std::endl; return false; }
   }
+  if (addHeader) { data.push_back({{"HEADER", content.at(0).at(header.size()-1)}}); }
   content.erase(content.begin()); // remove header
   for (const auto& row : content) {
     StringMap_t col;
@@ -776,6 +808,7 @@ bool readFile(StringDiVector_t& content, const std::string& fileName, const int&
 	cols.push_back(col);
 	i++;
       }
+      cols.push_back(nCol>0 ? line : "ROW");
       content.push_back(cols);
     }
   }
@@ -786,7 +819,7 @@ bool readFile(StringDiVector_t& content, const std::string& fileName, const int&
 };
 
 
-bool iniWorkEnv(StringVectorMap_t& DIR, const std::string& workDirName)
+bool iniWorkEnv(StringVectorMap_t& DIR, const std::string& workDirName, const bool& doMakeDir)
 {
   std::cout << "[INFO] Initializing the work enviroment" << std::endl;
   DIR["main"].push_back(gSystem->ExpandPathName(gSystem->pwd()));
@@ -804,15 +837,15 @@ bool iniWorkEnv(StringVectorMap_t& DIR, const std::string& workDirName)
     findSubDir(DIR.at("input"), DIR.at("input")[0]);
   }
   DIR["output"].push_back(DIR.at("main")[0] + "/Output/" + workDirName + "/");
-  makeDir(DIR.at("output")[0]);
+  if (doMakeDir) { makeDir(DIR.at("output")[0]); }
   for(uint j = 1; j < DIR.at("input").size(); j++) {
     auto subdir = DIR.at("input")[j];
     stringReplace(subdir, "/Input/", "/Output/");
-    makeDir(subdir);
+    if (doMakeDir) { makeDir(subdir); }
     DIR.at("output").push_back(subdir);
   }
   DIR["dataset"].push_back(DIR.at("main")[0] + "/DataSet/");
-  makeDir(DIR.at("dataset")[0]);
+  if (doMakeDir) { makeDir(DIR.at("dataset")[0]); }
   return true;
 };
 

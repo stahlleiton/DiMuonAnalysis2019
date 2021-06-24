@@ -495,14 +495,26 @@ double getErrorLo(const RooRealVar& var)
 };
 
 
+bool isParAtLimit(std::pair<double, double>& limit, const RooRealVar& var)
+{
+  limit = {-99., -99.};
+  bool isAtLimit = false;
+  if ((std::abs(var.getValV() - var.getMin())/getErrorLo(var)) <= 3.0) {
+    limit.first = var.getValV() - 3.1*getErrorLo(var);
+    isAtLimit = true;
+  }
+  if ((std::abs(var.getValV() - var.getMax())/getErrorHi(var)) <= 3.0) {
+    limit.second = var.getValV() + 3.1*getErrorHi(var);
+    isAtLimit = true;
+  }
+  return isAtLimit;
+};
+
+
 bool isParAtLimit(const RooRealVar& var)
 {
-  if (
-      ( (std::abs(var.getValV() - var.getMin())/getErrorLo(var)) <= 3.0 ) ||
-      ( (std::abs(var.getValV() - var.getMax())/getErrorHi(var)) <= 3.0 )
-      )
-    { return true; }
-  return false;
+  std::pair<double, double> limit;
+  return isParAtLimit(limit, var);
 };
 
 
@@ -600,7 +612,8 @@ std::string formatCutLbl(const std::string& cut)
 {
   if (cut=="") return cut;
   auto str = cut;
-  stringReplace(str, "Prompt", "Pr");
+  const auto& cutL = StringMap_t({{"Prompt", "Pr"}, {"Decay", "Dec"}, {"[0.","["}, {"Psi2S", "#psi(2S)"}});
+  for (const auto& cL : cutL) { stringReplace(str, cL.first, cL.second); }
   return str;
 };
 
